@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>CEU VAULT</title>
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link href="formStyle.css" rel="stylesheet" type="text/css">
+  <link href="styles.css" rel="stylesheet" type="text/css">
+  <script defer src="../scripts/cursor.js"></script>
+  <link rel="stylesheet" href="../cursor.css">
+
+  <style>
+    .neon-glow {
+      color: red;
+      text-shadow: 0 0 0px red, 0 0 0px red, 0 0 0px red, 0 0 1px red, 0 0 4px red, 0 0 6px red, 0 0 0px red;
+    }
+  </style>
+
+</head>
+
+<body class="body">
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const emailInput = document.getElementById('email');
+      const errorMessage = document.getElementById('error-message');
+      const pattern = /^[a-zA-Z0-9._%+-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/;
+
+      function validateEmail() {
+        if (!pattern.test(emailInput.value)) {
+          errorMessage.style.display = 'block';
+        } else {
+          errorMessage.style.display = 'none';
+        }
+      }
+
+      emailInput.addEventListener('input', validateEmail);
+      emailInput.addEventListener('blur', validateEmail);
+    });
+  </script>
+
+  <svg xmlns="http://www.w3.org/2000/svg" class="goo" version="1.1" width="100%"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></svg>
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"></feGaussianBlur>
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 35 -15" result="goo">
+      </feColorMatrix>
+      <feComposite in="SourceGraphic" in2="goo" operator="atop"></feComposite>
+    </filter>
+  </defs>
+  </svg>
+  <div id="cursor"></div>
+
+  <div class="navbar-no-shadow">
+    <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
+      role="banner" class="navbar-no-shadow-container w-nav">
+      <div class="container-regular">
+        <div class="navbar-wrapper">
+          <div class="w-layout-hflex ceuvaultbrandflex">
+            <a href="#" class="ceulogo w-nav-brand"><img width="85" loading="lazy" alt="" src="../images/CEU-Logo.png"
+                class="image"></a>
+            <div class="w-layout-hflex ceuvaultbrandtext">
+              <h4 class="heading">Centro Escolar University</h4>
+              <h1 class="heading-2">CEU <span class="text-span">VAULT</span></h1>
+              <h5 class="heading-3">MALOLOS TLTS FACILITY</h5>
+            </div>
+          </div>
+          <nav role="navigation" class="nav-menu-wrapper w-nav-menu">
+            <ul role="list" class="nav-menu w-list-unstyled">
+              <li class="list-item-2">
+                <a href="../Home Page/index.html" class="button-primary w-button">home</a>
+              </li>
+              <li class="list-item">
+                <a href="index.html" class="button-primary w-button">Borrow</a>
+              </li>
+              <li class="list-item-3">
+                <a href="../Inventory/index.html" class="button-primary w-button">inventory</a>
+              </li>
+            </ul>
+          </nav>
+          <div class="menu-button w-nav-button">
+            <div class="icon w-icon-nav-menu"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <section class="section-3">
+    <div class="div-block-6 fade-section">
+      <h1 class="heading-4">REQUISITIONER FORM</h1>
+    </div>
+
+    <div id="reqFormGrid" class="w-layout-layout quick-stack wf-layout-layout fade-section">
+      <div id="reqFormGrid" class="w-layout-cell cell">
+        <h1 class="heading-7">GUIDELINE ONE</h1>
+      </div>
+      <div class="w-layout-cell cell-2">
+        <p class="paragraph">The borrower should accomplish the Application of TLTD/TLT Section Equipment, Materials,
+          Services Form. He/she shall be immediately informed by the staff member if and when his/her request is not
+          approved of by the Head/Coordinator either due to conflict in the schedule or the requested equipment is
+          unavailable on the specified date requested for use.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="containerDaniel">
+    <div class="container ">
+      <header class="header" style="color: white;">
+        <h1 id="title" class="text-center">Application for TLTD/TLT Section Equipment, Materials, Services Form</h1>
+
+      </header>
+
+      <form id="main-form" style="color: white;">
+        <div class="form-group ">
+          <label id="first-name-label" for="first-name">First Name</label>
+          <input type="text" name="first-name" id="first-name" class="form-control" placeholder="Enter your first name"
+            required="">
+        </div>
+
+        <div class="form-group">
+          <label id="last-name-label" for="last-name">Last Name</label>
+          <input type="text" name="last-name" id="last-name" class="form-control" placeholder="Enter your last name"
+            required="">
+        </div>
+
+        <div class="form-group">
+          <label id="department-label" for="department-name">Department Name</label>
+          <input type="text" name="department-name" id="department-name" class="form-control"
+            placeholder="School / College / Department / Office." required="">
+        </div>
+
+        <div class="form-group">
+          <label id="email-label" for="email">Email</label>
+          <input type="email" name="email" id="email" class="form-control" placeholder="Enter your email"
+            pattern="^[a-zA-Z0-9._%+\-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$" required">
+        </div>
+        <div id="error-message" class="neon-glow" style="display: none; margin: auto; margin: -16px auto 16px 8px">
+          Invalid email domain. Please use an email ending with
+          @mls.ceu.edu.ph or @ceu.edu.ph.</div>
+
+        <div class="form-group">
+          <p>Nature of Service/s Requested:</p>
+          <select id="dropdown" name="natureOfService" class="form-control" required="">
+            <option disabled="" selected="" value="">None</option>
+            <option value="Academic">Academic</option>
+            <option value="Co-Curricular">Co-Curricular / Extra-curricular</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div id="additional-field-container"></div> <!-- Container for the additional text field -->
+
+        <div class="form-group">
+          <p>Purpose:</p>
+          <select id="purposeDropdown" name="purpose" class="form-control" required="">
+            <option disabled="" selected="" value="">None</option>
+            <option value="Presentation">Presentation/Lecture</option>
+            <option value="Viewing">Viewing</option>
+            <option value="otherPurpose">Other Purposes</option>
+          </select>
+        </div>
+
+        <div id="purpose-field-container"></div> <!-- Container for the additional text field -->
+
+        <div class="form-group">
+          <label id="venue-label" for="venue">Room/Venue</label>
+          <input type="text" name="venue" id="venue" class="form-control"
+            placeholder="Where would you use the equipment?" required="">
+        </div>
+
+        <div class="form-group" style="color: white;">
+          <p>Available equipment categories?</p>
+
+          <!-- DLP/LCD Projector -->
+          <label>
+            <input name="prefer" value="DLP-LCD Projector" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'DLP-LCD-Projector-startDate', 'DLP-LCD-Projector-endDate'); toggleQuantityInput(this, 'DLP-LCD-Projector-quantity'); setDefaultValues(this, 'DLP-LCD Projector')">DLP/LCD
+            Projector
+          </label>
+          <div id="DLP-LCD-Projector-startDate" style="display:none; margin-left: 10px;">
+            <label for="DLP-LCD-Projector-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="DLP-LCD-Projector-startDateTime" name="DLP-LCD-Projector-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="DLP-LCD-Projector-endDate" style="display:none; margin-left: 10px;">
+            <label for="DLP-LCD-Projector-endDateTime">End Date and Time:
+              <input type="datetime-local" id="DLP-LCD-Projector-endDateTime" name="DLP-LCD-Projector-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="DLP-LCD-Projector-quantity" style="display:none; margin-left: 10px;">
+            <label for="DLP-LCD-Projector-quantityInput">Quantity:
+              <input type="number" id="DLP-LCD-Projector-quantityInput" name="DLP-LCD-Projector-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Laptop -->
+          <label>
+            <input name="prefer" value="Laptop" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Laptop-startDate', 'Laptop-endDate'); toggleQuantityInput(this, 'Laptop-quantity'); setDefaultValues(this, 'Laptop')">Laptop
+          </label>
+          <div id="Laptop-startDate" style="display:none; margin-left: 10px;">
+            <label for="Laptop-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Laptop-startDateTime" name="Laptop-startDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="Laptop-endDate" style="display:none; margin-left: 10px;">
+            <label for="Laptop-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Laptop-endDateTime" name="Laptop-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="Laptop-quantity" style="display:none; margin-left: 10px;">
+            <label for="Laptop-quantityInput">Quantity:
+              <input type="number" id="Laptop-quantityInput" name="Laptop-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Overhead Projector -->
+          <label>
+            <input name="prefer" value="Overhead Projector" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Overhead-Projector-startDate', 'Overhead-Projector-endDate'); toggleQuantityInput(this, 'Overhead-Projector-quantity'); setDefaultValues(this, 'Overhead-Projector')">Overhead
+            Projector
+          </label>
+          <div id="Overhead-Projector-startDate" style="display:none; margin-left: 10px;">
+            <label for="Overhead-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Overhead-Projector-startDateTime" name="Overhead-Projector-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Overhead-Projector-endDate" style="display:none; margin-left: 10px;">
+            <label for="Overhead-Projector-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Overhead-Projector-endDateTime" name="Overhead-Projector-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Overhead-Projector-quantity" style="display:none; margin-left: 10px;">
+            <label for="Overhead-Projector-quantityInput">Quantity:
+              <input type="number" id="Overhead-Projector-quantityInput" name="Overhead-Projector-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- VHS Player -->
+          <label>
+            <input name="prefer" value="VHS Player" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'VHS-Player-startDate', 'VHS-Player-endDate'); toggleQuantityInput(this, 'VHS-Player-quantity'); setDefaultValues(this, 'VHS-Player')">VHS
+            Player
+          </label>
+          <div id="VHS-Player-startDate" style="display:none; margin-left: 10px;">
+            <label for="startDateTime">Start Date and Time:
+              <input type="datetime-local" id="VHS-Player-startDateTime" name="VHS-Player-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="VHS-Player-endDate" style="display:none; margin-left: 10px;">
+            <label for="VHS-Player-endDateTime">End Date and Time:
+              <input type="datetime-local" id="VHS-Player-endDateTime" name="VHS-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="VHS-Player-quantity" style="display:none; margin-left: 10px;">
+            <label for="VHS-Player-quantityInput">Quantity:
+              <input type="number" id="VHS-Player-quantityInput" name="VHS-Player-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Sound System -->
+          <label>
+            <input name="prefer" value="Sound System" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Sound-System-startDate', 'Sound-System-endDate'); toggleQuantityInput(this, 'Sound-System-quantity'); setDefaultValues(this, 'Sound-System')">Sound
+            System
+          </label>
+          <div id="Sound-System-startDate" style="display:none; margin-left: 10px;">
+            <label for="Sound-System-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Sound-System-startDateTime" name="Sound-System-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Sound-System-endDate" style="display:none; margin-left: 10px;">
+            <label for="Sound-System-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Sound-System-endDateTime" name="Sound-System-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Sound-System-quantity" style="display:none; margin-left: 10px;">
+            <label for="Sound-System-quantityInput">Quantity:
+              <input type="number" id="Sound-System-quantityInput" name="Sound-System-quantity" style="color: #000;"
+                min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- DVD Player -->
+          <label>
+            <input name="prefer" value="DVD Player" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'DVD-Player-startDate', 'DVD-Player-endDate'); toggleQuantityInput(this, 'DVD-Player-quantity'); setDefaultValues(this, 'DVD-Player')">DVD
+            Player
+          </label>
+          <div id="DVD-Player-startDate" style="display:none; margin-left: 10px;">
+            <label for="DVD-Player-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="DVD-Player-startDateTime" name="DVD-Player-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="DVD-Player-endDate" style="display:none; margin-left: 10px;">
+            <label for="DVD-Player-endDateTime">End Date and Time:
+              <input type="datetime-local" id="DVD-Player-endDateTime" name="DVD-Player-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="DVD-Player-quantity" style="display:none; margin-left: 10px;">
+            <label for="DVD-Player-quantityInput">Quantity:
+              <input type="number" id="DVD-Player-quantityInput" name="DVD-Player-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- VCD Player -->
+          <label>
+            <input name="prefer" value="VCD Player" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'VCD-Player-startDate', 'VCD-Player-endDate'); toggleQuantityInput(this, 'VCD-Player-quantity'); setDefaultValues(this, 'VCD-Player')">VCD
+            Player
+          </label>
+          <div id="VCD-Player-startDate" style="display:none; margin-left: 10px;">
+            <label for="VCD-Player-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="VCD-Player-startDateTime" name="VCD-Player-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="VCD-Player-endDate" style="display:none; margin-left: 10px;">
+            <label for="VCD-Player-endDateTime">End Date and Time:
+              <input type="datetime-local" id="VCD-Player-endDateTime" name="VCD-Player-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="VCD-Player-quantity" style="display:none; margin-left: 10px;">
+            <label for="VCD-Player-quantityInput">Quantity:
+              <input type="number" id="VCD-Player-quantityInput" name="VCD-Player-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- CD Cassette Player -->
+          <label>
+            <input name="prefer" value="CD Cassette Player" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'CD-Cassette-Player-startDate', 'CD-Cassette-Player-endDate'); toggleQuantityInput(this, 'CD-Cassette-Player-quantity'); setDefaultValues(this, 'CD-Cassette-Player')">CD
+            Cassette Player
+          </label>
+          <div id="CD-Cassette-Player-startDate" style="display:none; margin-left: 10px;">
+            <label for="CD-Cassette-Player-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="CD-Cassette-Player-startDateTime" name="CD-Cassette-Player-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="CD-Cassette-Player-endDate" style="display:none; margin-left: 10px;">
+            <label for="CD-Cassette-Player-endDateTime">End Date and Time:
+              <input type="datetime-local" id="CD-Cassette-Player-endDateTime" name="CD-Cassette-Player-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="CD-Cassette-Player-quantity" style="display:none; margin-left: 10px;">
+            <label for="CD-Cassette-Player-quantityInput">Quantity:
+              <input type="number" id="CD-Cassette-Player-quantityInput" name="CD-Cassette-Player-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Karaoke -->
+          <label>
+            <input name="prefer" value="Karaoke" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Karaoke-startDate', 'Karaoke-endDate'); toggleQuantityInput(this, 'Karaoke-quantity'); setDefaultValues(this, 'Karaoke')">Karaoke
+          </label>
+          <div id="Karaoke-startDate" style="display:none; margin-left: 10px;">
+            <label for="Karaoke-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Karaoke-startDateTime" name="Karaoke-startDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="Karaoke-endDate" style="display:none; margin-left: 10px;">
+            <label for="Karaoke-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Karaoke-endDateTime" name="Karaoke-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="Karaoke-quantity" style="display:none; margin-left: 10px;">
+            <label for="Karaoke-quantityInput">Quantity:
+              <input type="number" id="Karaoke-quantityInput" name="Karaoke-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Microphone -->
+          <label>
+            <input name="prefer" value="Microphone" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Microphone-startDate', 'Microphone-endDate'); toggleQuantityInput(this, 'Microphone-quantity'); setDefaultValues(this, 'Microphone')">Microphone
+          </label>
+          <div id="Microphone-startDate" style="display:none; margin-left: 10px;">
+            <label for="Microphone-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Microphone-startDateTime" name="Microphone-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Microphone-endDate" style="display:none; margin-left: 10px;">
+            <label for="Microphone-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Microphone-endDateTime" name="Microphone-endDate" style="color: #000;">
+            </label>
+          </div>
+          <div id="Microphone-quantity" style="display:none; margin-left: 10px;">
+            <label for="Microphone-quantityInput">Quantity:
+              <input type="number" id="Microphone-quantityInput" name="Microphone-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Document Camera -->
+          <label>
+            <input name="prefer" value="Document Camera" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Document-Camera-startDate', 'Document-Camera-endDate'); toggleQuantityInput(this, 'Document-Camera-quantity'); setDefaultValues(this, 'Document-Camera')">Document
+            Camera
+          </label>
+          <div id="Document-Camera-startDate" style="display:none; margin-left: 10px;">
+            <label for="Document-Camera-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Document-Camera-startDateTime" name="Document-Camera-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Document-Camera-endDate" style="display:none; margin-left: 10px;">
+            <label for="Document-Camera-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Document-Camera-endDateTime" name="Document-Camera-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Document-Camera-quantity" style="display:none; margin-left: 10px;">
+            <label for="Document-Camera-quantityInput">Quantity:
+              <input type="number" id="Document-Camera-quantityInput" name="Document-Camera-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Digital Video Camera -->
+          <label>
+            <input name="prefer" value="Digital Video Camera" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Digital-Video-Camera-startDate', 'Digital-Video-Camera-endDate'); toggleQuantityInput(this, 'Digital-Video-Camera-quantity'); setDefaultValues(this, 'Digital-Video-Camera')">Digital
+            Video Camera
+          </label>
+          <div id="Digital-Video-Camera-startDate" style="display:none; margin-left: 10px;">
+            <label for="Digital-Video-Camera-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Digital-Video-Camera-startDateTime" name="Digital-Video-Camera-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Digital-Video-Camera-endDate" style="display:none; margin-left: 10px;">
+            <label for="Digital-Video-Camera-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Digital-Video-Camera-endDateTime" name="Digital-Video-Camera-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Digital-Video-Camera-quantity" style="display:none; margin-left: 10px;">
+            <label for="Digital-Video-Camera-quantityInput">Quantity:
+              <input type="number" id="Digital-Video-Camera-quantityInput" name="Digital-Video-Camera-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Digital Still Camera -->
+          <label>
+            <input name="prefer" value="Digital Still Camera" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Digital-Still-Camera-startDate', 'Digital-Still-Camera-endDate'); toggleQuantityInput(this, 'Digital-Still-Camera-quantity'); setDefaultValues(this, 'Digital-Still-Camera')">Digital
+            Still Camera
+          </label>
+          <div id="Digital-Still-Camera-startDate" style="display:none; margin-left: 10px;">
+            <label for="Digital-Still-Camera-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Digital-Still-Camera-startDateTime" name="Digital-Still-Camera-startDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Digital-Still-Camera-endDate" style="display:none; margin-left: 10px;">
+            <label for="Digital-Still-Camera-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Digital-Still-Camera-endDateTime" name="Digital-Still-Camera-endDate"
+                style="color: #000;">
+            </label>
+          </div>
+          <div id="Digital-Still-Camera-quantity" style="display:none; margin-left: 10px;">
+            <label for="Digital-Still-Camera-quantityInput">Quantity:
+              <input type="number" id="Digital-Still-Camera-quantityInput" name="Digital-Still-Camera-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+
+          <!-- Instructional Materials-->
+          <label>
+            <input name="prefer" value="Instructional Materials" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Instructional-Materials-startDate', 'Instructional-Materials-endDate', 'Instructional-Materials-text'); toggleQuantityInput(this, 'Instructional-Materials-quantity'); setDefaultValues(this, 'Instructional-Materials')">Instructional
+            Materials
+          </label>
+          <div id="Instructional-Materials-startDate" style="display:none; margin-left: 10px;">
+            <label for="Instructional-Materials-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Instructional-Materials-startDateTime"
+                name="Instructional-Materials-startDate" style="color: #000;"></label>
+          </div>
+          <div id="Instructional-Materials-endDate" style="display:none; margin-left: 10px;">
+            <label for="Instructional-Materials-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Instructional-Materials-endDateTime"
+                name="Instructional-Materials-endDate" style="color: #000;"></label>
+          </div>
+          <div id="Instructional-Materials-quantity" style="display:none; margin-left: 10px;">
+            <label for="quantityInput">Quantity:
+              <input type="number" id="Instructional-Materials-quantityInput" name="Instructional-Materials-quantity"
+                style="color: #000;" min="1" placeholder="How many?">
+            </label>
+          </div>
+          <!-- Placeholder for dynamically added text field -->
+          <div id="Instructional-Materials-text-container" style="margin-left: 10px;"></div>
+
+          <!-- Others -->
+          <label>
+            <input name="prefer" value="Others" type="checkbox" class="input-checkbox"
+              onchange="toggleDateInput(this, 'Others-startDate', 'Others-endDate', 'Others-text'); toggleQuantityInput(this, 'Others-quantity') ; setDefaultValues(this, 'Others')">Others
+          </label>
+          <div id="Others-startDate" style="display:none; margin-left: 10px;">
+            <label for="Others-startDateTime">Start Date and Time:
+              <input type="datetime-local" id="Others-startDateTime" name="Others-startDate"
+                style="color: #000;"></label>
+          </div>
+          <div id="Others-endDate" style="display:none; margin-left: 10px;">
+            <label for="Others-endDateTime">End Date and Time:
+              <input type="datetime-local" id="Others-endDateTime" name="Others-endDate" style="color: #000;"></label>
+          </div>
+          <div id="Others-quantity" style="display:none; margin-left: 10px;">
+            <label for="Others-quantityInput">Quantity:
+              <input type="number" id="Others-quantityInput" name="Others-quantity" style="color: #000;" min="1"
+                placeholder="How many?">
+            </label>
+          </div>
+          <!-- Placeholder for dynamically added text field -->
+          <div id="Others-text-container" style="margin-left: 10px;"></div>
+        </div>
+
+        <script>
+          function toggleDateInput(checkbox, dateInputId) {
+            var dateInputDiv = document.getElementById(dateInputId);
+            if (checkbox.checked) {
+              dateInputDiv.style.display = "block";  // Show date-time input
+            } else {
+              dateInputDiv.style.display = "none";   // Hide date-time input
+            }
+          }
+
+          function toggleDateInput(checkbox, startDateId, endDateId) {
+            var startDateDiv = document.getElementById(startDateId);
+            var endDateDiv = document.getElementById(endDateId);
+            if (checkbox.checked) {
+              startDateDiv.style.display = 'block';
+              endDateDiv.style.display = 'block';
+            } else {
+              startDateDiv.style.display = 'none';
+              endDateDiv.style.display = 'none';
+            }
+          }
+
+          function toggleQuantityInput(checkbox, quantityId) {
+            var quantityDiv = document.getElementById(quantityId);
+            if (checkbox.checked) {
+              quantityDiv.style.display = 'block';
+            } else {
+              quantityDiv.style.display = 'none';
+            }
+          }
+
+          function toggleQuantityInput(checkbox, quantityInputId) {
+            var quantityInputDiv = document.getElementById(quantityInputId);
+            if (checkbox.checked) {
+              quantityInputDiv.style.display = "block";  // Show quantity input
+            } else {
+              quantityInputDiv.style.display = "none";   // Hide quantity input
+            }
+          }
+        </script>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="terms-checkbox" class="input-checkbox"> I agree to
+            the Terms and Conditions
+          </label>
+        </div>
+
+        <div id="terms-popup" class="popup-container">
+          <div class="popup-content" style="color: #000;">
+            <h2>Terms and Conditions</h2>
+            <p>
+              By using this form, you agree to the following terms and conditions:
+            </p>
+            <p>
+              I acknowledge receipt of and responsibility for item/s listed above which I promise to return on the
+              specified date and time.
+            </p>
+            <p>
+              I agree to the imposed fine per hour for each material/equipment not returned on due time.
+            </p>
+            <p>
+              I also understand that I am accountable for any loss and/or damage of the item/s I borrowed. I promise to
+              abide by all these policies and certify that personal data stated herein are correct.
+            </p>
+            <button id="agree-button" class="popup-button" type="button">Agree</button>
+            <button id="close-button" class="popup-button" type="button">Close</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <button type="submit" id="submit" class="submit-button">
+            Submit
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </section>
+
+  <section class="section-4">
+    <p class="paragraph-2">‍<strong class="bold-text-4">CEU Vault Malolos<br>‍</strong>© 2024 Copyright <a
+        href="https://www.ceu.edu.ph/" class="link"><strong class="bold-text-2">Centro Escolar University
+        </strong></a><strong class="bold-text-3">, Teaching, Learning, and Technology Section <br></strong>Km. 44,
+      Macarthur Highway, City of Malolos (Capital), Bulacan, City of Malolos (Capital), Bulacan<br></p>
+  </section>
+  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=66e266eb815840690d1652d0"
+    type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+    crossorigin="anonymous"></script>
+  <script src="../scripts/script.js" type="text/javascript"></script>
+  <script src="formFunctions.js" type="text/javascript"></script>
+</body>
+
+</html>
+
+<script>
+  // Function to set default values for dynamic inputs
+  function setDefaultValues(checkbox, category) {
+    if (checkbox.checked) {
+      const formattedCategory = category.replace(/ /g, '-'); // Format category for ID
+
+      const startDateTimeInput = document.querySelector(`#${formattedCategory}-startDateTime`);
+      const endDateTimeInput = document.querySelector(`#${formattedCategory}-endDateTime`);
+      const quantityInput = document.querySelector(`#${formattedCategory}-quantity input[type="number"]`);
+
+      if (startDateTimeInput && endDateTimeInput && quantityInput) {
+        const now = new Date();
+        const startDateTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour in advance
+        const endDateTime = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hours in advance
+
+        const formattedStartDateTime = startDateTime.toISOString().slice(0, 16);
+        const formattedEndDateTime = endDateTime.toISOString().slice(0, 16);
+
+        startDateTimeInput.value = formattedStartDateTime;
+        endDateTimeInput.value = formattedEndDateTime;
+        quantityInput.value = 1;
+      }
+    }
+  }
+
+  // Function to toggle date inputs visibility
+  function toggleDateInput(checkbox, startDateId, endDateId) {
+    const startDateElement = document.getElementById(startDateId);
+    const endDateElement = document.getElementById(endDateId);
+    if (checkbox.checked) {
+      startDateElement.style.display = 'block';
+      endDateElement.style.display = 'block';
+    } else {
+      startDateElement.style.display = 'none';
+      endDateElement.style.display = 'none';
+    }
+  }
+
+  // Function to toggle quantity input visibility
+  function toggleQuantityInput(checkbox, quantityId) {
+    const quantityElement = document.getElementById(quantityId);
+    if (checkbox.checked) {
+      quantityElement.style.display = 'block';
+    } else {
+      quantityElement.style.display = 'none';
+    }
+  }
+
+
+
+  // Handles form submission
+  function handleSubmit(event) {
+    event.preventDefault(); // Prevent default form submission
+
+    // Check if the terms checkbox is checked
+    const termsCheckbox = document.getElementById('terms-checkbox');
+    if (!termsCheckbox.checked) {
+      alert('You must agree to the terms and conditions before submitting the form.');
+      return;
+    }
+
+    console.log('Form submission handler called'); // Debugging log
+
+    // Gather form data from the main form
+    const formData = new FormData(document.getElementById('main-form'));
+
+    // Initialize JSON object
+    const jsonData = {
+      firstName: formData.get('first-name'),
+      lastName: formData.get('last-name'),
+      departmentName: formData.get('department-name'),
+      email: formData.get('email'),
+      natureOfService: formData.get('natureOfService'),
+      purpose: formData.get('purpose'),
+      venue: formData.get('venue'),
+      equipmentCategories: []
+    };
+
+    // Function to format time to hh:mm:ss
+    function formatTimeToHHMMSS(date) {
+      const d = new Date(date);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const seconds = String(d.getSeconds()).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    // Collect checked equipment categories and their requested dates, times, and quantities
+    const equipmentCategories = document.querySelectorAll('.input-checkbox');
+    equipmentCategories.forEach(checkbox => {
+      // Skip the checkbox with the ID 'terms-checkbox'
+      if (checkbox.id === 'terms-checkbox') {
+        return;
+      }
+
+      if (checkbox.checked) {
+        const category = checkbox.value;
+        const formattedCategory = category.replace(/ /g, '-'); // Format category for ID
+
+        // Get the corresponding date and time inputs for the checked category
+        const startDateTimeInput = document.querySelector(`#${formattedCategory}-startDateTime`);
+        const endDateTimeInput = document.querySelector(`#${formattedCategory}-endDateTime`);
+        const quantityInput = document.querySelector(`#${formattedCategory}-quantity input[type="number"]`);
+
+        const startDateTime = startDateTimeInput ? startDateTimeInput.value : '';
+        const endDateTime = endDateTimeInput ? endDateTimeInput.value : '';
+        const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 0;
+
+        // Split the datetime-local value into date and time
+        const [dateRequested, timeRequested] = startDateTime.split('T');
+
+        // Convert date to YYYY-MM-DD format
+        const formattedDateRequested = dateRequested ? new Date(dateRequested).toISOString().split('T')[0] : '';
+
+        // Format time to hh:mm:ss
+        const formattedTimeRequested = timeRequested ? formatTimeToHHMMSS(startDateTime) : '';
+
+        // Log for debugging
+        console.log(`Category: ${category}, Date Requested: ${formattedDateRequested}, Time Requested: ${formattedTimeRequested}, Quantity: ${quantity}`);
+
+        // Add category, date, time, and quantity to jsonData
+        jsonData.equipmentCategories.push({
+          category: category,
+          quantity: quantity,
+          dateRequested: formattedDateRequested,
+          timeRequested: formattedTimeRequested
+        });
+      }
+    });
+
+    // Convert JSON object to string
+    const jsonString = JSON.stringify(jsonData, null, 2);
+
+    // Log or send the JSON data
+    console.log(jsonString);
+
+    // Send JSON data to the API endpoint
+    fetch('http://localhost:8000/equipments/insert-details', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: jsonString,
+      credentials: 'include' // Include cookies in the request
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.successful) {
+          alert('Form submitted successfully!');
+          document.getElementById('main-form').reset(); // Reset form after successful submission
+          resetDynamicInputs(); // Reset dynamic inputs to their original state
+          window.location.href = '../otp/index.html'; // Redirect to OTP form
+        } else {
+          alert(`Error: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while submitting the form.');
+      });
+  }
+
+  // Function to reset dynamic inputs to their original hidden state
+  function resetDynamicInputs() {
+    const dynamicInputs = document.querySelectorAll('[id$="-startDate"], [id$="-endDate"], [id$="-quantity"]');
+    dynamicInputs.forEach(input => {
+      input.style.display = 'none';
+    });
+  }
+
+  // Ensure the handleSubmit function is only attached once
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('main-form');
+    if (form) {
+      console.log('Attaching form submit handler'); // Debugging log
+      form.removeEventListener('submit', handleSubmit); // Remove any existing listener
+      form.addEventListener('submit', handleSubmit); // Attach the new listener
+    }
+  });
+</script>

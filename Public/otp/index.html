@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        .otp-input {
+            width: 92%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .success {
+            color: green;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>OTP Verification</h2>
+        <div id="message" class="error" style="display: none;"></div>
+        <form id="otpForm">
+            <input type="text" id="otp-input" class="otp-input" placeholder="Enter OTP" required>
+            <button type="submit" class="btn">Verify OTP</button>
+        </form>
+    </div>
+
+    <script>
+      function verifyOTP(event) {
+        event.preventDefault();
+
+        const otp = document.getElementById('otp-input').value;
+
+        fetch('http://localhost:8000/equipments/verify-otp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ otp }),
+          credentials: 'include' // Include cookies in the request
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.successful) {
+              alert('OTP verified successfully!');
+              window.location.href = '../success/index.html'; // Redirect to success page
+            } else {
+              alert(`Error: ${data.message}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while verifying the OTP.');
+          });
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const otpForm = document.getElementById('otpForm');
+        if (otpForm) {
+          otpForm.addEventListener('submit', verifyOTP);
+        }
+      });
+    </script>
+</body>
+</html>
