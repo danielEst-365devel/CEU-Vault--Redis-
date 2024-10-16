@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const db = require('../models/connection_db'); // Import the database connection
+const { db } = require('../models/connection_db'); // Import the database connection
 const redisClient = require('../redisClient');
 
 // Set up Nodemailer with Gmail SMTP
@@ -57,10 +57,9 @@ const submitForm = async (req, res, next) => {
     const otpCode = generateOTP(); // Generate your OTP code here
     const sessionID = req.sessionID; // Assuming sessionID is available in the request
 
-    // Store OTP and form data in Redis
-    const formData = JSON.stringify({ firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories });
-    await redisClient.set(`otp:${sessionID}`, otpCode, { EX: 600 }); // Set OTP code with 10 minutes expiration
-    await redisClient.set(`formData:${sessionID}`, formData, { EX: 600 }); // Set form data with 10 minutes expiration
+    // Store OTP and form data in session
+    req.session.otp = otpCode;
+    req.session.formData = { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories };
 
     // Send OTP email
     await sendEmail(email, otpCode);
@@ -68,7 +67,8 @@ const submitForm = async (req, res, next) => {
     return res.status(200).json({
       successful: true,
       message: "Form submitted successfully. OTP sent to your email. Please verify to proceed.",
-      sessionID: sessionID // Optionally return sessionID if needed on frontend
+      sessionID: sessionID, // Optionally return sessionID if needed on frontend,
+      formData: req.session.formData // Optionally return form data if needed on frontend
     });
   } catch (error) {
     console.error("Error sending OTP or storing session:", error);
@@ -92,61 +92,110 @@ const generateOTP = (length = 6) => {
 // OTP verification and form submission
 const verifyOTP = async (req, res) => {
   const { otp } = req.body;
-  const sessionID = req.sessionID; // Assuming sessionID is available in the request
 
-  console.log('Session Data:', req.session); // Log session data
+  console.log('Session ID:', req.sessionID);
+  console.log('Session Data:', req.session);
 
   try {
-    // Retrieve OTP from Redis
-    const storedOTP = await redisClient.get(`otp:${sessionID}`);
+    // Retrieve OTP and form data from session
+    const storedOTP = req.session.otp;
+    const formData = req.session.formData;
+
     if (otp !== storedOTP) {
+      console.log('Session ID:', req.sessionID);
+      console.log('Session Data:', req.session);
       return res.status(400).json({
         successful: false,
         message: "Invalid OTP. Please try again."
       });
     }
 
-    // Retrieve form data from Redis
-    const formDataJSON = await redisClient.get(`formData:${sessionID}`);
-    if (!formDataJSON) {
+    if (!formData) {
       return res.status(400).json({
         successful: false,
         message: "Form data not found. Please resubmit the form."
       });
     }
 
-    const formData = JSON.parse(formDataJSON);
-
-    // Process the form data as needed
-    console.log('Form Data:', formData);
+    // Insert form data into the database
+    const result = await insertFormDataIntoDatabase(formData);
 
     // Respond with success
     return res.status(200).json({
       successful: true,
-      message: "OTP verified and form data retrieved successfully.",
+      message: "OTP verified and form data inserted successfully.",
       formData: formData // Optionally return form data if needed on frontend
     });
   } catch (error) {
-    console.error("Error verifying OTP or retrieving form data:", error);
+    console.error("Error verifying OTP or inserting form data:", error);
     return res.status(500).json({
       successful: false,
-      message: "Failed to verify OTP or retrieve form data. Please try again."
+      message: "Failed to verify OTP or insert form data. Please try again."
     });
   }
 };
 
+const getCategoryIDByName = async (categoryName) => {
+  const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = ?';
+  const [categoryRows] = await db.execute(categoryQuery, [categoryName]);
 
-const insertDetails = (req, res) => {
-    db.db.insert(req.body, (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-        res.status(200).json({ message: 'Details inserted successfully' });
-    });
+  if (categoryRows.length === 0) {
+    throw new Error(`Category name ${categoryName} not found in equipment_categories table.`);
+  }
+
+  return categoryRows[0].category_id;
 };
 
+
+const insertFormDataIntoDatabase = async (formData) => {
+  console.log('Inserting form data into the database:', formData);
+
+  try {
+    // Loop through each equipment category and insert a row for each
+    for (let item of formData.equipmentCategories) {
+      // Get the equipment_category_id based on the category_name
+      const equipmentCategoryId = await getCategoryIDByName(item.category);
+
+      const query = `
+        INSERT INTO requests (
+          email, first_name, last_name, department, nature_of_service, 
+          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const values = [
+        formData.email,
+        formData.firstName,
+        formData.lastName,
+        formData.departmentName,
+        formData.natureOfService,
+        formData.purpose,
+        formData.venue,
+        equipmentCategoryId, // Use the retrieved equipment_category_id
+        item.quantity, // Quantity requested for each category
+        item.dateRequested, // Requested date for the equipment
+        item.timeRequested // Requested time for the equipment
+      ];
+
+      // Add debugging logs to check for undefined values
+      console.log('Query:', query);
+      console.log('Values:', values);
+
+      // Check for undefined values and replace with null
+      const sanitizedValues = values.map(value => value === undefined ? null : value);
+
+      await db.execute(query, sanitizedValues);
+    }
+
+    return {
+      successful: true,
+      message: "Form submitted successfully."
+    };
+  } catch (err) {
+    console.error("Error inserting form data into the database:", err);
+    throw new Error("An unexpected error occurred while inserting form data.");
+  }
+};
 module.exports = {
   submitForm,
-  verifyOTP,
-  insertDetails
+  verifyOTP
 };
