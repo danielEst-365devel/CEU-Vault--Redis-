@@ -19,7 +19,15 @@ const sendEmail = async (recipientEmail, otpCode) => {
       to: recipientEmail,
       subject: 'Your OTP Code',
       text: `Your OTP Code is ${otpCode}`,
-      html: `<b>Your OTP Code is ${otpCode}</b>`
+      html: `
+        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
+          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">Your OTP Code is:</p>
+          <p style="font-size: 32px; font-weight: bold; color: #000; margin: 20px 0;">${otpCode}</p>
+          <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please use this code to complete your verification process.</p>
+          <p style="font-size: 14px; color: #777;">If you did not request this code, please ignore this email.</p>
+        </div>
+      `
     });
     console.log('Message sent: %s', info.messageId);
   } catch (error) {
