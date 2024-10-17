@@ -18,7 +18,12 @@ app.use(session({
     secret: 'your-secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false, httpOnly: true, maxAge: 60000 } // Adjust cookie settings as needed
+    cookie: { 
+        secure: true, // Ensure the cookie is only used over HTTPS
+        httpOnly: true, 
+        maxAge: 60000, 
+        sameSite: 'None' // Add SameSite=None attribute
+    }
 }));
 
 // routers
@@ -30,7 +35,7 @@ app.use(bodyParser.json())
 
 //headers
 app.use((req, res, next) => {
-    const allowedOrigins = ['http://127.0.0.1:6379', 'http://localhost:8000', 'http://127.0.0.1:3000'];
+    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500'];
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
         res.header("Access-Control-Allow-Origin", origin);
