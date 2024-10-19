@@ -167,8 +167,8 @@ const insertFormDataIntoDatabase = async (formData) => {
       const query = `
         INSERT INTO requests (
           email, first_name, last_name, department, nature_of_service, 
-          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const values = [
         formData.email,
@@ -181,7 +181,8 @@ const insertFormDataIntoDatabase = async (formData) => {
         equipmentCategoryId, // Use the retrieved equipment_category_id
         item.quantity, // Quantity requested for each category
         item.dateRequested, // Requested date for the equipment
-        item.timeRequested // Requested time for the equipment
+        item.timeRequested, // Requested time for the equipment
+        item.returnTime // Return time for the equipment
       ];
 
       // Add debugging logs to check for undefined values
