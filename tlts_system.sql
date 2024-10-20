@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 19, 2024 at 06:10 PM
+-- Generation Time: Oct 20, 2024 at 02:17 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -98,8 +98,19 @@ INSERT INTO `equipment_categories` (`category_id`, `category_name`, `quantity_av
 (11, 'Document Camera', 4),
 (12, 'Digital Video Camera', 5),
 (13, 'Digital Still Camera', 6),
-(14, 'Instructional Materials', 10),
-(15, 'Others', 5);
+(14, 'Audio Voltage Regulator', 5),
+(15, 'Amplifier', 10),
+(16, 'Audio Mixer', 7),
+(17, 'Stereo Graphic Equalizer', 4),
+(18, 'Globe Map', 3),
+(19, 'Television Set', 8),
+(20, 'Tripod', 12),
+(21, 'Microphone Stand', 15),
+(22, 'Wireless Microphone', 10),
+(23, 'Lapel Microphone', 8),
+(24, 'Radio Cassette', 6),
+(25, 'Projector Screen', 5),
+(26, 'External Hard Drive', 10);
 
 -- --------------------------------------------------------
 
@@ -126,19 +137,6 @@ CREATE TABLE `requests` (
   `status` enum('pending','approved','rejected','returned') DEFAULT 'pending',
   `admin_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `requests`
---
-
-INSERT INTO `requests` (`request_id`, `email`, `first_name`, `last_name`, `department`, `nature_of_service`, `purpose`, `venue`, `equipment_category_id`, `quantity_requested`, `requested`, `time_requested`, `return_time`, `time_borrowed`, `approved_at`, `status`, `admin_id`) VALUES
-(157, 'estrella2130511@mls.ceu.edu.ph', 'Daniel', 'Estrella', 'CAMT', 'Academic', 'Presentation', '303', 1, 0, '2024-10-19', '11:20:00', NULL, '2024-10-19 03:21:19', NULL, 'pending', NULL),
-(158, 'estrella2130511@mls.ceu.edu.ph', 'John', 'Doe', 'IT', 'Technical Support', 'Setting up new computers', 'Room 101', 2, 5, '2023-10-01', '09:00:00', NULL, '2024-10-19 03:22:36', NULL, 'pending', NULL),
-(159, 'estrella2130511@mls.ceu.edu.ph', 'John', 'Doe', 'IT', 'Technical Support', 'Setting up new computers', 'Room 101', 1, 2, '2023-10-01', '09:00:00', NULL, '2024-10-19 03:22:36', NULL, 'pending', NULL),
-(160, 'estrella2130511@mls.ceu.edu.ph', 'John', 'Doe', 'IT', 'Technical Support', 'Setting up new computers', 'Room 101', 2, 5, '2023-10-01', '09:00:00', '10:00:00', '2024-10-19 04:03:31', NULL, 'pending', NULL),
-(161, 'estrella2130511@mls.ceu.edu.ph', 'John', 'Doe', 'IT', 'Technical Support', 'Setting up new computers', 'Room 101', 1, 2, '2023-10-01', '09:00:00', '10:00:00', '2024-10-19 04:03:31', NULL, 'pending', NULL),
-(162, 'estrella2130511@mls.ceu.edu.ph', 'Daniel', 'Estrella', 'CAMT', 'Academic', 'Presentation', '303', 1, 1, '2024-10-02', '12:04:00', '12:06:00', '2024-10-19 04:05:18', NULL, 'pending', NULL),
-(163, 'estrella2130511@mls.ceu.edu.ph', 'Daniel', 'Estrella', 'CAMT', 'Academic', 'Presentation', '303', 3, 1, '2024-10-19', '15:05:00', '12:07:00', '2024-10-19 04:05:18', NULL, 'pending', NULL);
 
 --
 -- Indexes for dumped tables
@@ -193,13 +191,13 @@ ALTER TABLE `admin_log`
 -- AUTO_INCREMENT for table `equipment_categories`
 --
 ALTER TABLE `equipment_categories`
-  MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `requests`
 --
 ALTER TABLE `requests`
-  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=164;
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for dumped tables
