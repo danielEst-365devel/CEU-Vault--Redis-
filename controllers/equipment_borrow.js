@@ -12,12 +12,12 @@ const transporter = nodemailer.createTransport({
 });
 
 // Send email example
-const sendEmail = async (recipientEmail, otpCode) => {
+const sendEmail = async (recipientEmail, otpCode, formData) => {
   try {
     const info = await transporter.sendMail({
       from: '"CEU VAULT" <ceu.otp@gmail.com>',
       to: recipientEmail,
-      subject: 'Your OTP Code',
+      subject: 'Your OTP Code and Equipment Borrowing Details',
       text: `Your OTP Code is ${otpCode}`,
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
@@ -26,6 +26,27 @@ const sendEmail = async (recipientEmail, otpCode) => {
           <p style="font-size: 32px; font-weight: bold; color: #000; margin: 20px 0;">${otpCode}</p>
           <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please use this code to complete your verification process.</p>
           <p style="font-size: 14px; color: #777;">If you did not request this code, please ignore this email.</p>
+          <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
+          <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
+            </tr>
+            ${formData.equipmentCategories.map(item => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
         </div>
       `
     });
@@ -69,8 +90,8 @@ const submitForm = async (req, res, next) => {
     req.session.otp = otpCode;
     req.session.formData = { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories };
 
-    // Send OTP email
-    await sendEmail(email, otpCode);
+    // Send OTP email with form data
+    await sendEmail(email, otpCode, req.session.formData);
 
     return res.status(200).json({
       successful: true,
@@ -204,7 +225,25 @@ const insertFormDataIntoDatabase = async (formData) => {
     throw new Error("An unexpected error occurred while inserting form data.");
   }
 };
+
+const getEquipmentCategories = async (req, res) => {
+  const query = 'SELECT * FROM equipment_categories';
+  try {
+    console.log('Executing query:', query);
+    const [rows] = await db.execute(query);
+    console.log('Query result:', rows);
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error('Error retrieving equipment categories:', error);
+    return res.status(500).json({
+      successful: false,
+      message: 'Failed to retrieve equipment categories.'
+    });
+  }
+};
+
 module.exports = {
   submitForm,
-  verifyOTP
+  verifyOTP,
+  getEquipmentCategories
 };

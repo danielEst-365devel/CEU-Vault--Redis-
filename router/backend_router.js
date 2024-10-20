@@ -7,5 +7,7 @@ const prodRouter = express.Router();
 prodRouter.post('/insert-details', equipmentController.submitForm);
 // Route to verify OTP and submit form data
 prodRouter.post('/verify-otp', equipmentController.verifyOTP);
+// Route to verify OTP and submit form data
+prodRouter.get('/get-equipments', equipmentController.getEquipmentCategories);
 
 module.exports = prodRouter;
