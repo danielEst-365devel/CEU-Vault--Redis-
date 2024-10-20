@@ -5,13 +5,15 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const redisStore = require('connect-redis').default; // Import connect-redis
 const redisClient = require('./redisClient'); // Import redisClient
-
+const cookieParser = require('cookie-parser'); // for tokens
 //db con
 const db = require("./models/connection_db");
 db.connectDatabase();
 
 // Session middleware configuration
 app.use(express.static('public'));
+
+app.use(cookieParser()); //tokens
 
 app.use(session({
     store: new redisStore({ client: redisClient }),
