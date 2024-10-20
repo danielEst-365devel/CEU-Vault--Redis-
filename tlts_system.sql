@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 20, 2024 at 02:17 AM
+-- Generation Time: Oct 20, 2024 at 04:19 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -40,7 +40,7 @@ CREATE TABLE `admins` (
 --
 
 INSERT INTO `admins` (`admin_id`, `email`, `name`, `password_hash`, `created_at`) VALUES
-(1, 'magbitang@ceu.edu.ph', 'Michael Lino Magbitang', 'tltsGodz123', '2024-10-13 11:22:34');
+(1, 'magbitang@ceu.edu.ph', 'Michael Lino Magbitang', '$2a$10$XJOKuW1GPg4oT5xg.FLjIOYsRAThX91bsE/DlwXs73tYTmaQVudSy', '2024-10-13 11:22:34');
 
 -- --------------------------------------------------------
 
@@ -134,9 +134,18 @@ CREATE TABLE `requests` (
   `return_time` time DEFAULT NULL,
   `time_borrowed` timestamp NOT NULL DEFAULT current_timestamp(),
   `approved_at` timestamp NULL DEFAULT NULL,
-  `status` enum('pending','approved','rejected','returned') DEFAULT 'pending',
+  `status` enum('pending','approved','ongoing','cancelled','returned') DEFAULT 'pending',
+  `status_updated_at` timestamp NULL DEFAULT NULL,
   `admin_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `requests`
+--
+
+INSERT INTO `requests` (`request_id`, `email`, `first_name`, `last_name`, `department`, `nature_of_service`, `purpose`, `venue`, `equipment_category_id`, `quantity_requested`, `requested`, `time_requested`, `return_time`, `time_borrowed`, `approved_at`, `status`, `status_updated_at`, `admin_id`) VALUES
+(1, 'estrella2130511@mls.ceu.edu.ph', 'Daniel', 'Estrella', 'CAMT', 'Academic', 'Presentation', '303', 2, 1, '2024-10-20', '07:48:00', '19:48:00', '2024-10-20 09:46:52', '2024-10-20 12:58:11', 'returned', '2024-10-20 13:52:00', 1),
+(2, 'estrella2130511@mls.ceu.edu.ph', 'Daniel', 'Estrella', 'CAMT', 'Academic', 'Presentation', '303', 2, 1, '2024-10-20', '17:53:00', '17:49:00', '2024-10-20 09:47:44', '2024-10-20 12:55:59', 'ongoing', '2024-10-20 14:06:12', 1);
 
 --
 -- Indexes for dumped tables
@@ -179,7 +188,7 @@ ALTER TABLE `requests`
 -- AUTO_INCREMENT for table `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `admin_log`
@@ -197,7 +206,7 @@ ALTER TABLE `equipment_categories`
 -- AUTO_INCREMENT for table `requests`
 --
 ALTER TABLE `requests`
-  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
