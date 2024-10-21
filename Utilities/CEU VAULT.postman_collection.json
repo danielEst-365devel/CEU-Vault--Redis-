@@ -16,7 +16,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"firstName\": \"John\",\r\n  \"lastName\": \"Doe\",\r\n  \"departmentName\": \"IT\",\r\n  \"email\": \"estrella2130511@mls.ceu.edu.ph\",\r\n  \"natureOfService\": \"Technical Support\",\r\n  \"purpose\": \"Setting up new computers\",\r\n  \"venue\": \"Room 101\",\r\n  \"equipmentCategories\": [\r\n    {\r\n      \"category\": \"Laptop\",\r\n      \"quantity\": 5,\r\n      \"dateRequested\": \"2023-10-01\",\r\n      \"timeRequested\": \"09:00:00\",\r\n      \"returnTime\": \"10:00:00\"\r\n    },\r\n    {\r\n      \"category\": \"DLP-LCD Projector\",\r\n      \"quantity\": 2,\r\n      \"dateRequested\": \"2023-10-01\",\r\n      \"timeRequested\": \"09:00:00\",\r\n      \"returnTime\": \"10:00:00\"\r\n    }\r\n  ]\r\n}",
+							"raw": "{\r\n    \"firstName\": \"Daniel\",\r\n    \"lastName\": \"Estrella\",\r\n    \"departmentName\": \"IT\",\r\n    \"email\": \"estrella2130511@mls.ceu.edu.ph\",\r\n    \"natureOfService\": \"Presentation\",\r\n    \"purpose\": \"Invoice Test\",\r\n    \"venue\": \"Room 101\",\r\n    \"equipmentCategories\": [\r\n        {\r\n            \"category\": \"Laptop\",\r\n            \"quantity\": 5,\r\n            \"dateRequested\": \"2023-10-01\",\r\n            \"timeRequested\": \"09:00:00\",\r\n            \"returnTime\": \"10:00:00\"\r\n        },\r\n        {\r\n            \"category\": \"DLP-LCD Projector\",\r\n            \"quantity\": 2,\r\n            \"dateRequested\": \"2023-10-01\",\r\n            \"timeRequested\": \"09:00:00\",\r\n            \"returnTime\": \"10:00:00\"\r\n        },\r\n        {\r\n            \"category\": \"Microphone\",\r\n            \"quantity\": 2,\r\n            \"dateRequested\": \"2023-10-01\",\r\n            \"timeRequested\": \"09:00:00\",\r\n            \"returnTime\": \"10:00:00\"\r\n        },\r\n                {\r\n            \"category\": \"Karaoke\",\r\n            \"quantity\": 8,\r\n            \"dateRequested\": \"2023-10-01\",\r\n            \"timeRequested\": \"09:00:00\",\r\n            \"returnTime\": \"10:00:00\"\r\n        }\r\n    ]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -126,7 +126,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"email\": \"admin@example.com\",\r\n  \"name\": \"Admin Name\",\r\n  \"password\": \"your_password\"\r\n}",
+							"raw": "{\r\n  \"email\": \"daniael@example.com\",\r\n  \"name\": \"Admin Name\",\r\n  \"password\": \"your_password\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -144,7 +144,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"request_id\": 1,\r\n  \"status\": \"approved\"\r\n}\r\n\r\n/* AJAX fetch request for browser console\r\n\r\nfetch('https://localhost:8000/equipments/update-status', {\r\n    method: 'POST',\r\n    headers: {\r\n        'Content-Type': 'application/json'\r\n    },\r\n    credentials: 'include',\r\n    body: JSON.stringify({\r\n        request_id: 1,\r\n        status: \"approved\"\r\n    })\r\n})\r\n.then(response => response.json())\r\n.then(data => console.log(data))\r\n.catch(error => console.error('Error:', error));\r\n\r\n*/",
+							"raw": "// No token means di ka naka login. Send a post request to Admin Login first. \r\n\r\n{\r\n  \"request_id\": 2,\r\n  \"status\": \"returned\"\r\n}\r\n\r\n/* AJAX fetch request for browser console\r\n \r\nfetch('https://localhost:8000/equipments/update-status', {\r\n    method: 'POST',\r\n    headers: {\r\n        'Content-Type': 'application/json'\r\n    },\r\n    credentials: 'include',\r\n    body: JSON.stringify({\r\n        request_id: 1,\r\n        status: \"approved\"\r\n    })\r\n})\r\n.then(response => response.json())\r\n.then(data => console.log(data))\r\n.catch(error => console.error('Error:', error));\r\n\r\n*/",
 							"options": {
 								"raw": {
 									"language": "json"
