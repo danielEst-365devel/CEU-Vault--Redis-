@@ -303,19 +303,15 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    // Convert the base64 string back to a buffer
-    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-
-    // Save the PDF to the Downloads directory
-    const downloadsPath = path.join(require('os').homedir(), 'Downloads', 'invoice.pdf');
-    fs.writeFileSync(downloadsPath, pdfBuffer);
-
     // Insert form data into the database
-    const result = await insertFormDataIntoDatabase(formData);
+    const result = await insertFormDataIntoDatabase(formData, pdfBase64);
 
     if (result.successful) {
-      // Send an approval email to the requisitioner
-      await sendApprovalEmail(formData.email, formData);
+      // Insert the invoice into the request history
+      await insertInvoiceIntoRequestHistory(pdfBase64);
+
+      // Send an approval email to the requisitioner with the PDF attachment
+      await sendApprovalEmail(formData.email, formData, pdfBase64);
 
       // Respond with success
       return res.status(200).json({
@@ -337,8 +333,23 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-const sendApprovalEmail = async (recipientEmail, formData) => {
+const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
   try {
+    // Convert the base64 string back to a buffer
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    // Save the PDF to the Downloads directory
+    const downloadsPath = path.join(require('os').homedir(), 'Downloads', 'invoice.pdf');
+    fs.writeFileSync(downloadsPath, pdfBuffer);
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
     const info = await transporter.sendMail({
       from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
@@ -346,7 +357,7 @@ const sendApprovalEmail = async (recipientEmail, formData) => {
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
           <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">We have recieved your equipment borrowing request. Please await for a request approval from a TLTS Coordinator.</p>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">We have received your equipment borrowing request. Please await for a request approval from a TLTS Coordinator.</p>
           <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <tr>
@@ -368,8 +379,16 @@ const sendApprovalEmail = async (recipientEmail, formData) => {
           </table>
           <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
         </div>
-      `
+      `,
+      attachments: [
+        {
+          filename: 'invoice.pdf',
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
     });
+
     console.log('Approval email sent: %s', info.messageId);
   } catch (error) {
     console.error('Error sending approval email:', error);
@@ -433,6 +452,36 @@ const insertFormDataIntoDatabase = async (formData) => {
   }
 };
 
+
+const insertInvoiceIntoRequestHistory = async (pdfBase64) => {
+  console.log('Inserting invoice into request history...');
+
+  if (!pdfBase64) {
+    throw new Error("PDF base64 is undefined.");
+  }
+
+  try {
+    // Decode base64 to binary
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    const query = `
+      INSERT INTO request_history (invoice)
+      VALUES (?)
+    `;
+    const values = [pdfBuffer];
+
+    await db.execute(query, values);
+
+    return {
+      successful: true,
+      message: "Invoice inserted successfully into request history."
+    };
+  } catch (err) {
+    console.error("Error inserting invoice into request history:", err);
+    throw new Error("An unexpected error occurred while inserting the invoice.");
+  }
+};
+
 const getEquipmentCategories = async (req, res) => {
   const query = 'SELECT * FROM equipment_categories';
   try {
@@ -448,6 +497,7 @@ const getEquipmentCategories = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   submitForm,

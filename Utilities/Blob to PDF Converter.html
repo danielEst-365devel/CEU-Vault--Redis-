@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Blob Converter</title>
+</head>
+<body>
+    <h1>PDF Blob Converter</h1>
+    <form id="pdfForm">
+        <label for="pdfFile">Upload PDF:</label>
+        <input type="file" id="pdfFile" accept="application/pdf">
+        <button type="button" onclick="convertBlobToPDF()">Convert Blob to PDF</button>
+    </form>
+
+    <script>
+        function convertBlobToPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'converted.pdf';
+                link.click();
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+    </script>
+</body>
+</html>
