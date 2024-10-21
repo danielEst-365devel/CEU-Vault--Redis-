@@ -2,6 +2,8 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
 const { db } = require('../models/connection_db'); // Import the database connection
+const axios = require('axios'); 
+
 require('dotenv').config();
 
 // Set up Nodemailer with Gmail SMTP
@@ -135,6 +137,7 @@ const approveAdmin = async (req, res) => {
   }
 };
 
+
 const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
@@ -156,10 +159,11 @@ const updateRequestStatus = async (req, res) => {
 
     // Get the current timestamp
     const statusUpdatedAt = new Date();
+    let approvedAt = null; // Initialize approvedAt to null
 
     // Check the current status of the request and get the request details
     const [rows] = await db.query(`
-      SELECT r.*, ec.category_name 
+      SELECT r.*, ec.category_name, ec.quantity_available 
       FROM requests r 
       LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
       WHERE r.request_id = ?
@@ -177,21 +181,10 @@ const updateRequestStatus = async (req, res) => {
       return res.status(400).json({ message: 'Cannot change status of a returned request' });
     }
 
-    // Prepare the update query and values
-    let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
-    let updateValues = [adminId, status, statusUpdatedAt, request_id];
-
-    let approvedAt;
+    // Get current system time if status is 'approved'
     if (status === 'approved') {
       approvedAt = new Date();
-      updateQuery += ', approved_at = ?';
-      updateValues.splice(3, 0, approvedAt); // Insert approvedAt before request_id
     }
-
-    updateQuery += ' WHERE request_id = ?';
-
-    // Update the admin_id, status, status_updated_at, and possibly approved_at in the requests table
-    await db.query(updateQuery, updateValues);
 
     // Send an email notification for any status update
     await transporter.sendMail({
@@ -219,7 +212,7 @@ const updateRequestStatus = async (req, res) => {
               <th style="border: 1px solid #ddd; padding: 8px;">Time Requested</th>
               <th style="border: 1px solid #ddd; padding: 8px;">Return Time</th>
               <th style="border: 1px solid #ddd; padding: 8px;">Time Borrowed</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Approved At</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Approved at</th>
               <th style="border: 1px solid #ddd; padding: 8px;">Status</th>
             </tr>
             <tr>
@@ -230,13 +223,51 @@ const updateRequestStatus = async (req, res) => {
               <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.return_time}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.time_borrowed}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${status === 'approved' ? approvedAt : requestDetails.approved_at}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.status}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${status}</td>
             </tr>
           </table>
           <p style="font-size: 14px; color: #999; margin-top: 20px; text-align: center;">If you have any questions, please contact the IT admin.</p>
         </div>
       `
     });
+
+    // If status is 'ongoing', decrement the quantity_available in equipment_categories
+    if (status === 'ongoing') {
+      const quantityRequested = requestDetails.quantity_requested;
+      const equipmentCategoryId = requestDetails.equipment_category_id;
+
+      await db.query(`
+        UPDATE equipment_categories 
+        SET quantity_available = quantity_available - ? 
+        WHERE category_id = ?
+      `, [quantityRequested, equipmentCategoryId]);
+    }
+
+    // If status is 'returned', increment the quantity_available in equipment_categories
+    if (status === 'returned') {
+      const quantityRequested = requestDetails.quantity_requested;
+      const equipmentCategoryId = requestDetails.equipment_category_id;
+
+      await db.query(`
+        UPDATE equipment_categories 
+        SET quantity_available = quantity_available + ? 
+        WHERE category_id = ?
+      `, [quantityRequested, equipmentCategoryId]);
+    }
+
+    // Prepare the update query and values
+    let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
+    let updateValues = [adminId, status, statusUpdatedAt, request_id];
+
+    if (status === 'approved') {
+      updateQuery += ', approved_at = ?';
+      updateValues.splice(3, 0, approvedAt); // Insert approvedAt before request_id
+    }
+
+    updateQuery += ' WHERE request_id = ?';
+
+    // Update the admin_id, status, status_updated_at, and possibly approved_at in the requests table
+    await db.query(updateQuery, updateValues);
 
     res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
