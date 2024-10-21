@@ -197,7 +197,6 @@ function generateHr(doc, y) {
 }
 
 // Modify the submitForm function to generate the PDF
-
 const submitForm = async (req, res, next) => {
   const { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories } = req.body;
 
@@ -232,22 +231,26 @@ const submitForm = async (req, res, next) => {
     req.session.otp = otpCode;
     req.session.formData = { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories };
 
-    // Send OTP email with form data
-    await sendEmail(email, otpCode, req.session.formData);
-
     // Generate PDF invoice and convert to base64
     const pdfBase64 = await createInvoice(req.session.formData);
+
+    // Store PDF base64 in session
+    req.session.pdfBase64 = pdfBase64;
 
     // Save the PDF to the desktop for testing
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
     const desktopPath = path.join(require('os').homedir(), 'Desktop', 'invoice.pdf');
     fs.writeFileSync(desktopPath, pdfBuffer);
+
     // Store form data and PDF in Redis
     const sessionData = {
       formData: req.session.formData,
       pdfBase64: pdfBase64
     };
     await redisClient.set(sessionID, JSON.stringify(sessionData));
+
+    // Send OTP email with form data
+    await sendEmail(email, otpCode, req.session.formData);
 
     return res.status(200).json({
       successful: true,
@@ -282,6 +285,7 @@ const verifyOTP = async (req, res) => {
     // Retrieve OTP and form data from session
     const storedOTP = req.session.otp;
     const formData = req.session.formData;
+    const pdfBase64 = req.session.pdfBase64; // Assuming pdfBase64 is stored in the session
 
     if (otp !== storedOTP) {
       console.log('Session ID:', req.sessionID);
@@ -292,12 +296,19 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    if (!formData) {
+    if (!formData || !pdfBase64) {
       return res.status(400).json({
         successful: false,
-        message: "Form data not found. Please resubmit the form."
+        message: "Form data or PDF not found. Please resubmit the form."
       });
     }
+
+    // Convert the base64 string back to a buffer
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    // Save the PDF to the Downloads directory
+    const downloadsPath = path.join(require('os').homedir(), 'Downloads', 'invoice.pdf');
+    fs.writeFileSync(downloadsPath, pdfBuffer);
 
     // Insert form data into the database
     const result = await insertFormDataIntoDatabase(formData);
