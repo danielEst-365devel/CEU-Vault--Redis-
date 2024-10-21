@@ -197,6 +197,7 @@ function generateHr(doc, y) {
 }
 
 // Modify the submitForm function to generate the PDF
+
 const submitForm = async (req, res, next) => {
   const { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories } = req.body;
 
@@ -237,6 +238,10 @@ const submitForm = async (req, res, next) => {
     // Generate PDF invoice and convert to base64
     const pdfBase64 = await createInvoice(req.session.formData);
 
+    // Save the PDF to the desktop for testing
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const desktopPath = path.join(require('os').homedir(), 'Desktop', 'invoice.pdf');
+    fs.writeFileSync(desktopPath, pdfBuffer);
     // Store form data and PDF in Redis
     const sessionData = {
       formData: req.session.formData,
@@ -258,7 +263,6 @@ const submitForm = async (req, res, next) => {
     });
   }
 };
-
 
 // OTP generator function
 const generateOTP = (length = 6) => {
