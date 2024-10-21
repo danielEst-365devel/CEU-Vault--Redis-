@@ -57,6 +57,146 @@ const sendEmail = async (recipientEmail, otpCode, formData) => {
   }
 };
 
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+
+// Function to create the invoice PDF
+// Function to create the invoice PDF and return it as a base64 string
+function createInvoice(details) {
+  return new Promise((resolve, reject) => {
+    let doc = new PDFDocument({ size: "A4", margin: 50 });
+    let buffers = [];
+
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      let pdfData = Buffer.concat(buffers);
+      resolve(pdfData.toString('base64'));
+    });
+
+    generateHeader(doc);
+    generateCustomerInformation(doc, details);
+    generateInvoiceTable(doc, details);
+    generateFooter(doc);
+
+    doc.end();
+  });
+}
+
+function generateHeader(doc) {
+  doc
+    .image("admin/images/CEU-Logo.png", 50, 45, { width: 50 })
+    .fillColor("#444444")
+    .fontSize(20)
+    .text("CEU VAULT", 110, 57)
+    .fontSize(10)
+    .text("CEU VAULT.", 200, 50, { align: "right" })
+    .text("Teaching, Learning, and Technology Section", 200, 65, { align: "right" })
+    .text("CEU Malolos", 200, 80, { align: "right" })
+    .moveDown();
+}
+
+function generateCustomerInformation(doc, details) {
+  doc
+    .fillColor("#444444")
+    .fontSize(20)
+    .text("Service Request", 50, 160);
+
+  generateHr(doc, 185);
+
+  const customerInformationTop = 200;
+
+  doc
+    .fontSize(10)
+    .text("Name:", 50, customerInformationTop)
+    .font("Helvetica-Bold")
+    .text(`${details.firstName} ${details.lastName}`, 150, customerInformationTop)
+    .font("Helvetica")
+    .text("Department:", 50, customerInformationTop + 15)
+    .text(details.departmentName, 150, customerInformationTop + 15)
+    .text("Email:", 50, customerInformationTop + 30)
+    .text(details.email, 150, customerInformationTop + 30)
+    .text("Nature of Service:", 50, customerInformationTop + 45)
+    .text(details.natureOfService, 150, customerInformationTop + 45)
+    .text("Purpose:", 50, customerInformationTop + 60)
+    .text(details.purpose, 150, customerInformationTop + 60)
+    .text("Venue:", 50, customerInformationTop + 75)
+    .text(details.venue, 150, customerInformationTop + 75)
+    .moveDown();
+
+  generateHr(doc, customerInformationTop + 90);
+}
+
+function generateInvoiceTable(doc, details) {
+  const invoiceTableTop = 330;
+
+  doc.font("Helvetica-Bold");
+  generateTableRow(
+    doc,
+    invoiceTableTop,
+    "Category",
+    "Quantity",
+    "Date Requested",
+    "Time Requested",
+    "Return Time"
+  );
+  generateHr(doc, invoiceTableTop + 20);
+  doc.font("Helvetica");
+
+  details.equipmentCategories.forEach((item, i) => {
+    const position = invoiceTableTop + (i + 1) * 30;
+    generateTableRow(
+      doc,
+      position,
+      item.category,
+      item.quantity,
+      item.dateRequested,
+      item.timeRequested,
+      item.returnTime
+    );
+    generateHr(doc, position + 20);
+  });
+}
+
+function generateFooter(doc) {
+  doc
+    .fontSize(10)
+    .text(
+      "Thank you for your request. We will process it as soon as possible.",
+      50,
+      780,
+      { align: "center", width: 500 }
+    );
+}
+
+function generateTableRow(
+  doc,
+  y,
+  category,
+  quantity,
+  dateRequested,
+  timeRequested,
+  returnTime
+) {
+  doc
+    .fontSize(10)
+    .text(category, 50, y)
+    .text(quantity, 150, y)
+    .text(dateRequested, 250, y)
+    .text(timeRequested, 350, y)
+    .text(returnTime, 450, y);
+}
+
+function generateHr(doc, y) {
+  doc
+    .strokeColor("#aaaaaa")
+    .lineWidth(1)
+    .moveTo(50, y)
+    .lineTo(550, y)
+    .stroke();
+}
+
+// Modify the submitForm function to generate the PDF
 const submitForm = async (req, res, next) => {
   const { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories } = req.body;
 
@@ -94,6 +234,16 @@ const submitForm = async (req, res, next) => {
     // Send OTP email with form data
     await sendEmail(email, otpCode, req.session.formData);
 
+    // Generate PDF invoice and convert to base64
+    const pdfBase64 = await createInvoice(req.session.formData);
+
+    // Store form data and PDF in Redis
+    const sessionData = {
+      formData: req.session.formData,
+      pdfBase64: pdfBase64
+    };
+    await redisClient.set(sessionID, JSON.stringify(sessionData));
+
     return res.status(200).json({
       successful: true,
       message: "Form submitted successfully. OTP sent to your email. Please verify to proceed.",
@@ -109,6 +259,7 @@ const submitForm = async (req, res, next) => {
   }
 };
 
+
 // OTP generator function
 const generateOTP = (length = 6) => {
   const digits = '0123456789';
@@ -122,7 +273,6 @@ const generateOTP = (length = 6) => {
 // OTP verification and form submission
 const verifyOTP = async (req, res) => {
   const { otp } = req.body;
-
 
   try {
     // Retrieve OTP and form data from session
@@ -177,7 +327,7 @@ const sendApprovalEmail = async (recipientEmail, formData) => {
     const info = await transporter.sendMail({
       from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
-      subject: 'Your Equipment Borrowing Request Approved',
+      subject: 'Your Equipment Borrowing Request has been received by our system',
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
           <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
@@ -222,7 +372,6 @@ const getCategoryIDByName = async (categoryName) => {
   return categoryRows[0].category_id;
 };
 
-
 const insertFormDataIntoDatabase = async (formData) => {
   console.log('Inserting form data into the database...');
 
@@ -252,7 +401,7 @@ const insertFormDataIntoDatabase = async (formData) => {
         item.timeRequested, // Requested time for the equipment
         item.returnTime // Return time for the equipment
       ];
-      
+
       // Check for undefined values and replace with null
       const sanitizedValues = values.map(value => value === undefined ? null : value);
 
