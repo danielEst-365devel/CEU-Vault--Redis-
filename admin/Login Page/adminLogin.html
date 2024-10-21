@@ -8,7 +8,27 @@
     <link href="../styles.css" rel="stylesheet" type="text/css">
     <link href="login.css" rel="stylesheet" type="text/css">
 </head>
+<style>
+    .popover {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        border: 1px solid #ccc;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
 
+    .popover-content {
+        text-align: center;
+    }
+
+    .popover-content button {
+        margin-top: 10px;
+    }
+</style>
 <header>
     <div class="navbar-no-shadow">
         <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
@@ -34,17 +54,21 @@
 </header>
 
 <body>
-
+    <div id="popover" class="popover" style="display: none;">
+        <div class="popover-content">
+            <p>Registration successful! Please await for IT Admin approval within 24 hours.</p>
+            <button id="closePopover">Close</button>
+        </div>
+    </div>
 
     <div class="fn-section-off-black">
         <div class="login-page">
             <div class="form">
-                <form class="register-form" method="POST">
+                <form class="register-form" id="registerForm">
                     <h2>Register</h2>
-                    <input type="text" placeholder="Full Name *" required />
-                    <input type="text" placeholder="Username *" required />
-                    <input type="email" placeholder="Email *" required />
-                    <input type="password" placeholder="Password *" required />
+                    <input type="text" name="name" placeholder="Full Name *" required />
+                    <input type="email" name="email" placeholder="Email *" required />
+                    <input type="password" name="password" placeholder="Password *" required />
                     <a class="btn" href="#">
                         <span></span>
                         <span></span>
@@ -71,29 +95,18 @@
         </div>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
-            $('.message a').click(function () {
-                $('form').animate({ height: "toggle", opacity: "toggle" }, "slow");
-            });
-
-        </script>
-        <script>
-            document.getElementById('submitBtn').addEventListener('click', function (event) {
-                event.preventDefault(); // Prevent the default anchor behavior
-                document.getElementById('loginForm').submit(); // Trigger the form submission
-            });
-        </script>
-        <script>
             // Toggle between forms
             $('.message a').click(function () {
                 $('form').animate({ height: "toggle", opacity: "toggle" }, "slow");
             });
 
-            // Handle login form submission
-            document.getElementById('loginForm').addEventListener('submit', function (event) {
-                event.preventDefault(); // Prevent the default form submission
+            // Handle login form submission via anchor click
+            document.getElementById('submitBtn').addEventListener('click', function (event) {
+                event.preventDefault(); // Prevent the default anchor behavior
 
-                const email = event.target.email.value;
-                const password = event.target.password.value;
+                const loginForm = document.getElementById('loginForm');
+                const email = loginForm.email.value;
+                const password = loginForm.password.value;
 
                 fetch('https://localhost:8000/equipments/login', {
                     method: 'POST',
@@ -118,21 +131,21 @@
                     });
             });
 
-            // Handle register form submission
-            document.getElementById('registerForm').addEventListener('submit', function (event) {
-                event.preventDefault(); // Prevent the default form submission
+            // Handle register form submission via anchor click
+            document.querySelector('.register-form .btn').addEventListener('click', function (event) {
+                event.preventDefault(); // Prevent the default anchor behavior
 
-                const fullName = event.target.fullName.value;
-                const username = event.target.username.value;
-                const email = event.target.email.value;
-                const password = event.target.password.value;
+                const registerForm = document.getElementById('registerForm');
+                const name = registerForm.name.value;
+                const email = registerForm.email.value;
+                const password = registerForm.password.value;
 
-                fetch('https://localhost:8000/equipments/register', { // Change to your register endpoint
+                fetch('https://localhost:8000/equipments/create-admin', { // Change to your register endpoint
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ fullName, username, email, password }),
+                    body: JSON.stringify({ name, email, password }),
                     credentials: 'include' // Include cookies in the request
                 })
                     .then(response => {
@@ -163,3 +176,43 @@
 </footer>
 
 </html>
+
+<script>
+    // Handle register form submission via anchor click
+    document.querySelector('.register-form .btn').addEventListener('click', function (event) {
+        event.preventDefault(); // Prevent the default anchor behavior
+
+        const registerForm = document.getElementById('registerForm');
+        const name = registerForm.name.value;
+        const email = registerForm.email.value;
+        const password = registerForm.password.value;
+
+        fetch('https://localhost:8000/equipments/create-admin', { // Change to your register endpoint
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name, email, password }),
+            credentials: 'include' // Include cookies in the request
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Registration successful:', data);
+                // Show the popover
+                document.getElementById('popover').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+            });
+    });
+
+    // Handle popover close button click
+    document.getElementById('closePopover').addEventListener('click', function () {
+        document.getElementById('popover').style.display = 'none';
+    });
+</script>

@@ -7,7 +7,8 @@ const prodRouter = express.Router();
 // Add login route
 prodRouter.post('/login', adminController.login);
 prodRouter.post('/create-admin', adminController.createAdmin);
-prodRouter.post('/update-status', adminController.updateAdminStatus);
+prodRouter.get('/approve-admin', adminController.approveAdmin);
+prodRouter.post('/update-status', adminController.updateRequestStatus);
 prodRouter.post('/logout', adminController.logout);
 
 // Route to submit form and send OTP

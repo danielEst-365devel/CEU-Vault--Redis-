@@ -6,6 +6,7 @@ const session = require('express-session');
 const redisStore = require('connect-redis').default; // Import connect-redis
 const redisClient = require('./redisClient'); // Import redisClient
 const cookieParser = require('cookie-parser'); // for tokens
+require('dotenv').config();
 //db con
 const db = require("./models/connection_db");
 db.connectDatabase();
@@ -17,7 +18,7 @@ app.use(cookieParser()); //tokens
 
 app.use(session({
     store: new redisStore({ client: redisClient }),
-    secret: 'your-secret-key',
+    secret: process.env.SECRET_KEY,
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -37,7 +38,7 @@ app.use(bodyParser.json())
 
 //headers
 app.use((req, res, next) => {
-    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500'];
+    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500', process.env.NGROK_URL];
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
         res.header("Access-Control-Allow-Origin", origin);

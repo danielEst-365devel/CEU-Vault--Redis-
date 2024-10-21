@@ -2,14 +2,14 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
 const { db } = require('../models/connection_db'); // Import the database connection
-const redisClient = require('../redisClient');
+require('dotenv').config();
 
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'ceu.otp@gmail.com',
-    pass: 'gewj zaqo ppmf aqfx' // Note: Use environment variables for sensitive data
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
@@ -17,41 +17,21 @@ const transporter = nodemailer.createTransport({
 const JWT_SECRET = 'your_jwt_secret_key';
 
 // Send email example
-const sendEmail = async (recipientEmail, otpCode, formData) => {
+const sendEmail = async (recipientEmail, approvalLink) => {
   try {
     const info = await transporter.sendMail({
-      from: '"CEU VAULT" <ceu.otp@gmail.com>',
+      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
-      subject: 'Your OTP Code and Equipment Borrowing Details',
-      text: `Your OTP Code is ${otpCode}`,
+      subject: 'Admin Approval Request',
+      text: `A new admin account has been requested. Please click the link to approve the admin account: ${approvalLink}. Note: This link will expire in 24 hours.`,
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
           <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">Your OTP Code is:</p>
-          <p style="font-size: 32px; font-weight: bold; color: #000; margin: 20px 0;">${otpCode}</p>
-          <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please use this code to complete your verification process.</p>
-          <p style="font-size: 14px; color: #777;">If you did not request this code, please ignore this email.</p>
-          <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
-          <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
-            </tr>
-            ${formData.equipmentCategories.map(item => `
-              <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
-              </tr>
-            `).join('')}
-          </table>
-          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">A new admin account has been requested.</p>
+          <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please click the button below to approve the admin account creation:</p>
+          <a href="${approvalLink}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #4CAF50; border-radius: 5px; text-decoration: none;">Approve Admin</a>
+          <p style="font-size: 14px; color: #999; margin-top: 20px;">Note: This link will expire in 24 hours.</p>
+          <p style="font-size: 14px; color: #999; margin-top: 10px;">Before proceeding, please contact the IT admin or the TLTS Facility to verify the request.</p>
         </div>
       `
     });
@@ -99,11 +79,44 @@ const login = async (req, res) => {
   }
 };
 
-// Pang add lang ng admin. Hindi na kailangan sa actual app
 const createAdmin = async (req, res) => {
   const { email, name, password } = req.body;
 
   try {
+    // Generate a token for approval
+    const approvalToken = jwt.sign({ email, name, password }, JWT_SECRET, { expiresIn: '24h' });
+
+    // Use the ngrok URL for the approval link
+    const ngrokUrl = process.env.NGROK_URL;
+    const approvalLink = `${ngrokUrl}/equipments/approve-admin?token=${approvalToken}`;
+
+    // Retrieve the IT admin email from environment variables
+    const itAdminEmail = process.env.IT_ADMIN;
+
+    // Use the IT admin email in the sendEmail function
+    await sendEmail(itAdminEmail, approvalLink);
+
+    res.status(200).json({ message: 'Approval email sent to your IT Administrator. Please wait for 24 hours.' });
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const approveAdmin = async (req, res) => {
+  const { token } = req.query;
+
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { email, name, password } = decoded;
+
+    // Check if the email already exists in the database
+    const [existingAdmin] = await db.query('SELECT * FROM admins WHERE email = ?', [email]);
+    if (existingAdmin.length > 0) {
+      return res.status(400).json({ message: 'An admin with that email already exists!' });
+    }
+
     // Generate a salt
     const salt = await bcrypt.genSalt(10);
     // Hash the password with the salt
@@ -114,12 +127,15 @@ const createAdmin = async (req, res) => {
 
     res.status(201).json({ message: 'Admin created successfully' });
   } catch (error) {
-    console.error('Error creating admin:', error);
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token has expired' });
+    }
+    console.error('Error approving admin:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-const updateAdminStatus = async (req, res) => {
+const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
 
@@ -141,24 +157,88 @@ const updateAdminStatus = async (req, res) => {
     // Get the current timestamp
     const statusUpdatedAt = new Date();
 
-    // Check the current status of the request
-    const [rows] = await db.query('SELECT status FROM requests WHERE request_id = ?', [request_id]);
+    // Check the current status of the request and get the request details
+    const [rows] = await db.query(`
+      SELECT r.*, ec.category_name 
+      FROM requests r 
+      LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
+      WHERE r.request_id = ?
+    `, [request_id]);
+
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    const currentStatus = rows[0].status;
+    const requestDetails = rows[0];
+    const currentStatus = requestDetails.status;
+    const requesterEmail = requestDetails.email;
+
     if (currentStatus === 'returned') {
       return res.status(400).json({ message: 'Cannot change status of a returned request' });
     }
 
-    // Update the admin_id, status, and status_updated_at in the requests table
-    await db.query(
-      'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ? WHERE request_id = ?',
-      [adminId, status, statusUpdatedAt, request_id]
-    );
+    // Prepare the update query and values
+    let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
+    let updateValues = [adminId, status, statusUpdatedAt, request_id];
 
-    res.status(200).json({ message: 'Request status updated successfully' });
+    let approvedAt;
+    if (status === 'approved') {
+      approvedAt = new Date();
+      updateQuery += ', approved_at = ?';
+      updateValues.splice(3, 0, approvedAt); // Insert approvedAt before request_id
+    }
+
+    updateQuery += ' WHERE request_id = ?';
+
+    // Update the admin_id, status, status_updated_at, and possibly approved_at in the requests table
+    await db.query(updateQuery, updateValues);
+
+    // Send an email notification for any status update
+    await transporter.sendMail({
+      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+      to: requesterEmail,
+      subject: `Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      text: `Your request with ID ${request_id} has been ${status}.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; text-align: left; padding: 35px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
+          <h1 style="color: #4CAF50; margin-bottom: 20px; text-align: center;">CEU Vault</h1>
+          <p style="font-size: 16px; color: #333; margin-bottom: 10px;">Your request with the request ID ${request_id} has been ${status}.</p>
+          <p style="font-size: 14px; color: #555; margin-bottom: 20px;">Request Details:</p>
+          <p style="font-size: 12px; color: #555;">Email: ${requestDetails.email}</p>
+          <p style="font-size: 12px; color: #555;">First Name: ${requestDetails.first_name}</p>
+          <p style="font-size: 12px; color: #555;">Last Name: ${requestDetails.last_name}</p>
+          <p style="font-size: 12px; color: #555;">Department: ${requestDetails.department}</p>
+          <p style="font-size: 12px; color: #555;">Nature of Service: ${requestDetails.nature_of_service}</p>
+          <p style="font-size: 12px; color: #555;">Purpose: ${requestDetails.purpose}</p>
+          <p style="font-size: 12px; color: #555;">Venue: ${requestDetails.venue}</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px auto; text-align: center;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px;">Category</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Quantity Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Requested Date</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Time Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Return Time</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Time Borrowed</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Approved At</th>
+              <th style="border: 1px solid #ddd; padding: 8px;">Status</th>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.category_name}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.quantity_requested}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.requested}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.time_requested}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.return_time}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.time_borrowed}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${status === 'approved' ? approvedAt : requestDetails.approved_at}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.status}</td>
+            </tr>
+          </table>
+          <p style="font-size: 14px; color: #999; margin-top: 20px; text-align: center;">If you have any questions, please contact the IT admin.</p>
+        </div>
+      `
+    });
+
+    res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
     console.error('Error updating request status:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -173,7 +253,8 @@ const logout = (req, res) => {
 module.exports = {
   login,
   createAdmin,
-  updateAdminStatus,
-  logout
+  updateRequestStatus,
+  logout,
+  approveAdmin
   // other exports
 };

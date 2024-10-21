@@ -1,21 +1,22 @@
 const nodemailer = require('nodemailer');
 const { db } = require('../models/connection_db'); // Import the database connection
 const redisClient = require('../redisClient');
+require('dotenv').config();
 
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'ceu.otp@gmail.com',
-    pass: 'gewj zaqo ppmf aqfx' // Note: Use environment variables for sensitive data
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
-// Send email example
+
 const sendEmail = async (recipientEmail, otpCode, formData) => {
   try {
     const info = await transporter.sendMail({
-      from: '"CEU VAULT" <ceu.otp@gmail.com>',
+      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
       subject: 'Your OTP Code and Equipment Borrowing Details',
       text: `Your OTP Code is ${otpCode}`,
@@ -122,8 +123,6 @@ const generateOTP = (length = 6) => {
 const verifyOTP = async (req, res) => {
   const { otp } = req.body;
 
-  console.log('Session ID:', req.sessionID);
-  console.log('Session Data:', req.session);
 
   try {
     // Retrieve OTP and form data from session
@@ -149,18 +148,66 @@ const verifyOTP = async (req, res) => {
     // Insert form data into the database
     const result = await insertFormDataIntoDatabase(formData);
 
-    // Respond with success
-    return res.status(200).json({
-      successful: true,
-      message: "OTP verified and form data inserted successfully.",
-      formData: formData // Optionally return form data if needed on frontend
-    });
+    if (result.successful) {
+      // Send an approval email to the requisitioner
+      await sendApprovalEmail(formData.email, formData);
+
+      // Respond with success
+      return res.status(200).json({
+        successful: true,
+        message: "OTP verified and form data inserted successfully. Approval email sent to requisitioner."
+      });
+    } else {
+      return res.status(500).json({
+        successful: false,
+        message: "Failed to insert form data into the database. Please try again."
+      });
+    }
   } catch (error) {
     console.error("Error verifying OTP or inserting form data:", error);
     return res.status(500).json({
       successful: false,
       message: "Failed to verify OTP or insert form data. Please try again."
     });
+  }
+};
+
+const sendApprovalEmail = async (recipientEmail, formData) => {
+  try {
+    const info = await transporter.sendMail({
+      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+      to: recipientEmail,
+      subject: 'Your Equipment Borrowing Request Approved',
+      html: `
+        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
+          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">We have recieved your equipment borrowing request. Please await for a request approval from a TLTS Coordinator.</p>
+          <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
+            </tr>
+            ${formData.equipmentCategories.map(item => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+        </div>
+      `
+    });
+    console.log('Approval email sent: %s', info.messageId);
+  } catch (error) {
+    console.error('Error sending approval email:', error);
   }
 };
 
@@ -177,7 +224,7 @@ const getCategoryIDByName = async (categoryName) => {
 
 
 const insertFormDataIntoDatabase = async (formData) => {
-  console.log('Inserting form data into the database:', formData);
+  console.log('Inserting form data into the database...');
 
   try {
     // Loop through each equipment category and insert a row for each
@@ -205,11 +252,7 @@ const insertFormDataIntoDatabase = async (formData) => {
         item.timeRequested, // Requested time for the equipment
         item.returnTime // Return time for the equipment
       ];
-
-      // Add debugging logs to check for undefined values
-      console.log('Query:', query);
-      console.log('Values:', values);
-
+      
       // Check for undefined values and replace with null
       const sanitizedValues = values.map(value => value === undefined ? null : value);
 
