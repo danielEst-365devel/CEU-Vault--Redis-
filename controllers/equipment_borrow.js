@@ -2,6 +2,9 @@ const nodemailer = require('nodemailer');
 const { db } = require('../models/connection_db'); // Import the database connection
 const redisClient = require('../redisClient');
 require('dotenv').config();
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
@@ -11,7 +14,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
-
 
 const sendEmail = async (recipientEmail, otpCode, formData) => {
   try {
@@ -57,10 +59,6 @@ const sendEmail = async (recipientEmail, otpCode, formData) => {
   }
 };
 
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
-const path = require('path');
-
 // Function to create the invoice PDF
 // Function to create the invoice PDF and return it as a base64 string
 function createInvoice(details) {
@@ -82,7 +80,6 @@ function createInvoice(details) {
     doc.end();
   });
 }
-
 function generateHeader(doc) {
   doc
     .image("admin/images/CEU-Logo.png", 50, 45, { width: 50 })
@@ -95,7 +92,6 @@ function generateHeader(doc) {
     .text("CEU Malolos", 200, 80, { align: "right" })
     .moveDown();
 }
-
 function generateCustomerInformation(doc, details) {
   doc
     .fillColor("#444444")
@@ -126,7 +122,6 @@ function generateCustomerInformation(doc, details) {
 
   generateHr(doc, customerInformationTop + 90);
 }
-
 function generateInvoiceTable(doc, details) {
   const invoiceTableTop = 330;
 
@@ -157,18 +152,16 @@ function generateInvoiceTable(doc, details) {
     generateHr(doc, position + 20);
   });
 }
-
 function generateFooter(doc) {
   doc
     .fontSize(10)
     .text(
-      "Thank you for your request. We will process it as soon as possible.",
+      "Thank you for your request. We will process it as soon as possible. Please wait for request approval.",
       50,
       780,
       { align: "center", width: 500 }
     );
 }
-
 function generateTableRow(
   doc,
   y,
@@ -186,7 +179,6 @@ function generateTableRow(
     .text(timeRequested, 350, y)
     .text(returnTime, 450, y);
 }
-
 function generateHr(doc, y) {
   doc
     .strokeColor("#aaaaaa")
@@ -196,7 +188,6 @@ function generateHr(doc, y) {
     .stroke();
 }
 
-// Modify the submitForm function to generate the PDF
 const submitForm = async (req, res, next) => {
   const { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories } = req.body;
 
@@ -266,7 +257,6 @@ const submitForm = async (req, res, next) => {
     });
   }
 };
-
 // OTP generator function
 const generateOTP = (length = 6) => {
   const digits = '0123456789';
@@ -276,7 +266,6 @@ const generateOTP = (length = 6) => {
   }
   return otp;
 };
-
 // OTP verification and form submission
 const verifyOTP = async (req, res) => {
   const { otp } = req.body;
@@ -308,7 +297,7 @@ const verifyOTP = async (req, res) => {
 
     if (result.successful) {
       // Insert the invoice into the request history
-      await insertInvoiceIntoRequestHistory(pdfBase64);
+      //await insertInvoiceIntoRequestHistory(pdfBase64);
 
       // Send an approval email to the requisitioner with the PDF attachment
       await sendApprovalEmail(formData.email, formData, pdfBase64);
@@ -332,7 +321,6 @@ const verifyOTP = async (req, res) => {
     });
   }
 };
-
 const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
   try {
     // Convert the base64 string back to a buffer
@@ -394,7 +382,6 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
     console.error('Error sending approval email:', error);
   }
 };
-
 const getCategoryIDByName = async (categoryName) => {
   const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = ?';
   const [categoryRows] = await db.execute(categoryQuery, [categoryName]);
@@ -405,11 +392,21 @@ const getCategoryIDByName = async (categoryName) => {
 
   return categoryRows[0].category_id;
 };
-
-const insertFormDataIntoDatabase = async (formData) => {
+const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
   console.log('Inserting form data into the database...');
 
+  if (!pdfBase64) {
+    throw new Error("PDF base64 is undefined.");
+  }
+
   try {
+    // Decode base64 to binary
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    // Insert a new row into the request_history table to generate a new history_id
+    const [result] = await db.execute('INSERT INTO request_history (invoice) VALUES (?)', [pdfBuffer]);
+    const historyId = result.insertId;
+
     // Loop through each equipment category and insert a row for each
     for (let item of formData.equipmentCategories) {
       // Get the equipment_category_id based on the category_name
@@ -418,8 +415,8 @@ const insertFormDataIntoDatabase = async (formData) => {
       const query = `
         INSERT INTO requests (
           email, first_name, last_name, department, nature_of_service, 
-          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time, history_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const values = [
         formData.email,
@@ -433,7 +430,8 @@ const insertFormDataIntoDatabase = async (formData) => {
         item.quantity, // Quantity requested for each category
         item.dateRequested, // Requested date for the equipment
         item.timeRequested, // Requested time for the equipment
-        item.returnTime // Return time for the equipment
+        item.returnTime, // Return time for the equipment
+        historyId // Assign the same history_id to all rows
       ];
 
       // Check for undefined values and replace with null
@@ -452,36 +450,6 @@ const insertFormDataIntoDatabase = async (formData) => {
   }
 };
 
-
-const insertInvoiceIntoRequestHistory = async (pdfBase64) => {
-  console.log('Inserting invoice into request history...');
-
-  if (!pdfBase64) {
-    throw new Error("PDF base64 is undefined.");
-  }
-
-  try {
-    // Decode base64 to binary
-    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-
-    const query = `
-      INSERT INTO request_history (invoice)
-      VALUES (?)
-    `;
-    const values = [pdfBuffer];
-
-    await db.execute(query, values);
-
-    return {
-      successful: true,
-      message: "Invoice inserted successfully into request history."
-    };
-  } catch (err) {
-    console.error("Error inserting invoice into request history:", err);
-    throw new Error("An unexpected error occurred while inserting the invoice.");
-  }
-};
-
 const getEquipmentCategories = async (req, res) => {
   const query = 'SELECT * FROM equipment_categories';
   try {
@@ -497,7 +465,6 @@ const getEquipmentCategories = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   submitForm,

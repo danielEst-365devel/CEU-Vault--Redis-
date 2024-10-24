@@ -2,8 +2,6 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
 const { db } = require('../models/connection_db'); // Import the database connection
-const axios = require('axios'); 
-
 require('dotenv').config();
 
 // Set up Nodemailer with Gmail SMTP
@@ -136,7 +134,6 @@ const approveAdmin = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 
 const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
