@@ -45,7 +45,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"otp\": \"603965\"\r\n}",
+							"raw": "{\r\n  \"otp\": \"337474\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -152,6 +152,24 @@
 							}
 						},
 						"url": "https://localhost:8000/equipments/update-status"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Request Status Two",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "// No token means di ka naka login. Send a post request to Admin Login first. \r\n\r\n{\r\n  \"request_id\": 22,\r\n  \"status\": \"ongoing\"\r\n}\r\n\r\n/* AJAX fetch request for browser console\r\n \r\nfetch('https://localhost:8000/equipments/update-status', {\r\n    method: 'POST',\r\n    headers: {\r\n        'Content-Type': 'application/json'\r\n    },\r\n    credentials: 'include',\r\n    body: JSON.stringify({\r\n        request_id: 1,\r\n        status: \"approved\"\r\n    })\r\n})\r\n.then(response => response.json())\r\n.then(data => console.log(data))\r\n.catch(error => console.error('Error:', error));\r\n\r\n*/",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "https://localhost:8000/equipments/release"
 					},
 					"response": []
 				}

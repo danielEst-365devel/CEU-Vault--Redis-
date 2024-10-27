@@ -219,9 +219,6 @@ function generateHr(doc, y) {
     .stroke();
 }
 
-
-
-
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -350,7 +347,6 @@ const approveAdmin = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 // Function to validate ongoing status
 const updateRequestStatusTwo = async (req, res) => {
   const { request_id, status } = req.body;
@@ -358,18 +354,18 @@ const updateRequestStatusTwo = async (req, res) => {
 
   // Validate token
   if (!token) {
-    return res.status(401).send('Unauthorized');
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
   // Validate input data
   if (!request_id || !status) {
-    return res.status(400).send('Bad Request: Missing request_id or status');
+    return res.status(400).json({ message: 'Bad Request: Missing request_id or status' });
   }
 
   // Validate status value
   const validStatuses = ['ongoing', 'returned', 'cancelled'];
   if (!validStatuses.includes(status)) {
-    return res.status(400).send('Bad Request: Invalid status value');
+    return res.status(400).json({ message: 'Bad Request: Invalid status value' });
   }
 
   const connection = await db.getConnection(); // Get a database connection
@@ -386,7 +382,7 @@ const updateRequestStatusTwo = async (req, res) => {
 
     if (existingRequest[0].count === 0) {
       await connection.rollback();
-      return res.status(404).send('Not Found: Request ID does not exist');
+      return res.status(404).json({ message: 'Not Found: Request ID does not exist' });
     }
 
     const currentStatus = existingRequest[0].status;
@@ -394,13 +390,13 @@ const updateRequestStatusTwo = async (req, res) => {
     // Prevent repeated status updates
     if (currentStatus === status) {
       await connection.rollback();
-      return res.status(400).send(`Bad Request: Status is already ${status}`);
+      return res.status(400).json({ message: `Bad Request: Status is already ${status}` });
     }
 
     // Prevent changing status if it's already cancelled
     if (currentStatus === 'cancelled') {
       await connection.rollback();
-      return res.status(400).send('Bad Request: Cannot change status from cancelled');
+      return res.status(400).json({ message: 'Bad Request: Cannot change status from cancelled' });
     }
 
     // Retrieve quantity_requested and equipment_category_id from the admin_log table
@@ -412,7 +408,7 @@ const updateRequestStatusTwo = async (req, res) => {
 
     if (!requestDetails || requestDetails.length === 0) {
       await connection.rollback();
-      return res.status(404).send('Not Found: Request details not found');
+      return res.status(404).json({ message: 'Not Found: Request details not found' });
     }
 
     const { quantity_requested, equipment_category_id } = requestDetails[0];
@@ -440,16 +436,15 @@ const updateRequestStatusTwo = async (req, res) => {
     `, [status, request_id]);
 
     await connection.commit(); // Commit transaction
-    res.status(200).send('Request status updated successfully');
+    res.status(200).json({ message: 'Request status updated successfully' });
   } catch (error) {
     await connection.rollback(); // Rollback transaction on error
     console.error('Error updating request status:', error);
-    res.status(500).send('Internal Server Error');
+    res.status(500).json({ message: 'Internal Server Error' });
   } finally {
     connection.release(); // Release the database connection
   }
 };
-
 const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
@@ -559,8 +554,6 @@ const updateRequestStatus = async (req, res) => {
         return new Date(date).toLocaleDateString('en-US', options);
       }
 
-
-
       const details = {
         firstName: requestDetails.first_name,
         lastName: requestDetails.last_name,
@@ -588,7 +581,7 @@ const updateRequestStatus = async (req, res) => {
       };
       
       const pdfData = await createInvoice(details);
-      
+
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
           <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
@@ -659,11 +652,84 @@ const updateRequestStatus = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
 const logout = (req, res) => {
   res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'None' });
   res.status(200).json({ message: 'Logout successful' });
 };
+
+const getadminEquipment = async (req, res) => {
+  const query = 'SELECT * FROM equipment_categories';
+  try {
+    console.log('Executing query:', query);
+    const [rows] = await db.execute(query);
+    console.log('Query result:', rows);
+
+    // Return a successful response with the equipment data
+    return res.status(200).json({
+      successful: true,
+      equipment: rows
+    });
+  } catch (error) {
+    console.error('Error retrieving equipment:', error);
+    return res.status(500).json({
+      successful: false,
+      message: 'Failed to retrieve equipment.'
+    });
+  }
+};
+
+const getAllHistory = async (req, res) => {
+  const query = 'SELECT * FROM admin_log'; // Assuming 'returned' represents completed requests
+
+  try {
+      console.log('Executing query:', query);
+      const [rows] = await db.execute(query);
+
+      if (rows.length > 0) {
+          return res.status(200).json({
+              successful: true,
+              history: rows
+          });
+      } else {
+          return res.status(404).json({
+              successful: false,
+              message: 'No borrowing history found.'
+          });
+      }
+  } catch (error) {
+      console.error('Error retrieving borrowing history:', error);
+      return res.status(500).json({
+          successful: false,
+          message: 'Failed to retrieve borrowing history.'
+      });
+  }
+};
+
+// Controller to fetch all borrowing requests
+const getAllBorrowingRequests = async (req, res) => {
+  try {
+      // Query to get all borrowing requests
+      const query = 'SELECT * FROM requests'; // Adjust the table name as necessary
+
+      // Execute the query
+      const [results] = await db.execute(query);
+
+      // Return the results in the response
+      return res.json({
+          successful: true,
+          borrowingRequests: results,
+      });
+  } catch (error) {
+      console.error('Error fetching borrowing requests:', error);
+      return res.status(500).json({
+          successful: false,
+          message: 'Error fetching borrowing requests.',
+          error: error.message,
+      });
+  }
+};
+
+
 
 module.exports = {
   login,
@@ -671,6 +737,9 @@ module.exports = {
   updateRequestStatus,
   logout,
   approveAdmin,
-  updateRequestStatusTwo
-  // other exports
+  updateRequestStatusTwo,
+  //need to check functions below:
+  getadminEquipment,
+  getAllHistory,
+  getAllBorrowingRequests
 };

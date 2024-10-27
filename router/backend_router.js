@@ -11,6 +11,9 @@ prodRouter.get('/approve-admin', adminController.approveAdmin);
 prodRouter.post('/update-status', adminController.updateRequestStatus);
 prodRouter.post('/logout', adminController.logout);
 prodRouter.post('/release', adminController.updateRequestStatusTwo);
+prodRouter.get('/get-adminEquipment', adminController.getadminEquipment);
+prodRouter.get('/get-all-history', adminController.getAllHistory);
+prodRouter.get('/get-all-requests', adminController.getAllBorrowingRequests);
 
 
 // Route to submit form and send OTP

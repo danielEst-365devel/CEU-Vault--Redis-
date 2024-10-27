@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Admin Request Status Page</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../styles.css" rel="stylesheet" type="text/css">
+    <link href="requestsStatus.css" rel="stylesheet" type="text/css">
+
+    <style>
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        .dark-mode .table {
+            color: #ffffff;
+            background-color: #1f1f1f;
+        }
+
+        .dark-mode .btn-primary {
+            background-color: #1a73e8;
+            border-color: #1a73e8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar-no-shadow">
+        <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
+            role="banner" class="navbar-no-shadow-container w-nav">
+            <div class="container-regular">
+                <div class="navbar-wrapper">
+                    <div class="w-layout-hflex ceuvaultbrandflex">
+                        <a href="/admin/Home Page/adminHomepage.html" class="ceulogo w-nav-brand"><img width="85"
+                                loading="lazy" alt="" src="../images/CEU-Logo.png" class="image"></a>
+                        <div class="w-layout-hflex ceuvaultbrandtext">
+                            <h4 class="heading">Centro Escolar University</h4>
+                            <h1 class="heading-2">CEU <span class="text-span">VAULT</span></h1>
+                            <h5 class="heading-3">MALOLOS TLTS FACILITY</h5>
+                        </div>
+                    </div>
+                    <nav role="navigation" class="nav-menu-wrapper w-nav-menu">
+                        <ul role="list" class="nav-menu w-list-unstyled">
+                            <li class="list-item-2">
+                                <a href="/admin/Inventory Status/inventoryStatus.html" aria-current="page"
+                                    class="button-primary w-button w--current">INVENTORY STATUS</a>
+                            </li>
+                            <li class="list-item">
+                                <a href="/admin/Requests/requestsStatus.html"
+                                    class="button-primary w-button">REQUEST</a>
+                            </li>
+                            <li class="list-item-3">
+                                <a href="/admin/History/history.html" class="button-primary w-button">REQUISITION
+                                    HISTORY</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div class="menu-button w-nav-button">
+                        <div class="icon w-icon-nav-menu"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section>
+        <div class="container mt-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="">Pending Requests</h1>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div id="tableContainer" class="table-responsive"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="container mt-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="">Approved Requests</h1>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div id="approvedTableContainer" class="table-responsive"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Call the API when the page loads
+        document.addEventListener("DOMContentLoaded", function () {
+            fetchBorrowingRequestsData();
+            fetchApprovedRequestsData();
+        });
+
+        // Fetch data from the API
+        async function fetchBorrowingRequestsData() {
+            try {
+                const response = await fetch('https://localhost:8000/equipments/get-all-requests');
+                const data = await response.json();
+
+                if (data.successful && data.borrowingRequests) {
+                    displayTable(data.borrowingRequests, 'tableContainer');
+                } else {
+                    document.getElementById('tableContainer').innerHTML = `<p>${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('tableContainer').innerHTML = `<p>Error fetching borrowing requests data: ${error.message}</p>`;
+            }
+        }
+
+        // Fetch approved requests from the API
+        async function fetchApprovedRequestsData() {
+            try {
+                const response = await fetch('https://localhost:8000/equipments/get-all-history');
+                const data = await response.json();
+
+                console.log('Fetched data:', data); // Log the fetched data
+
+                if (data.successful && data.approvedRequests) {
+                    console.log('Approved Requests:', data.approvedRequests); // Log the approved requests
+                    displayApprovedTable(data.approvedRequests, 'approvedTableContainer');
+                } else {
+                    document.getElementById('approvedTableContainer').innerHTML = `<p>${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('approvedTableContainer').innerHTML = `<p>Error fetching approved requests data: ${error.message}</p>`;
+            }
+        }
+
+        // Call the function to fetch and display data
+        fetchApprovedRequestsData();
+
+        // Display the data in a Bootstrap table
+        function displayTable(data, containerId) {
+            const table = document.createElement('table');
+            table.classList.add('table', 'table-striped', 'table-bordered', 'table-hover', 'table-sm', 'text-center');
+
+            // Create table header
+            const thead = document.createElement('thead');
+            thead.classList.add('thead-dark');
+            const headerRow = document.createElement('tr');
+
+            // Headers for the table
+            const headers = [
+                { text: 'Request ID', field: 'request_id' },
+                { text: 'Email', field: 'email' },
+                { text: 'First Name', field: 'first_name' },
+                { text: 'Last Name', field: 'last_name' },
+                { text: 'Department', field: 'department' },
+                { text: 'Nature of Service', field: 'nature_of_service' },
+                { text: 'Purpose', field: 'purpose' },
+                { text: 'Venue', field: 'venue' },
+                { text: 'Equipment Category ID', field: 'equipment_category_id' },
+                { text: 'Quantity Requested', field: 'quantity_requested' },
+                { text: 'Requested', field: 'requested' },
+                { text: 'Time Requested', field: 'time_requested' },
+                { text: 'Return Time', field: 'return_time' },
+                { text: 'Time Borrowed', field: 'time_borrowed' },
+                { text: 'Approved At', field: 'approved_at' },
+                { text: 'Status', field: 'status' },
+                { text: 'Status Updated At', field: 'status_updated_at' },
+                { text: 'Admin ID', field: 'admin_id' },
+                { text: 'Actions', field: 'actions' } // New column for buttons
+            ];
+
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header.text;
+                headerRow.appendChild(th);
+            });
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Create table body
+            const tbody = document.createElement('tbody');
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                const fields = [
+                    item.request_id,
+                    item.email,
+                    item.first_name,
+                    item.last_name,
+                    item.department,
+                    item.nature_of_service,
+                    item.purpose,
+                    item.venue,
+                    item.equipment_category_id,
+                    item.quantity_requested,
+                    item.requested,
+                    (item.time_requested).toLocaleString(), // Formatting the date
+                    (item.return_time).toLocaleString(), // Formatting the date
+                    (item.time_borrowed).toLocaleString(), // Formatting the date
+                    item.approved_at ? new Date(item.approved_at).toLocaleString() : 'N/A', // Formatting the date
+                    item.status,
+                    item.status_updated_at ? new Date(item.status_updated_at).toLocaleString() : 'N/A', // Formatting the date
+                    item.admin_id
+                ];
+
+                fields.forEach(field => {
+                    const td = document.createElement('td');
+                    td.textContent = field !== null ? field : 'N/A';
+                    tr.appendChild(td);
+                });
+
+                // Create a cell for the action buttons
+                const actionTd = document.createElement('td');
+
+                // Approve button
+                const approveButton = document.createElement('button');
+                approveButton.textContent = 'Approve';
+                approveButton.classList.add('btn', 'btn-success', 'btn-sm', 'mr-2');
+                approveButton.onclick = () => approveRequest(item.request_id); // Attach the approve function
+                actionTd.appendChild(approveButton);
+
+                // Reject button
+                const rejectButton = document.createElement('button');
+                rejectButton.textContent = 'Reject';
+                rejectButton.classList.add('btn', 'btn-danger', 'btn-sm');
+                rejectButton.onclick = () => rejectRequest(item.request_id); // Attach the reject function
+                actionTd.appendChild(rejectButton);
+
+                tr.appendChild(actionTd);
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+
+            // Insert table into the container
+            const tableContainer = document.getElementById(containerId);
+            tableContainer.innerHTML = '';  // Clear previous content
+            tableContainer.appendChild(table);
+        }
+
+        // Display the approved requests in a Bootstrap table
+        async function fetchApprovedRequestsData() {
+            try {
+                const response = await fetch('https://localhost:8000/equipments/get-all-history');
+                const data = await response.json();
+
+                console.log('Fetched data:', data); // Log the fetched data
+
+                if (data.successful && data.history) {
+                    console.log('History:', data.history); // Log the history data
+                    displayApprovedTable(data.history, 'approvedTableContainer');
+                } else {
+                    document.getElementById('approvedTableContainer').innerHTML = `<p>${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('approvedTableContainer').innerHTML = `<p>Error fetching approved requests data: ${error.message}</p>`;
+            }
+        }
+
+        // Call the function to fetch and display data
+        fetchApprovedRequestsData();
+        function displayApprovedTable(data, containerId) {
+            console.log('Data passed to displayApprovedTable:', data); // Log the data
+            const tableContainer = document.getElementById(containerId);
+            console.log('Table Container:', tableContainer); // Log the container element
+
+            if (!tableContainer) {
+                console.error(`Container with ID ${containerId} not found.`);
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.classList.add('table', 'table-striped', 'table-bordered', 'table-hover', 'table-sm', 'text-center');
+
+            // Create table header
+            const thead = document.createElement('thead');
+            thead.classList.add('thead-dark');
+            const headerRow = document.createElement('tr');
+
+            // Headers for the table
+            const headers = [
+                { text: 'Log ID', field: 'log_id' },
+                { text: 'Request ID', field: 'request_id' },
+                { text: 'Email', field: 'email' },
+                { text: 'First Name', field: 'first_name' },
+                { text: 'Last Name', field: 'last_name' },
+                { text: 'Department', field: 'department' },
+                { text: 'Nature of Service', field: 'nature_of_service' },
+                { text: 'Purpose', field: 'purpose' },
+                { text: 'Venue', field: 'venue' },
+                { text: 'Equipment Category ID', field: 'equipment_category_id' },
+                { text: 'Quantity Requested', field: 'quantity_requested' },
+                { text: 'Requested', field: 'requested' },
+                { text: 'Time Requested', field: 'time_requested' },
+                { text: 'Return Time', field: 'return_time' },
+                { text: 'Time Borrowed', field: 'time_borrowed' },
+                { text: 'Approved At', field: 'approved_at' },
+                { text: 'Status', field: 'status' },
+                { text: 'Status Updated At', field: 'status_updated_at' },
+                { text: 'Admin ID', field: 'admin_id' },
+                { text: 'History ID', field: 'history_id' },
+                { text: 'Request Approved By', field: 'request_approved_by' },
+                { text: 'MCL Pass No', field: 'mcl_pass_no' },
+                { text: 'Released By', field: 'released_by' },
+                { text: 'Time Returned', field: 'time_returned' },
+                { text: 'Received By', field: 'received_by' },
+                { text: 'Remarks', field: 'remarks' },
+                { text: 'Actions', field: 'actions' } // New column for buttons
+            ];
+
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header.text;
+                headerRow.appendChild(th);
+            });
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Create table body
+            const tbody = document.createElement('tbody');
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                const fields = [
+                    item.log_id,
+                    item.request_id,
+                    item.email,
+                    item.first_name,
+                    item.last_name,
+                    item.department,
+                    item.nature_of_service,
+                    item.purpose,
+                    item.venue,
+                    item.equipment_category_id,
+                    item.quantity_requested,
+                    item.requested,
+                    item.time_requested,
+                    item.return_time,
+                    item.time_borrowed,
+                    item.approved_at ? new Date(item.approved_at).toLocaleString() : 'N/A',
+                    item.status,
+                    item.status_updated_at ? new Date(item.status_updated_at).toLocaleString() : 'N/A',
+                    item.admin_id,
+                    item.history_id,
+                    item.request_approved_by,
+                    item.mcl_pass_no,
+                    item.released_by,
+                    item.time_returned,
+                    item.received_by,
+                    item.remarks
+                ];
+
+                fields.forEach(field => {
+                    const td = document.createElement('td');
+                    td.textContent = field !== null ? field : 'N/A';
+                    tr.appendChild(td);
+                });
+
+                // Create a cell for the action buttons
+                const actionTd = document.createElement('td');
+
+                // Approve button
+                const releaseButton = document.createElement('button');
+                releaseButton.textContent = 'Release';
+                releaseButton.classList.add('btn', 'btn-success', 'btn-sm', 'mr-2');
+                releaseButton.onclick = () => releaseApprovedRequest(item.request_id); // Attach the approve function
+                actionTd.appendChild(releaseButton);
+
+                // Reject button
+                const returnButton = document.createElement('button');
+                returnButton.textContent = 'Return';
+                returnButton.classList.add('btn', 'btn-danger', 'btn-sm');
+                returnButton.onclick = () => returnApprovedRequest(item.request_id); // Attach the reject function
+                actionTd.appendChild(returnButton);
+
+                tr.appendChild(actionTd);
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+
+            // Insert table into the container
+            tableContainer.innerHTML = '';  // Clear previous content
+            tableContainer.appendChild(table);
+        }
+
+
+        function approveRequest(requestId) {
+            fetch(`https://localhost:8000/equipments/update-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'approved' }),
+                credentials: 'include'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'Request status updated successfully') {
+                        alert(`Request ${requestId} has been approved.`);
+                        fetchBorrowingRequestsData(); // Refresh the table data
+                    } else {
+                        alert(`Failed to approve request: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error approving request: ${error.message}`);
+                    alert('An error occurred while approving the request.');
+                });
+        }
+
+        const rejectRequest = (requestId) => {
+            fetch(`https://localhost:8000/equipments/update-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'cancelled' }),
+                credentials: 'include'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message === 'Request status updated successfully') {
+                        alert(`Request ${requestId} has been rejected.`);
+                        fetchBorrowingRequestsData(); // Refresh the table data
+                    } else {
+                        alert(`Failed to reject request: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error rejecting request: ${error.message}`);
+                    alert('An error occurred while rejecting the request.');
+                });
+        };
+
+        function releaseApprovedRequest(requestId) {
+            fetch(`https://localhost:8000/equipments/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'ongoing' }),
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.message === 'Request status updated successfully') {
+                    alert(`Approved request ${requestId} has been released to the requisitioner.`);
+                    fetchApprovedRequestsData(); // Refresh the table data
+                } else {
+                    alert(`Failed to approve approved request: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error(`Error approving approved request: ${error.message}`);
+                alert(`An error occurred while approving the approved request: ${error.message}`);
+            });
+        }
+        
+        const returnApprovedRequest = (requestId) => {
+            fetch(`https://localhost:8000/equipments/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'returned' }),
+                credentials: 'include'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.message === 'Request status updated successfully') {
+                    alert(`Request ${requestId} has been cancelled.`);
+                    fetchApprovedRequestsData(); // Refresh the table data
+                } else {
+                    alert(`Failed to cancel request: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error(`Error cancelling request: ${error.message}`);
+                alert(`An error occurred while cancelling the request: ${error.message}`);
+            });
+        }
+    </script>
+
+    <div class="footer">
+        <p class="paragraph-2">‍<strong class="bold-text-4">CEU VAULT<br>‍</strong>© 2024 Copyright <a
+                href="https://www.ceu.edu.ph/" class="link"><strong class="bold-text-2">Centro Escolar University
+                </strong></a><strong class="bold-text-3"><br></strong>Km. 44,
+            Macarthur Highway, Longos, Malolos, Bulacan<br>All rights reserved.</p>
+    </div>
+
+    <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=66e266eb815840690d1652d0"
+        type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+        crossorigin="anonymous"></script>
+    <script src="../scripts/script.js" type="text/javascript"></script>
+
+</body>
+
+</html>

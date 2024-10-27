@@ -36,7 +36,7 @@
             <div class="container-regular">
                 <div class="navbar-wrapper">
                     <div class="w-layout-hflex ceuvaultbrandflex">
-                        <a href="#" class="ceulogo w-nav-brand"><img width="85" loading="lazy" alt=""
+                        <a href="/admin/Home Page/adminHomepage.html" class="ceulogo w-nav-brand"><img width="85" loading="lazy" alt=""
                                 src="../images/CEU-Logo.png" class="image"></a>
                         <div class="w-layout-hflex ceuvaultbrandtext">
                             <h4 class="heading">Centro Escolar University</h4>
@@ -115,6 +115,7 @@
                     },
                     body: JSON.stringify({ email, password }),
                     credentials: 'include' // Include cookies in the request
+                    
                 })
                     .then(response => {
                         if (!response.ok) {
@@ -125,6 +126,7 @@
                     .then(data => {
                         console.log('Login successful:', data);
                         // Handle successful login (e.g., redirect to another page)
+                        window.location.href = '/admin/Home Page/adminHomepage.html'
                     })
                     .catch(error => {
                         console.error('There was a problem with the fetch operation:', error);
