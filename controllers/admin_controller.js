@@ -3,6 +3,224 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
 const { db } = require('../models/connection_db'); // Import the database connection
 require('dotenv').config();
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+
+// Function to create the invoice PDF
+// Function to create the invoice PDF and return it as a base64 string
+function createInvoice(details) {
+  return new Promise((resolve, reject) => {
+    let doc = new PDFDocument({ size: "A4", margin: 50 });
+    let buffers = [];
+
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      let pdfData = Buffer.concat(buffers);
+      resolve(pdfData.toString('base64'));
+    });
+
+    generateHeader(doc);
+    generateCustomerInformation(doc, details);
+    generateInvoiceTable(doc, details);
+
+    if (details.cancelledDetails) {
+      generateCancelledRequestsTable(doc, details.cancelledDetails);
+    }
+
+    generateFooter(doc);
+
+    doc.end();
+  });
+}
+function generateHeader(doc) {
+  doc
+    .image("admin/images/CEU-Logo.png", 50, 45, { width: 50 })
+    .fillColor("#444444")
+    .fontSize(20)
+    .text("CEU VAULT", 110, 57)
+    .fontSize(10)
+    .text("CEU VAULT.", 200, 50, { align: "right" })
+    .text("Teaching, Learning, and Technology Section", 200, 65, { align: "right" })
+    .text("CEU Malolos", 200, 80, { align: "right" })
+    .moveDown();
+}
+function generateCustomerInformation(doc, details) {
+  doc
+    .fillColor("#444444")
+    .fontSize(20)
+    .text("Service Request", 50, 160);
+
+  generateHr(doc, 185);
+
+  const customerInformationTop = 200;
+
+  doc
+    .fontSize(10)
+    .text("Name:", 50, customerInformationTop)
+    .font("Helvetica-Bold")
+    .text(`${details.firstName} ${details.lastName}`, 150, customerInformationTop)
+    .font("Helvetica")
+    .text("Department:", 50, customerInformationTop + 15)
+    .text(details.departmentName, 150, customerInformationTop + 15)
+    .text("Email:", 50, customerInformationTop + 30)
+    .text(details.email, 150, customerInformationTop + 30)
+    .text("Nature of Service:", 50, customerInformationTop + 45)
+    .text(details.natureOfService, 150, customerInformationTop + 45)
+    .text("Purpose:", 50, customerInformationTop + 60)
+    .text(details.purpose, 150, customerInformationTop + 60)
+    .text("Venue:", 50, customerInformationTop + 75)
+    .text(details.venue, 150, customerInformationTop + 75)
+    .moveDown();
+
+  generateHr(doc, customerInformationTop + 90);
+}
+function generateInvoiceTable(doc, details) {
+  const invoiceTableTop = 330;
+
+  // Add title for the Approved Requests table
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(14)
+    .text("Approved Requests", 50, invoiceTableTop - 30);
+
+  doc.font("Helvetica-Bold");
+  generateTableRow(
+    doc,
+    invoiceTableTop,
+    "Category",
+    "Quantity",
+    "Date Requested",
+    "Time Requested",
+    "Return Time"
+  );
+  generateHr(doc, invoiceTableTop + 20);
+  doc.font("Helvetica");
+
+  details.equipmentCategories.forEach((item, i) => {
+    const position = invoiceTableTop + (i + 1) * 30;
+    generateTableRow(
+      doc,
+      position,
+      item.category,
+      item.quantity,
+      item.dateRequested,
+      item.timeRequested,
+      item.returnTime
+    );
+    generateHr(doc, position + 20);
+  });
+}
+function generateCancelledRequestsTable(doc, cancelledDetails) {
+  const cancelledTableTop = 500; // Adjust the position as needed
+
+  // Add title for the Cancelled Requests table
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(14)
+    .text("Cancelled Requests", 50, cancelledTableTop - 30);
+
+  doc.font("Helvetica-Bold");
+  generateTableRow(
+    doc,
+    cancelledTableTop,
+    "Category",
+    "Quantity",
+    "Date Requested",
+    "Time Requested",
+    "Return Time"
+  );
+  generateHr(doc, cancelledTableTop + 20);
+  doc.font("Helvetica");
+
+  cancelledDetails.equipmentCategories.forEach((item, i) => {
+    const position = cancelledTableTop + (i + 1) * 30;
+    generateTableRow(
+      doc,
+      position,
+      item.category,
+      item.quantity,
+      item.dateRequested,
+      item.timeRequested,
+      item.returnTime
+    );
+    generateHr(doc, position + 20);
+  });
+}
+function generateCancelledRequestsTable(doc, cancelledDetails) {
+  const cancelledTableTop = 500; // Adjust the position as needed
+
+  // Add title for the Cancelled Requests table
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(14)
+    .text("Cancelled Requests", 50, cancelledTableTop - 30);
+
+  doc.font("Helvetica-Bold");
+  generateTableRow(
+    doc,
+    cancelledTableTop,
+    "Category",
+    "Quantity",
+    "Date Requested",
+    "Time Requested",
+    "Return Time"
+  );
+  generateHr(doc, cancelledTableTop + 20);
+  doc.font("Helvetica");
+
+  cancelledDetails.equipmentCategories.forEach((item, i) => {
+    const position = cancelledTableTop + (i + 1) * 30;
+    generateTableRow(
+      doc,
+      position,
+      item.category,
+      item.quantity,
+      item.dateRequested,
+      item.timeRequested,
+      item.returnTime
+    );
+    generateHr(doc, position + 20);
+  });
+}
+function generateFooter(doc) {
+  doc
+    .fontSize(10)
+    .text(
+      "Thank you for your request. We will process it as soon as possible. Please wait for request approval.",
+      50,
+      780,
+      { align: "center", width: 500 }
+    );
+}
+function generateTableRow(
+  doc,
+  y,
+  category,
+  quantity,
+  dateRequested,
+  timeRequested,
+  returnTime
+) {
+  doc
+    .fontSize(10)
+    .text(category, 50, y)
+    .text(quantity, 150, y)
+    .text(dateRequested, 250, y)
+    .text(timeRequested, 350, y)
+    .text(returnTime, 450, y);
+}
+function generateHr(doc, y) {
+  doc
+    .strokeColor("#aaaaaa")
+    .lineWidth(1)
+    .moveTo(50, y)
+    .lineTo(550, y)
+    .stroke();
+}
+
+
+
 
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
@@ -12,10 +230,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   }
 });
-
 // Secret key for JWT
 const JWT_SECRET = 'your_jwt_secret_key';
-
 // Send email example
 const sendEmail = async (recipientEmail, approvalLink) => {
   try {
@@ -135,7 +351,106 @@ const approveAdmin = async (req, res) => {
   }
 };
 
- const updateRequestStatus = async (req, res) => {
+// Function to validate ongoing status
+const updateRequestStatusTwo = async (req, res) => {
+  const { request_id, status } = req.body;
+  const token = req.cookies.token;
+
+  // Validate token
+  if (!token) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  // Validate input data
+  if (!request_id || !status) {
+    return res.status(400).send('Bad Request: Missing request_id or status');
+  }
+
+  // Validate status value
+  const validStatuses = ['ongoing', 'returned', 'cancelled'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).send('Bad Request: Invalid status value');
+  }
+
+  const connection = await db.getConnection(); // Get a database connection
+
+  try {
+    await connection.beginTransaction(); // Start transaction
+
+    // Check if the request_id exists in the admin_log table
+    const [existingRequest] = await connection.query(`
+      SELECT COUNT(*) as count, status 
+      FROM admin_log 
+      WHERE request_id = ?
+    `, [request_id]);
+
+    if (existingRequest[0].count === 0) {
+      await connection.rollback();
+      return res.status(404).send('Not Found: Request ID does not exist');
+    }
+
+    const currentStatus = existingRequest[0].status;
+
+    // Prevent repeated status updates
+    if (currentStatus === status) {
+      await connection.rollback();
+      return res.status(400).send(`Bad Request: Status is already ${status}`);
+    }
+
+    // Prevent changing status if it's already cancelled
+    if (currentStatus === 'cancelled') {
+      await connection.rollback();
+      return res.status(400).send('Bad Request: Cannot change status from cancelled');
+    }
+
+    // Retrieve quantity_requested and equipment_category_id from the admin_log table
+    const [requestDetails] = await connection.query(`
+      SELECT quantity_requested, equipment_category_id 
+      FROM admin_log 
+      WHERE request_id = ?
+    `, [request_id]);
+
+    if (!requestDetails || requestDetails.length === 0) {
+      await connection.rollback();
+      return res.status(404).send('Not Found: Request details not found');
+    }
+
+    const { quantity_requested, equipment_category_id } = requestDetails[0];
+
+    // Update quantity_available based on status
+    if (status === 'ongoing') {
+      await connection.query(`
+        UPDATE equipment_categories 
+        SET quantity_available = quantity_available - ? 
+        WHERE category_id = ?
+      `, [quantity_requested, equipment_category_id]);
+    } else if (status === 'returned') {
+      await connection.query(`
+        UPDATE equipment_categories 
+        SET quantity_available = quantity_available + ? 
+        WHERE category_id = ?
+      `, [quantity_requested, equipment_category_id]);
+    }
+
+    // Update the status and status_updated_at of the request in the admin_log table
+    await connection.query(`
+      UPDATE admin_log 
+      SET status = ?, status_updated_at = NOW() 
+      WHERE request_id = ?
+    `, [status, request_id]);
+
+    await connection.commit(); // Commit transaction
+    res.status(200).send('Request status updated successfully');
+  } catch (error) {
+    await connection.rollback(); // Rollback transaction on error
+    console.error('Error updating request status:', error);
+    res.status(500).send('Internal Server Error');
+  } finally {
+    connection.release(); // Release the database connection
+  }
+};
+
+const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
 
@@ -143,23 +458,18 @@ const approveAdmin = async (req, res) => {
     return res.status(401).json({ message: 'Unauthorized: No token provided' });
   }
 
-  // Validate the status
-  const validStatuses = ['approved', 'ongoing', 'returned', 'cancelled'];
+  const validStatuses = ['approved', 'cancelled'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ message: 'Invalid status' });
   }
 
   try {
-    // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     const adminId = decoded.id;
-    const requestApprovedBy = decoded.email; // Gather the request_approved_by from the JWT token credentials
-
-    // Get the current timestamp
+    const requestApprovedBy = decoded.email;
     const statusUpdatedAt = new Date();
-    let approvedAt = null; // Initialize approvedAt to null
+    let approvedAt = null;
 
-    // Check the current status of the request and get the request details
     const [rows] = await db.query(`
       SELECT r.*, ec.category_name, ec.quantity_available 
       FROM requests r 
@@ -174,119 +484,174 @@ const approveAdmin = async (req, res) => {
     const requestDetails = rows[0];
     const currentStatus = requestDetails.status;
     const requesterEmail = requestDetails.email;
+    const historyId = requestDetails.history_id;
 
     if (currentStatus === 'returned') {
       return res.status(400).json({ message: 'Cannot change status of a returned request' });
     }
 
-    // Get current system time if status is 'approved'
     if (status === 'approved') {
       approvedAt = new Date();
     }
 
-    // Send an email notification for any status update
-    await transporter.sendMail({
-      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
-      to: requesterEmail,
-      subject: `Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-      text: `Your request with ID ${request_id} has been ${status}.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; text-align: left; padding: 35px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
-          <h1 style="color: #4CAF50; margin-bottom: 20px; text-align: center;">CEU Vault</h1>
-          <p style="font-size: 16px; color: #333; margin-bottom: 10px;">Your request with the request ID ${request_id} has been ${status}.</p>
-          <p style="font-size: 14px; color: #555; margin-bottom: 20px;">Request Details:</p>
-          <p style="font-size: 12px; color: #555;">Email: ${requestDetails.email}</p>
-          <p style="font-size: 12px; color: #555;">First Name: ${requestDetails.first_name}</p>
-          <p style="font-size: 12px; color: #555;">Last Name: ${requestDetails.last_name}</p>
-          <p style="font-size: 12px; color: #555;">Department: ${requestDetails.department}</p>
-          <p style="font-size: 12px; color: #555;">Nature of Service: ${requestDetails.nature_of_service}</p>
-          <p style="font-size: 12px; color: #555;">Purpose: ${requestDetails.purpose}</p>
-          <p style="font-size: 12px; color: #555;">Venue: ${requestDetails.venue}</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 20px auto; text-align: center;">
-            <tr>
-              <th style="border: 1px solid #ddd; padding: 8px;">Category</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Quantity Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Requested Date</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Time Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Return Time</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Time Borrowed</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Approved at</th>
-              <th style="border: 1px solid #ddd; padding: 8px;">Status</th>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.category_name}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.quantity_requested}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.requested}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.time_requested}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.return_time}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${requestDetails.time_borrowed}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${status === 'approved' ? approvedAt : requestDetails.approved_at}</td>
-              <td style="border: 1px solid #ddd; padding: 8px;">${status}</td>
-            </tr>
-          </table>
-          <p style="font-size: 14px; color: #999; margin-top: 20px; text-align: center;">If you have any questions, please contact the IT admin.</p>
-        </div>
-      `
-    });
-
-    // If status is 'ongoing', decrement the quantity_available in equipment_categories
-    if (status === 'ongoing') {
-      const quantityRequested = requestDetails.quantity_requested;
-      const equipmentCategoryId = requestDetails.equipment_category_id;
-
-      await db.query(`
-        UPDATE equipment_categories 
-        SET quantity_available = quantity_available - ? 
-        WHERE category_id = ?
-      `, [quantityRequested, equipmentCategoryId]);
-    }
-
-    // If status is 'returned', increment the quantity_available in equipment_categories
-    if (status === 'returned') {
-      const quantityRequested = requestDetails.quantity_requested;
-      const equipmentCategoryId = requestDetails.equipment_category_id;
-
-      await db.query(`
-        UPDATE equipment_categories 
-        SET quantity_available = quantity_available + ? 
-        WHERE category_id = ?
-      `, [quantityRequested, equipmentCategoryId]);
-    }
-
-    // Prepare the update query and values
     let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
     let updateValues = [adminId, status, statusUpdatedAt, request_id];
 
     if (status === 'approved') {
       updateQuery += ', approved_at = ?';
-      updateValues.splice(3, 0, approvedAt); // Insert approvedAt before request_id
+      updateValues.splice(3, 0, approvedAt);
     }
 
     updateQuery += ' WHERE request_id = ?';
-
-    // Update the admin_id, status, status_updated_at, and possibly approved_at in the requests table
     await db.query(updateQuery, updateValues);
 
-    // Insert the request details into the admin_log table
     await db.query(`
       INSERT INTO admin_log (
-        email, first_name, last_name, department, nature_of_service, purpose, venue, 
+        request_id, email, first_name, last_name, department, nature_of_service, purpose, venue, 
         equipment_category_id, quantity_requested, requested, time_requested, return_time, 
         time_borrowed, approved_at, status, status_updated_at, admin_id, history_id, 
         request_approved_by, mcl_pass_no, released_by, time_returned, received_by, remarks
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      requestDetails.email, requestDetails.first_name, requestDetails.last_name, 
-      requestDetails.department, requestDetails.nature_of_service, requestDetails.purpose, requestDetails.venue, 
-      requestDetails.equipment_category_id, requestDetails.quantity_requested, requestDetails.requested, 
-      requestDetails.time_requested, requestDetails.return_time, requestDetails.time_borrowed, 
-      approvedAt, status, statusUpdatedAt, adminId, requestDetails.history_id, 
-      requestApprovedBy, requestDetails.mcl_pass_no, requestDetails.released_by, 
+      requestDetails.request_id, requestDetails.email, requestDetails.first_name, requestDetails.last_name,
+      requestDetails.department, requestDetails.nature_of_service, requestDetails.purpose, requestDetails.venue,
+      requestDetails.equipment_category_id, requestDetails.quantity_requested, requestDetails.requested,
+      requestDetails.time_requested, requestDetails.return_time, requestDetails.time_borrowed,
+      approvedAt, status, statusUpdatedAt, adminId, requestDetails.history_id,
+      requestApprovedBy, requestDetails.mcl_pass_no, requestDetails.released_by,
       requestDetails.time_returned, requestDetails.received_by, requestDetails.remarks
     ]);
 
-    // Remove the row from the requests table
     await db.query('DELETE FROM requests WHERE request_id = ?', [request_id]);
+
+    const [allRequests] = await db.query(`
+      SELECT status FROM requests WHERE history_id = ?
+    `, [historyId]);
+
+    const allApproved = allRequests.every(request => request.status === 'approved');
+
+    if (allApproved) {
+      const [approvedRequests] = await db.query(`
+        SELECT al.*, ec.category_name 
+        FROM admin_log al 
+        LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
+        WHERE al.history_id = ? AND al.status = 'approved'
+      `, [historyId]);
+
+      const [cancelledRequests] = await db.query(`
+        SELECT al.*, ec.category_name 
+        FROM admin_log al 
+        LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
+        WHERE al.history_id = ? AND al.status = 'cancelled'
+      `, [historyId]);
+
+      // Helper function to format time in 12-hour format
+      function formatTimeTo12Hour(time) {
+        const [hours, minutes] = time.split(':').map(Number);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12; // the hour '0' should be '12'
+        const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+      }
+      // Helper function to format date to 'Sun Oct 01 2023'
+      function formatDate(date) {
+        const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(date).toLocaleDateString('en-US', options);
+      }
+
+
+
+      const details = {
+        firstName: requestDetails.first_name,
+        lastName: requestDetails.last_name,
+        departmentName: requestDetails.department,
+        email: requestDetails.email,
+        natureOfService: requestDetails.nature_of_service,
+        purpose: requestDetails.purpose,
+        venue: requestDetails.venue,
+        equipmentCategories: approvedRequests.map(req => ({
+          category: req.category_name,
+          quantity: req.quantity_requested,
+          dateRequested: formatDate(req.requested),
+          timeRequested: formatTimeTo12Hour(req.time_requested),
+          returnTime: formatTimeTo12Hour(req.return_time)
+        })),
+        cancelledDetails: cancelledRequests.length > 0 ? {
+          equipmentCategories: cancelledRequests.map(req => ({
+            category: req.category_name,
+            quantity: req.quantity_requested,
+            dateRequested: formatDate(req.requested),
+            timeRequested: formatTimeTo12Hour(req.time_requested),
+            returnTime: formatTimeTo12Hour(req.return_time)
+          }))
+        } : null
+      };
+      
+      const pdfData = await createInvoice(details);
+      
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
+          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">All your requests tied to Request Batch ID ${historyId} have been processed.</p>
+          <h2 style="color: #4CAF50; margin-bottom: 20px;">Approved Requests</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
+              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
+            </tr>
+            ${details.equipmentCategories.map(item => `
+              <tr>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+              </tr>
+            `).join('')}
+          </table>
+          ${details.cancelledDetails ? `
+            <h2 style="color: #FF0000; margin-bottom: 20px;">Cancelled Requests</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <tr>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
+                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
+              </tr>
+              ${details.cancelledDetails.equipmentCategories.map(item => `
+                <tr>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
+                  <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+                </tr>
+              `).join('')}
+            </table>
+          ` : ''}
+          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+        to: requesterEmail,
+        subject: `All Requests Approved`,
+        text: `All your requests tied to Request Batch ID ${historyId} have been processed.`,
+        html: htmlContent,
+        attachments: [
+          {
+            filename: 'invoice.pdf',
+            content: pdfData,
+            encoding: 'base64'
+          }
+        ]
+      });
+    }
 
     res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
@@ -305,6 +670,7 @@ module.exports = {
   createAdmin,
   updateRequestStatus,
   logout,
-  approveAdmin
+  approveAdmin,
+  updateRequestStatusTwo
   // other exports
 };

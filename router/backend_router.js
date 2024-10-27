@@ -10,6 +10,8 @@ prodRouter.post('/create-admin', adminController.createAdmin);
 prodRouter.get('/approve-admin', adminController.approveAdmin);
 prodRouter.post('/update-status', adminController.updateRequestStatus);
 prodRouter.post('/logout', adminController.logout);
+prodRouter.post('/release', adminController.updateRequestStatusTwo);
+
 
 // Route to submit form and send OTP
 prodRouter.post('/insert-details', equipmentController.submitForm);
