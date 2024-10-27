@@ -135,7 +135,7 @@ const approveAdmin = async (req, res) => {
   }
 };
 
-const updateRequestStatus = async (req, res) => {
+ const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
 
@@ -153,6 +153,7 @@ const updateRequestStatus = async (req, res) => {
     // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     const adminId = decoded.id;
+    const requestApprovedBy = decoded.email; // Gather the request_approved_by from the JWT token credentials
 
     // Get the current timestamp
     const statusUpdatedAt = new Date();
@@ -265,6 +266,27 @@ const updateRequestStatus = async (req, res) => {
 
     // Update the admin_id, status, status_updated_at, and possibly approved_at in the requests table
     await db.query(updateQuery, updateValues);
+
+    // Insert the request details into the admin_log table
+    await db.query(`
+      INSERT INTO admin_log (
+        email, first_name, last_name, department, nature_of_service, purpose, venue, 
+        equipment_category_id, quantity_requested, requested, time_requested, return_time, 
+        time_borrowed, approved_at, status, status_updated_at, admin_id, history_id, 
+        request_approved_by, mcl_pass_no, released_by, time_returned, received_by, remarks
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      requestDetails.email, requestDetails.first_name, requestDetails.last_name, 
+      requestDetails.department, requestDetails.nature_of_service, requestDetails.purpose, requestDetails.venue, 
+      requestDetails.equipment_category_id, requestDetails.quantity_requested, requestDetails.requested, 
+      requestDetails.time_requested, requestDetails.return_time, requestDetails.time_borrowed, 
+      approvedAt, status, statusUpdatedAt, adminId, requestDetails.history_id, 
+      requestApprovedBy, requestDetails.mcl_pass_no, requestDetails.released_by, 
+      requestDetails.time_returned, requestDetails.received_by, requestDetails.remarks
+    ]);
+
+    // Remove the row from the requests table
+    await db.query('DELETE FROM requests WHERE request_id = ?', [request_id]);
 
     res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
