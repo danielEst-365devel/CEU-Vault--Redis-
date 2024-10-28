@@ -231,7 +231,7 @@
                     </div>
                     <ul class="navbar-nav justify-content-end">
                         <li class="nav-item d-flex align-items-center">
-                            <a href="javascript:;" class="nav-link text-body font-weight-bold px-0">
+                            <a href="javascript:;" id="signOutLink" class="nav-link text-body font-weight-bold px-0">
                                 <i class="fa fa-user me-sm-1"></i>
                                 <span class="d-sm-inline d-none">Sign Out</span>
                             </a>
@@ -255,8 +255,28 @@
             </div>
         </nav>
         <!-- End Navbar -->
-        <div class="container-fluid py-4">
 
+        <script>
+            document.getElementById('signOutLink').addEventListener('click', async () => {
+                try {
+                    const response = await fetch('https://localhost:8000/equipments/logout', {
+                        method: 'POST', // Assuming the logout endpoint expects a POST request
+                        credentials: 'include' // Include cookies if needed
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    // Redirect to the login page
+                    window.location.href = '../Login Page/adminLogin.html'; // Adjust the login URL as needed
+                } catch (error) {
+                    console.error('Error during sign out:', error);
+                }
+            });
+        </script>
+
+        <div class="container-fluid py-4">
             <div class="row">
                 <div class="col-12">
                     <div class="card mb-4">
