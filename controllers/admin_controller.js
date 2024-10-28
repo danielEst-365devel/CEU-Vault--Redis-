@@ -679,7 +679,13 @@ const getadminEquipment = async (req, res) => {
 };
 
 const getAllHistory = async (req, res) => {
-  const query = 'SELECT * FROM admin_log'; // Assuming 'returned' represents completed requests
+  // Query to get all history with category names
+  const query = `
+    SELECT admin_log.*, equipment_categories.category_name 
+    FROM admin_log 
+    JOIN equipment_categories 
+    ON admin_log.equipment_category_id = equipment_categories.category_id
+  `;
 
   try {
       console.log('Executing query:', query);
@@ -706,10 +712,17 @@ const getAllHistory = async (req, res) => {
 };
 
 // Controller to fetch all borrowing requests
+// Controller to fetch all borrowing requests
+// Controller to fetch all borrowing requests
 const getAllBorrowingRequests = async (req, res) => {
   try {
-      // Query to get all borrowing requests
-      const query = 'SELECT * FROM requests'; // Adjust the table name as necessary
+      // Query to get all borrowing requests with category names
+      const query = `
+        SELECT requests.*, equipment_categories.category_name 
+        FROM requests 
+        JOIN equipment_categories 
+        ON requests.equipment_category_id = equipment_categories.category_id
+      `;
 
       // Execute the query
       const [results] = await db.execute(query);
