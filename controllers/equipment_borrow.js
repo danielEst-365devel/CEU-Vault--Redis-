@@ -455,8 +455,10 @@ const getEquipmentCategories = async (req, res) => {
   try {
     console.log('Executing query:', query);
     const [rows] = await db.execute(query);
-    console.log('Query result:', rows);
-    return res.status(200).json(rows);
+    return res.status(200).json({
+      successful: true,
+      equipmentCategories: rows
+    });
   } catch (error) {
     console.error('Error retrieving equipment categories:', error);
     return res.status(500).json({
