@@ -687,21 +687,46 @@ const getAllHistory = async (req, res) => {
     ON admin_log.equipment_category_id = equipment_categories.category_id
   `;
 
+  const countApprovedQuery = `
+    SELECT COUNT(*) as approvedCount 
+    FROM admin_log 
+    WHERE status = 'approved'
+  `;
+
+  const countOngoingQuery = `
+    SELECT COUNT(*) as ongoingCount 
+    FROM admin_log 
+    WHERE status = 'ongoing'
+  `;
+
+  const countTotalQuery = `
+    SELECT COUNT(*) as totalCount 
+    FROM admin_log
+  `;
+
   try {
       console.log('Executing query:', query);
       const [rows] = await db.execute(query);
 
-      if (rows.length > 0) {
-          return res.status(200).json({
-              successful: true,
-              history: rows
-          });
-      } else {
-          return res.status(404).json({
-              successful: false,
-              message: 'No borrowing history found.'
-          });
-      }
+      console.log('Executing count query:', countApprovedQuery);
+      const [approvedResult] = await db.execute(countApprovedQuery);
+      const approvedCount = approvedResult[0].approvedCount;
+
+      console.log('Executing count query:', countOngoingQuery);
+      const [ongoingResult] = await db.execute(countOngoingQuery);
+      const ongoingCount = ongoingResult[0].ongoingCount;
+
+      console.log('Executing count query:', countTotalQuery);
+      const [totalResult] = await db.execute(countTotalQuery);
+      const totalCount = totalResult[0].totalCount;
+
+      return res.status(200).json({
+          successful: true,
+          history: rows,
+          approvedCount: approvedCount,
+          ongoingCount: ongoingCount,
+          totalCount: totalCount
+      });
   } catch (error) {
       console.error('Error retrieving borrowing history:', error);
       return res.status(500).json({
@@ -727,10 +752,14 @@ const getAllBorrowingRequests = async (req, res) => {
       // Execute the query
       const [results] = await db.execute(query);
 
-      // Return the results in the response
+      // Get the number of rows
+      const numberOfRows = results.length;
+
+      // Return the results and the number of rows in the response
       return res.json({
           successful: true,
           borrowingRequests: results,
+          numberOfRows: numberOfRows,
       });
   } catch (error) {
       console.error('Error fetching borrowing requests:', error);

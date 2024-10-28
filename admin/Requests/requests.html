@@ -37,7 +37,7 @@
     <div class="collapse navbar-collapse  w-auto " id="sidenav-collapse-main">
       <ul class="navbar-nav">
         <li class="nav-item">
-          <a class="nav-link  " href="../pages/dashboard.html">
+          <a class="nav-link  " href="../Home Page/dashboard.html">
             <div
               class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 45 40" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -173,7 +173,7 @@
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link  " href="../pages/sign-in.html">
+          <a id="signOutLink" class="nav-link" href="#">
             <div
               class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center me-2 d-flex align-items-center justify-content-center">
               <svg width="12px" height="12px" viewBox="0 0 40 44" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -200,7 +200,25 @@
         </li>
       </ul>
     </div>
+    <script>
+      document.getElementById('signOutLink').addEventListener('click', async () => {
+        try {
+          const response = await fetch('https://localhost:8000/equipments/logout', {
+            method: 'POST', // Assuming the logout endpoint expects a POST request
+            credentials: 'include' // Include cookies if needed
+          });
 
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          // Redirect to the login page
+          window.location.href = '../Login Page/adminLogin.html'; // Adjust the login URL as needed
+        } catch (error) {
+          console.error('Error during sign out:', error);
+        }
+      });
+    </script>
   </aside>
 
   <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg ">
