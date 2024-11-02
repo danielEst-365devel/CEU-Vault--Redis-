@@ -38,7 +38,7 @@ app.use(bodyParser.json())
 
 //headers
 app.use((req, res, next) => {
-    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500', process.env.NGROK_URL];
+    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500', 'https://127.0.0.1:8000', process.env.NGROK_URL];
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
         res.header("Access-Control-Allow-Origin", origin);

@@ -1,6 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-
+<!-- Add this script to the beginning of requests.html -->
+<script>
+  window.onload = function() {
+    fetch('https://localhost:8000/equipments/verify-auth', {
+      method: 'GET',
+      credentials: 'include' // Include cookies in the request
+    })
+    .then(response => {
+      if (response.ok) {
+        // User is authenticated; proceed with page initialization
+        console.log('User authenticated.');
+      } else {
+        // Not authenticated; redirect to the login page
+        console.warn('User not authenticated. Redirecting to login.');
+        window.location.href = '../Login Page/adminLogin.html';
+      }
+    })
+    .catch(error => {
+      console.error('Error verifying authentication:', error);
+      window.location.href = '../Login Page/adminLogin.html';
+    });
+  };
+</script>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">

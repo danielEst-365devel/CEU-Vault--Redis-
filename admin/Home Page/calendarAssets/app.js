@@ -1,14 +1,51 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     const calendar = document.getElementById('calendar');
     const modal = document.getElementById('eventModal');
     const closeModal = document.querySelector('.close');
-    const saveEvent = document.getElementById('saveEvent');
-    let selectedDateElement = null;
-    let events = {};  // Store events in an object
+    const eventList = document.getElementById('eventList');
     const currentMonthYear = document.getElementById('currentMonthYear');
     let currentDate = new Date();
+    let fetchedEvents = {}; // Store fetched events
 
-    function renderCalendar() {
+    // Fetch events from the backend
+    async function fetchEvents() {
+        try {
+            const response = await fetch('https://localhost:8000/equipments/get-all-history');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+            
+            if (data.successful && Array.isArray(data.history)) {
+                fetchedEvents = {}; // Reset fetchedEvents
+                data.history.forEach(event => {
+                    const dateKey = new Date(event.requested).toISOString().split('T')[0];
+                    if (!fetchedEvents[dateKey]) {
+                        fetchedEvents[dateKey] = [];
+                    }
+                    fetchedEvents[dateKey].push({
+                        equipmentCategoryId: event.equipment_category_id,
+                        categoryName: event.category_name,
+                        requestId: event.request_id,
+                        firstName: event.first_name,
+                        lastName: event.last_name,
+                        department: event.department,
+                        natureOfService: event.nature_of_service,
+                        purpose: event.purpose,
+                        venue: event.venue,
+                        quantityRequested: event.quantity_requested,
+                        status: event.status
+                    });
+                });
+            } else {
+                console.error('Unexpected data format:', data);
+            }
+        } catch (error) {
+            console.error('Error fetching events:', error);
+        }
+    }
+
+    async function renderCalendar() {
         calendar.innerHTML = '';  // Clear previous calendar
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -21,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Add blank spaces for days before the 1st of the month
         for (let i = 0; i < firstDay; i++) {
             const blankDiv = document.createElement('div');
+            blankDiv.classList.add('blank-day');
             calendar.appendChild(blankDiv);
         }
 
@@ -28,50 +66,51 @@ document.addEventListener('DOMContentLoaded', function () {
         for (let i = 1; i <= daysInMonth; i++) {
             const dayDiv = document.createElement('div');
             dayDiv.classList.add('day');
+            const date = new Date(year, month, i);
+            const dateKey = date.toISOString().split('T')[0];
             dayDiv.innerHTML = `<div>${i}</div>`;
-            dayDiv.addEventListener('click', function () {
-                selectedDateElement = dayDiv;
-                modal.style.display = 'block';
-            });
+            dayDiv.dataset.date = dateKey;
 
-            // Display event if exists
-            if (events[`${year}-${month}-${i}`]) {
-                const eventDiv = document.createElement('div');
-                eventDiv.classList.add('event');
-                eventDiv.innerText = events[`${year}-${month}-${i}`];
-                dayDiv.appendChild(eventDiv);
+            // Highlight the day if it exists in fetched events
+            if (fetchedEvents[dateKey] && fetchedEvents[dateKey].length > 0) {
+                dayDiv.style.backgroundColor = 'lightcoral';
+                dayDiv.classList.add('has-event');
+                dayDiv.addEventListener('click', () => openModal(dateKey));
             }
 
             calendar.appendChild(dayDiv);
         }
     }
 
+    // Open modal and display events for the selected date
+    function openModal(dateKey) {
+        const events = fetchedEvents[dateKey];
+        if (events && events.length > 0) {
+            eventList.innerHTML = ''; // Clear previous events
+            events.forEach(event => {
+                const eventItem = document.createElement('div');
+                eventItem.classList.add('event-item');
+                eventItem.innerHTML = `
+                    <h4>Request ID: ${event.requestId}</h4>
+                    <p><strong>Name:</strong> ${event.firstName} ${event.lastName}</p>
+                    <p><strong>Department:</strong> ${event.department}</p>
+                    <p><strong>Nature of Service:</strong> ${event.natureOfService}</p>
+                    <p><strong>Purpose:</strong> ${event.purpose}</p>
+                    <p><strong>Venue:</strong> ${event.venue}</p>
+                    <p><strong>Equipment Category:</strong> ${event.categoryName} (ID: ${event.equipmentCategoryId})</p>
+                    <p><strong>Quantity Requested:</strong> ${event.quantityRequested}</p>
+                    <p><strong>Status:</strong> ${event.status}</p>
+                    <hr/>
+                `;
+                eventList.appendChild(eventItem);
+            });
+            modal.style.display = 'block';
+        }
+    }
+
     // Close the modal
     closeModal.addEventListener('click', function () {
         modal.style.display = 'none';
-    });
-
-    // Save event to the selected date
-    saveEvent.addEventListener('click', function () {
-        const eventText = document.getElementById('eventText').value;
-        const selectedDay = selectedDateElement.querySelector('div').innerText;
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        
-        if (eventText) {
-            // Save event to the events object
-            events[`${year}-${month}-${selectedDay}`] = eventText;
-
-            // Display the event under the selected date
-            const eventDiv = document.createElement('div');
-            eventDiv.classList.add('event');
-            eventDiv.innerText = eventText;
-            selectedDateElement.appendChild(eventDiv);
-
-            // Close modal and clear input
-            modal.style.display = 'none';
-            document.getElementById('eventText').value = '';
-        }
     });
 
     // Close the modal when clicking outside of the modal content
@@ -82,16 +121,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Navigation for previous and next months
-    document.getElementById('prevMonth').addEventListener('click', function () {
+    document.getElementById('prevMonth').addEventListener('click', async function () {
         currentDate.setMonth(currentDate.getMonth() - 1);
+        await fetchEvents();
         renderCalendar();
     });
 
-    document.getElementById('nextMonth').addEventListener('click', function () {
+    document.getElementById('nextMonth').addEventListener('click', async function () {
         currentDate.setMonth(currentDate.getMonth() + 1);
+        await fetchEvents();
         renderCalendar();
     });
 
-    // Initialize calendar for the current month
+    // Initialize calendar
+    await fetchEvents();
     renderCalendar();
 });

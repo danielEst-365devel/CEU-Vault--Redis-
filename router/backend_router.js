@@ -14,7 +14,9 @@ prodRouter.post('/release', adminController.updateRequestStatusTwo);
 prodRouter.get('/get-adminEquipment', adminController.getadminEquipment);
 prodRouter.get('/get-all-history', adminController.getAllHistory);
 prodRouter.get('/get-all-requests', adminController.getAllBorrowingRequests);
-
+prodRouter.get('/verify-auth', adminController.authenticateToken, (req, res) => {
+  res.json({ authenticated: true });
+});
 
 // Route to submit form and send OTP
 prodRouter.post('/insert-details', equipmentController.submitForm);

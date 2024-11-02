@@ -736,9 +736,6 @@ const getAllHistory = async (req, res) => {
   }
 };
 
-// Controller to fetch all borrowing requests
-// Controller to fetch all borrowing requests
-// Controller to fetch all borrowing requests
 const getAllBorrowingRequests = async (req, res) => {
   try {
       // Query to get all borrowing requests with category names
@@ -771,24 +768,17 @@ const getAllBorrowingRequests = async (req, res) => {
   }
 };
 
-// authMiddleware.js
+// Middleware to verify the token
+const authenticateToken = (req, res, next) => {
+  const token = req.cookies.token; // Get token from cookies
+  if (!token) return res.sendStatus(401); // Unauthorized
 
-const authenticate = (req, res, next) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ message: 'Access denied. No token provided.' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+  jwt.verify(token, JWT_SECRET, (err, admin) => {
+    if (err) return res.sendStatus(403); // Forbidden
+    req.admin = admin;
     next();
-  } catch (ex) {
-    res.status(400).json({ message: 'Invalid token.' });
-  }
+  });
 };
-
 
 module.exports = {
   login,
@@ -797,9 +787,9 @@ module.exports = {
   logout,
   approveAdmin,
   updateRequestStatusTwo,
+  authenticateToken,
   //need to check functions below:
   getadminEquipment,
   getAllHistory,
-  getAllBorrowingRequests,
-  authenticate
+  getAllBorrowingRequests
 };
