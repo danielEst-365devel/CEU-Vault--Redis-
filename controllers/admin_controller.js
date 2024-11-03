@@ -780,6 +780,64 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const getReceipts = async (req, res) => {
+  // Query to retrieve the latest admin_log entry per history_id
+  const query = `
+    WITH LatestAdminLog AS (
+      SELECT 
+        rh.history_id, 
+        al.first_name, 
+        al.last_name, 
+        al.email, 
+        al.time_borrowed, 
+        rh.invoice,
+        ROW_NUMBER() OVER (
+          PARTITION BY rh.history_id 
+          ORDER BY al.approved_at DESC
+        ) AS rn
+      FROM request_history rh
+      JOIN admin_log al 
+        ON rh.history_id = al.history_id
+    )
+    SELECT 
+      history_id, 
+      first_name, 
+      last_name, 
+      email, 
+      time_borrowed, 
+      invoice
+    FROM LatestAdminLog
+    WHERE rn = 1;
+  `;
+
+  try {
+    console.log('Executing query:', query);
+    const [rows] = await db.execute(query);
+
+    // Convert the invoice blob to a Base64 string and include additional fields
+    const requestHistory = rows.map(row => ({
+      history_id: row.history_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      email: row.email,
+      time_borrowed: row.time_borrowed,
+      invoice: row.invoice.toString('base64') // Convert blob to Base64
+    }));
+
+    // Return the results in the response
+    return res.status(200).json({
+      successful: true,
+      requestHistory: requestHistory
+    });
+  } catch (error) {
+    console.error('Error retrieving request history:', error);
+    return res.status(500).json({
+      successful: false,
+      message: 'Failed to retrieve request history.'
+    });
+  }
+};
+
 module.exports = {
   login,
   createAdmin,
@@ -788,6 +846,7 @@ module.exports = {
   approveAdmin,
   updateRequestStatusTwo,
   authenticateToken,
+  getReceipts,
   //need to check functions below:
   getadminEquipment,
   getAllHistory,

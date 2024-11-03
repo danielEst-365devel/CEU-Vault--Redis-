@@ -403,6 +403,160 @@
         fetchApprovedRequestsData();
       </script>
 
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header pb-0 p-3">
+            <div class="row">
+              <div class="col-6 d-flex align-items-center">
+                <h6 class="mb-0">Invoices</h6>
+              </div>
+              <div class="col-6 text-end">
+                <!-- Updated View All Button -->
+                <button class="btn btn-outline-primary btn-sm mb-0" id="viewAllBtn">View All</button>
+              </div>
+            </div>
+          </div>
+          <div class="card-body p-3 pb-0">
+            <ul class="list-group" id="invoiceList">
+              <!-- List items will be populated dynamically -->
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal for View All -->
+      <div class="modal fade" id="viewAllModal" tabindex="-1" aria-labelledby="viewAllModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title text-dark" id="viewAllModalLabel">All Invoices</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <ul class="list-group" id="allInvoiceList">
+                <!-- All invoice items will be populated here -->
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Spinner and Error Message (Optional for Better UX) -->
+      <div id="loadingSpinner" class="spinner-border text-primary" role="status" style="display: none;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+
+      <div id="errorMessage" class="alert alert-danger" role="alert" style="display: none;">
+        Failed to load invoices. Please try again later.
+      </div>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const invoiceList = document.getElementById('invoiceList');
+          const allInvoiceList = document.getElementById('allInvoiceList');
+          const maxItems = 5;
+          const loadingSpinner = document.getElementById('loadingSpinner');
+          const errorMessage = document.getElementById('errorMessage');
+
+          // Show loading spinner
+          if (loadingSpinner) loadingSpinner.style.display = 'block';
+
+          // Fetch data from get-receipts endpoint
+          fetch('https://localhost:8000/equipments/get-receipts')
+            .then(response => response.json())
+            .then(data => {
+              // Hide loading spinner
+              if (loadingSpinner) loadingSpinner.style.display = 'none';
+
+              if (data.successful && Array.isArray(data.requestHistory)) {
+                const requestHistory = data.requestHistory;
+
+                // Display up to 5 items
+                requestHistory.slice(0, maxItems).forEach(item => {
+                  const listItem = createInvoiceListItem(item);
+                  invoiceList.appendChild(listItem);
+                });
+
+                // Populate the modal with all items
+                requestHistory.forEach(item => {
+                  const listItem = createInvoiceListItem(item);
+                  allInvoiceList.appendChild(listItem);
+                });
+              } else {
+                console.error('Failed to fetch receipts:', data.message);
+                if (errorMessage) {
+                  errorMessage.textContent = data.message || 'Failed to fetch invoices.';
+                  errorMessage.style.display = 'block';
+                }
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              // Hide loading spinner and show error message
+              if (loadingSpinner) loadingSpinner.style.display = 'none';
+              if (errorMessage) {
+                errorMessage.textContent = 'An unexpected error occurred.';
+                errorMessage.style.display = 'block';
+              }
+            });
+
+          // Function to create a list item
+          function createInvoiceListItem(item) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item border-0 d-flex justify-content-between ps-0 mb-2 border-radius-lg';
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'd-flex flex-column';
+
+            // Name (First Name + Last Name)
+            const nameH6 = document.createElement('h6');
+            nameH6.className = 'mb-1 text-dark font-weight-bold text-sm';
+            nameH6.textContent = `${item.first_name} ${item.last_name}`;
+            infoDiv.appendChild(nameH6);
+
+            // History ID
+            const idSpan = document.createElement('span');
+            idSpan.className = 'text-xs';
+            idSpan.textContent = `#${item.history_id}`;
+            infoDiv.appendChild(idSpan);
+
+            // Email and PDF Button Column
+            const emailAndPdfDiv = document.createElement('div');
+            emailAndPdfDiv.className = 'd-flex align-items-center text-sm';
+
+            // Email
+            const emailSpan = document.createElement('span');
+            emailSpan.textContent = item.email;
+            emailAndPdfDiv.appendChild(emailSpan);
+
+            // PDF Button
+            const pdfButton = document.createElement('button');
+            pdfButton.className = 'btn btn-link text-dark text-sm mb-0 px-0 ms-4';
+            pdfButton.innerHTML = '<i class="fas fa-file-pdf text-lg me-1"></i> PDF';
+            // Download PDF on click
+            pdfButton.addEventListener('click', () => {
+              const link = document.createElement('a');
+              link.href = `data:application/pdf;base64,${item.invoice}`;
+              link.download = `Invoice-${item.history_id}.pdf`;
+              link.click();
+            });
+            emailAndPdfDiv.appendChild(pdfButton);
+
+            li.appendChild(infoDiv);
+            li.appendChild(emailAndPdfDiv);
+
+            return li;
+          }
+
+          // Event listener for 'View All' button
+          document.getElementById('viewAllBtn').addEventListener('click', () => {
+            const modalElement = document.getElementById('viewAllModal');
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+          });
+        });
+      </script>
+
       <footer class="footer pt-3  ">
         <div class="container-fluid">
           <div class="row align-items-center justify-content-lg-between">
