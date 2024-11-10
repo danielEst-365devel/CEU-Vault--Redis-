@@ -18,6 +18,34 @@
     display: none;
 }
 
+/* Add this to styles.css */
+
+/* Update styles.css */
+
+.day.all-cancelled {
+    background-color: #d3d3d382; /* Gray color for all-cancelled events */
+    cursor: pointer;
+}
+
+.day.active-events {
+    background-color: #d4ebff
+    ; /* Green color for active events */
+    cursor: pointer;
+}
+
+/* Hover effect for all-cancelled days */
+.day.all-cancelled:hover {
+    background-color: #b0b0b03b; /* Darker gray */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hover effect for active-events days */
+.day.active-events:hover {
+    background-color: #7cd1fb3b; /* Slightly darker green */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
 
 /* Calendar Styles */
 .calendar-container {
@@ -77,14 +105,6 @@
     position: relative;
 }
 
-.day.has-event {
-    background-color: #50d6ff2b; /* Slightly darker Alice blue */
-    cursor: pointer;
-}
-
-.day.has-event:hover {
-    background-color: #508aff50; /* Similar shade on hover */
-}
 
 /* Responsive Adjustments */
 @media (max-width: 576px) {

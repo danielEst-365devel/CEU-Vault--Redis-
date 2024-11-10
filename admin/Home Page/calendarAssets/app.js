@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 throw new Error('Network response was not ok');
             }
             const data = await response.json();
-            
+
             if (data.successful && Array.isArray(data.history)) {
                 fetchedEvents = {}; // Reset fetchedEvents
                 data.history.forEach(event => {
@@ -49,12 +49,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         calendar.innerHTML = '';  // Clear previous calendar
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-        
+
         currentMonthYear.innerText = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-        
+
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
+
         // Add blank spaces for days before the 1st of the month
         for (let i = 0; i < firstDay; i++) {
             const blankDiv = document.createElement('div');
@@ -71,9 +71,18 @@ document.addEventListener('DOMContentLoaded', async function () {
             dayDiv.innerHTML = `<div class="text-center">${i}</div>`;
             dayDiv.dataset.date = dateKey;
 
-            // Highlight the day if it exists in fetched events
+            // Update the renderCalendar function in app.js
+
+            // Highlight the day based on event statuses
             if (fetchedEvents[dateKey] && fetchedEvents[dateKey].length > 0) {
-                dayDiv.classList.add('has-event', 'bg-lightcoral'); // Use Bootstrap classes
+                const allCancelled = fetchedEvents[dateKey].every(event => 
+                    ['returned', 'cancelled'].includes(event.status.toLowerCase())
+                );
+                if (allCancelled) {
+                    dayDiv.classList.add('has-event', 'all-cancelled');
+                } else {
+                    dayDiv.classList.add('has-event', 'active-events');
+                }
                 dayDiv.style.cursor = 'pointer';
                 dayDiv.addEventListener('click', () => openModal(dateKey));
             }
@@ -101,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                         <p class="card-text"><strong>Venue:</strong> ${event.venue}</p>
                         <p class="card-text"><strong>Equipment Category:</strong> ${event.categoryName} (ID: ${event.equipmentCategoryId})</p>
                         <p class="card-text"><strong>Quantity Requested:</strong> ${event.quantityRequested}</p>
-                        <p class="card-text"><strong>Status:</strong> <span class="badge ${getStatusBadge(event.status)}">${event.status}</span></p>
+                        <p class="card-text"><strong>Status:</strong> <span class="${getStatusBadge(event.status)}">${event.status}</span></p>
                     </div>
                 `;
                 eventList.appendChild(eventItem);
@@ -115,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // Close modal and enable page scrolling
-    $('.close-modal').on('click', function() {
+    $('.close-modal').on('click', function () {
         eventModal.modal('hide');
     });
 
@@ -127,12 +136,14 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // Helper function to assign badge classes based on status
     function getStatusBadge(status) {
-        switch(status.toLowerCase()) {
+        switch (status.toLowerCase()) {
             case 'approved':
                 return 'badge badge-sm bg-gradient-success';
             case 'pending':
                 return 'badge badge-sm bg-gradient-secondary';
-            case 'rejected':
+            case 'ongoing':
+                return 'badge badge-sm bg-gradient-info';
+            case 'cancelled':
                 return 'badge badge-sm bg-gradient-danger';
             default:
                 return 'badge badge-sm bg-gradient-secondary';

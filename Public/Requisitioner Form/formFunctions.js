@@ -113,13 +113,3 @@ document.getElementById('agree-button').addEventListener('click', function () {
 document.getElementById('close-button').addEventListener('click', function () {
   document.getElementById('terms-popup').style.display = 'none'; // Hide the popup
 });
-
-// Prevent form submission if terms checkbox is not checked
-document.getElementById('main-form').addEventListener('submit', function (event) {
-  console.log('Form submit event triggered'); // Debug log
-  if (!document.getElementById('terms-checkbox').checked) {
-    event.preventDefault(); // Prevent form submission
-    alert('You must agree to the Terms and Conditions before submitting.');
-    console.log('Form submission prevented'); // Debug log
-  }
-});
