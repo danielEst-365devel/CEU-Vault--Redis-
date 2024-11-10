@@ -1,19 +1,33 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
+/* Add this to your styles.css */
+.modal .close,
+.modal .btn-close {
+    /* Remove all styling */
+    background: none;
+    border: none;
+    box-shadow: none;
     padding: 0;
+    opacity: 1;
 }
 
+/* If you want to completely hide it */
+.modal .close,
+.modal .btn-close {
+    display: none;
+}
+
+/* Body styling */
 body {
-    background-color: #f4f4f4;
+    background-color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    color: #333333;
 }
 
+/* Calendar Styles */
 .calendar-container {
-    width: 60%;
+    width: 80%;
     margin: 20px auto;
     text-align: center;
 }
@@ -22,71 +36,205 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin-bottom: 10px;
+    position: relative;
 }
 
 .calendar-header button {
-    padding: 10px;
-    margin: 0 20px;
+    padding: 5px 10px;
+    font-size: 16px;
+}
+
+.calendar-header .prev-arrow,
+.calendar-header .next-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 1.5rem;
     cursor: pointer;
+}
+
+.calendar-header .prev-arrow {
+    left: 10px;
+}
+
+.calendar-header .next-arrow {
+    right: 10px;
+}
+
+#daysOfWeek,
+#calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+}
+
+#daysOfWeek div,
+.day {
+    text-align: center;
+    padding: 5px;
+}
+
+.day {
+    border: 1px solid #ddd;
+    height: 100px;
+    position: relative;
+}
+
+.day.has-event {
+    background-color: #ffeb3b;
+    cursor: pointer;
+}
+
+.day.has-event:hover {
+    background-color: #fdd835;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 576px) {
+    .modal-dialog {
+        max-width: 95%;
+    }
+
+    .card-title {
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .calendar-container {
+        width: 95%;
+    }
+
+    .day {
+        height: 80px;
+    }
+}
+
+.calendar-header button {
+    padding: 5px 10px;
+    font-size: 16px;
 }
 
 #daysOfWeek {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    margin-top: 20px;
-}
-
-#daysOfWeek div {
-    padding: 10px;
-    background: #eaeaea;
+    width: 100%;
+    text-align: center;
     font-weight: bold;
+    margin-top: 10px;
 }
 
 #calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 10px;
-    margin-top: 10px;
+    width: 100%;
 }
 
-#calendar .day {
-    padding: 10px;
-    background: #fff;
+.day, .blank-day {
+    height: 100px;
     border: 1px solid #ddd;
-    cursor: pointer;
     position: relative;
 }
 
-#calendar .day .event {
-    font-size: 0.8rem;
-    color: #2a9d8f;
-    margin-top: 10px;
+.day .date-number {
+    position: absolute;
+    top: 5px;
+    left: 5px;
 }
 
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+.day.has-event {
+    background-color: #ffeb3b;
+    cursor: pointer;
 }
 
-.modal-content {
-    background-color: white;
-    margin: 15% auto;
-    padding: 20px;
+.day.has-event:hover {
+    background-color: #fdd835;
+}
+
+.event-item {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ccc;
+}
+
+.calendar-container {
     width: 80%;
-    max-width: 400px;
+    margin: 20px auto;
+    text-align: center;
 }
 
-.close {
-    float: right;
+.calendar-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+#prevMonth,
+#nextMonth {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
     font-size: 1.5rem;
     cursor: pointer;
 }
+
+#prevMonth {
+    left: 10px;
+}
+
+#nextMonth {
+    right: 10px;
+}
+
+.calendar-header button {
+    padding: 5px 10px;
+    font-size: 16px;
+}
+
+#daysOfWeek {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+    text-align: center;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+#calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+}
+
+.day, .blank-day {
+    height: 100px;
+    border: 1px solid #ddd;
+    position: relative;
+}
+
+.day .date-number {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+}
+
+.day.has-event {
+    background-color: #ffeb3b;
+    cursor: pointer;
+}
+
+.day.has-event:hover {
+    background-color: #fdd835;
+}
+
+
 
 textarea {
     width: 100%;
@@ -94,8 +242,3 @@ textarea {
     margin-top: 10px;
 }
 
-button {
-    margin-top: 10px;
-    padding: 10px 20px;
-    cursor: pointer;
-}

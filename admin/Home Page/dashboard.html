@@ -4,8 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <link rel="apple-touch-icon" sizes="76x76" href="../assets/img/apple-icon.png">
-  <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+  <link rel="icon" type="image/png" href="../assets/img/CEU-Logo.png">
   <title>
     CEU Vault | Administrator Dashboard
   </title>
@@ -19,9 +18,24 @@
   <link href="../assets/css/nucleo-svg.css" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="../assets/css/soft-ui-dashboard.css?v=1.0.7" rel="stylesheet" />
-  <!-- Nepcha Analytics (nepcha.com) -->
-  <!-- Nepcha is a easy-to-use web analytics. No cookies and fully compliant with GDPR, CCPA and PECR. -->
-  <script defer data-site="YOUR_DOMAIN_HERE" src="https://api.nepcha.com/js/nepcha-analytics.js"></script>
+
+  <style>
+    .modal-backdrop {
+      z-index: 1040 !important;
+    }
+
+    .modal {
+      z-index: 1050 !important;
+    }
+
+        /* Set maximum height and enable scrolling in the modal body */
+    .modal-body {
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    
+  </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -31,7 +45,7 @@
       <i class="fas fa-times p-3 cursor-pointer text-secondary opacity-5 position-absolute end-0 top-0 d-none d-xl-none"
         aria-hidden="true" id="iconSidenav"></i>
       <a class="navbar-brand m-0" href="#" target="_blank">
-        <img src="../images/CEU-Logo.png" class="navbar-brand-img h-100" alt="main_logo">
+        <img src="../assets/img/CEU-Logo.png" class="navbar-brand-img h-100" alt="main_logo">
         <span class="ms-1 font-weight-bold">CEU Vault Administrator</span>
       </a>
     </div>
@@ -443,9 +457,8 @@
         </script>
 
         <div class="row mt-4">
-
-
           <link rel="stylesheet" href="./calendarAssets/styles.css">
+
           <script src="./calendarAssets/app.js"></script>
           <div class="row mt-4" style="margin: 10px 10px 10px 10px;">
             <div class="calendar-container">
@@ -467,11 +480,27 @@
             </div>
 
             <!-- Event Modal -->
-            <div id="eventModal" class="modal">
-              <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Event Details</h2>
-                <div id="eventList"></div>
+            <div class="modal fade" id="eventModal" tabindex="-1" role="dialog" aria-labelledby="eventModalLabel"
+                 aria-hidden="true">
+              <!-- You can remove 'modal-dialog-centered' to allow the modal to scroll with the page -->
+              <div class="modal-dialog modal-xl" role="document">
+                <!-- Modal content -->
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="eventModalLabel">Event Details</h5>
+                    <button type="button" class="close close-modal" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <!-- Your content here -->
+                    <div id="eventList" class="event-list"></div>
+                  </div>
+                  <!-- Optional modal footer -->
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary close-modal" data-dismiss="modal">Close</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -586,6 +615,16 @@
   </script>
   <script async defer src="https://buttons.github.io/buttons.js"></script>
   <script src="../assets/js/soft-ui-dashboard.min.js?v=1.0.7"></script>
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+
+  <!-- Popper.js -->
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
+
 
 </html>

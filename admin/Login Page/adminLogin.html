@@ -5,8 +5,10 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>CEU VAULT Admin</title>
     <meta content="width=device-width, initial-scale=1" name="viewport">
-    <link href="../styles.css" rel="stylesheet" type="text/css">
+    <link href="styles.css" rel="stylesheet" type="text/css">
     <link href="login.css" rel="stylesheet" type="text/css">
+    <link rel="icon" type="image/png" href="../assets/img/CEU-Logo.png">
+
 </head>
 <style>
     .popover {
@@ -37,7 +39,7 @@
                 <div class="navbar-wrapper">
                     <div class="w-layout-hflex ceuvaultbrandflex">
                         <a href="/admin/Home Page/adminHomepage.html" class="ceulogo w-nav-brand"><img width="85"
-                                loading="lazy" alt="" src="../images/CEU-Logo.png" class="image"></a>
+                                loading="lazy" alt="" src="../assets/img/CEU-Logo.png" class="image"></a>
                         <div class="w-layout-hflex ceuvaultbrandtext">
                             <h4 class="heading">Centro Escolar University</h4>
                             <h1 class="heading-2">CEU <span class="text-span">VAULT</span></h1>
@@ -126,7 +128,7 @@
                     .then(data => {
                         console.log('Login successful:', data);
                         // Handle successful login (e.g., redirect to another page)
-                        window.location.href = '../Requests/requests.html';
+                        window.location.href = '../Home Page/dashboard.html';
                     })
                     .catch(error => {
                         console.error('There was a problem with the fetch operation:', error);

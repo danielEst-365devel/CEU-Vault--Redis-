@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', async function () {
     const calendar = document.getElementById('calendar');
-    const modal = document.getElementById('eventModal');
-    const closeModal = document.querySelector('.close');
+    const eventModal = $('#eventModal'); // Use jQuery for Bootstrap modal
     const eventList = document.getElementById('eventList');
     const currentMonthYear = document.getElementById('currentMonthYear');
     let currentDate = new Date();
@@ -45,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
+    // Render the calendar
     async function renderCalendar() {
         calendar.innerHTML = '';  // Clear previous calendar
         const year = currentDate.getFullYear();
@@ -58,23 +58,23 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Add blank spaces for days before the 1st of the month
         for (let i = 0; i < firstDay; i++) {
             const blankDiv = document.createElement('div');
-            blankDiv.classList.add('blank-day');
+            blankDiv.classList.add('blank-day', 'col'); // Added 'col' for Bootstrap grid
             calendar.appendChild(blankDiv);
         }
 
         // Fill in the days of the month
         for (let i = 1; i <= daysInMonth; i++) {
             const dayDiv = document.createElement('div');
-            dayDiv.classList.add('day');
+            dayDiv.classList.add('day', 'col', 'border'); // Added 'col' and 'border' for visibility
             const date = new Date(year, month, i);
             const dateKey = date.toISOString().split('T')[0];
-            dayDiv.innerHTML = `<div>${i}</div>`;
+            dayDiv.innerHTML = `<div class="text-center">${i}</div>`;
             dayDiv.dataset.date = dateKey;
 
             // Highlight the day if it exists in fetched events
             if (fetchedEvents[dateKey] && fetchedEvents[dateKey].length > 0) {
-                dayDiv.style.backgroundColor = 'lightcoral';
-                dayDiv.classList.add('has-event');
+                dayDiv.classList.add('has-event', 'bg-lightcoral'); // Use Bootstrap classes
+                dayDiv.style.cursor = 'pointer';
                 dayDiv.addEventListener('click', () => openModal(dateKey));
             }
 
@@ -86,39 +86,58 @@ document.addEventListener('DOMContentLoaded', async function () {
     function openModal(dateKey) {
         const events = fetchedEvents[dateKey];
         if (events && events.length > 0) {
+            const eventList = document.getElementById('eventList'); // Moved inside the function
             eventList.innerHTML = ''; // Clear previous events
             events.forEach(event => {
                 const eventItem = document.createElement('div');
-                eventItem.classList.add('event-item');
+                eventItem.classList.add('card', 'mb-3', 'shadow-sm');
                 eventItem.innerHTML = `
-                    <h4>Request ID: ${event.requestId}</h4>
-                    <p><strong>Name:</strong> ${event.firstName} ${event.lastName}</p>
-                    <p><strong>Department:</strong> ${event.department}</p>
-                    <p><strong>Nature of Service:</strong> ${event.natureOfService}</p>
-                    <p><strong>Purpose:</strong> ${event.purpose}</p>
-                    <p><strong>Venue:</strong> ${event.venue}</p>
-                    <p><strong>Equipment Category:</strong> ${event.categoryName} (ID: ${event.equipmentCategoryId})</p>
-                    <p><strong>Quantity Requested:</strong> ${event.quantityRequested}</p>
-                    <p><strong>Status:</strong> ${event.status}</p>
-                    <hr/>
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Request ID: ${event.requestId}</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">${event.firstName} ${event.lastName}</h6>
+                        <p class="card-text"><strong>Department:</strong> ${event.department}</p>
+                        <p class="card-text"><strong>Nature of Service:</strong> ${event.natureOfService}</p>
+                        <p class="card-text"><strong>Purpose:</strong> ${event.purpose}</p>
+                        <p class="card-text"><strong>Venue:</strong> ${event.venue}</p>
+                        <p class="card-text"><strong>Equipment Category:</strong> ${event.categoryName} (ID: ${event.equipmentCategoryId})</p>
+                        <p class="card-text"><strong>Quantity Requested:</strong> ${event.quantityRequested}</p>
+                        <p class="card-text"><strong>Status:</strong> <span class="badge ${getStatusBadge(event.status)}">${event.status}</span></p>
+                    </div>
                 `;
                 eventList.appendChild(eventItem);
             });
-            modal.style.display = 'block';
+            // Show Bootstrap modal
+            eventModal.modal('show');
+            // Disable page scrolling and fix modal position
+            document.body.classList.add('body-no-scroll');
+            eventModal.addClass('modal-fixed');
         }
     }
 
-    // Close the modal
-    closeModal.addEventListener('click', function () {
-        modal.style.display = 'none';
+    // Close modal and enable page scrolling
+    $('.close-modal').on('click', function() {
+        eventModal.modal('hide');
     });
 
-    // Close the modal when clicking outside of the modal content
-    window.addEventListener('click', function (event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
+    // Also remove the class when modal is hidden by backdrop click or ESC key
+    $('#eventModal').on('hidden.bs.modal', function () {
+        document.body.classList.remove('body-no-scroll');
+        eventModal.removeClass('modal-fixed');
     });
+
+    // Helper function to assign badge classes based on status
+    function getStatusBadge(status) {
+        switch(status.toLowerCase()) {
+            case 'approved':
+                return 'badge badge-sm bg-gradient-success';
+            case 'pending':
+                return 'badge badge-sm bg-gradient-secondary';
+            case 'rejected':
+                return 'badge badge-sm bg-gradient-danger';
+            default:
+                return 'badge badge-sm bg-gradient-secondary';
+        }
+    }
 
     // Navigation for previous and next months
     document.getElementById('prevMonth').addEventListener('click', async function () {
@@ -134,6 +153,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     // Initialize calendar
-    await fetchEvents();
-    renderCalendar();
+    (async () => {
+        await fetchEvents();
+        renderCalendar();
+    })();
 });
