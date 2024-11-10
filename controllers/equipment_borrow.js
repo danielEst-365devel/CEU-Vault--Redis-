@@ -84,7 +84,7 @@ function createInvoice(details) {
 }
 function generateHeader(doc) {
   doc
-    .image("admin/images/CEU-Logo.png", 50, 45, { width: 50 })
+    .image("controllers/CEU-Logo.png", 50, 45, { width: 50 })
     .fillColor("#444444")
     .fontSize(20)
     .text("CEU VAULT", 110, 57)
