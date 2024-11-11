@@ -61,8 +61,8 @@ const sendEmail = async (recipientEmail, otpCode, formData) => {
   }
 };
 
-// Function to create the invoice PDF
-// Function to create the invoice PDF and return it as a base64 string
+// Function to create the form_receipt PDF
+// Function to create the form_receipt PDF and return it as a base64 string
 function createInvoice(details) {
   return new Promise((resolve, reject) => {
     let doc = new PDFDocument({ size: "A4", margin: 50 });
@@ -230,11 +230,6 @@ const submitForm = async (req, res, next) => {
     // Store PDF base64 in session
     req.session.pdfBase64 = pdfBase64;
 
-    // Save the PDF to the desktop for testing
-    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-    const desktopPath = path.join(require('os').homedir(), 'Desktop', 'invoice.pdf');
-    fs.writeFileSync(desktopPath, pdfBuffer);
-
     // Store form data and PDF in Redis
     const sessionData = {
       formData: req.session.formData,
@@ -298,7 +293,7 @@ const verifyOTP = async (req, res) => {
     const result = await insertFormDataIntoDatabase(formData, pdfBase64);
 
     if (result.successful) {
-      // Insert the invoice into the request history
+      // Insert the form receipt into the request history
       //await insertInvoiceIntoRequestHistory(pdfBase64);
 
       // Send an approval email to the requisitioner with the PDF attachment
@@ -323,14 +318,11 @@ const verifyOTP = async (req, res) => {
     });
   }
 };
+
 const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
   try {
     // Convert the base64 string back to a buffer
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-
-    // Save the PDF to the Downloads directory
-    const downloadsPath = path.join(require('os').homedir(), 'Downloads', 'invoice.pdf');
-    fs.writeFileSync(downloadsPath, pdfBuffer);
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -372,7 +364,7 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
       `,
       attachments: [
         {
-          filename: 'invoice.pdf',
+          filename: 'form_receipt.pdf',
           content: pdfBuffer,
           contentType: 'application/pdf'
         }
@@ -405,9 +397,9 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
     // Decode base64 to binary
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
-    // Insert a new row into the request_history table to generate a new history_id
-    const [result] = await db.execute('INSERT INTO request_history (invoice) VALUES (?)', [pdfBuffer]);
-    const historyId = result.insertId;
+    // Insert a new row into the request_history table to generate a new batch_id
+    const [result] = await db.execute('INSERT INTO request_history (requisitioner_form_receipt) VALUES (?)', [pdfBuffer]);
+    const batchId = result.insertId;
 
     // Loop through each equipment category and insert a row for each
     for (let item of formData.equipmentCategories) {
@@ -417,7 +409,7 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
       const query = `
         INSERT INTO requests (
           email, first_name, last_name, department, nature_of_service, 
-          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time, history_id
+          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time, batch_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const values = [
@@ -433,7 +425,7 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
         item.dateRequested, // Requested date for the equipment
         item.timeRequested, // Requested time for the equipment
         item.returnTime, // Return time for the equipment
-        historyId // Assign the same history_id to all rows
+        batchId // Assign the same batch_id to all rows
       ];
 
       // Check for undefined values and replace with null

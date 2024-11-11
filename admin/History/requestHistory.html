@@ -389,7 +389,7 @@
             </div>
           </td>
           <td class="align-middle text-center align-items-center">
-            <p class="text-xs font-weight-bold mb-0">${request.history_id}</p>
+            <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
           </td>
           <td>
             <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
@@ -420,15 +420,15 @@
         fetchApprovedRequestsData();
       </script>
 
+      <!-- Updated list item template with two PDF buttons -->
       <div class="col-lg-6">
         <div class="card h-100">
           <div class="card-header pb-0 p-3">
             <div class="row">
               <div class="col-6 d-flex align-items-center">
-                <h6 class="mb-0">Invoices</h6>
+                <h6 class="mb-0">Request Receipts</h6>
               </div>
               <div class="col-6 text-end">
-                <!-- Updated View All Button -->
                 <button class="btn btn-outline-primary btn-sm mb-0" id="viewAllBtn">View All</button>
               </div>
             </div>
@@ -533,10 +533,10 @@
             nameH6.textContent = `${item.first_name} ${item.last_name}`;
             infoDiv.appendChild(nameH6);
 
-            // History ID
+            // Batch ID
             const idSpan = document.createElement('span');
             idSpan.className = 'text-xs';
-            idSpan.textContent = `Batch #${item.history_id}`;
+            idSpan.textContent = `Batch #${item.batch_id}`;
             infoDiv.appendChild(idSpan);
 
             // Email and PDF Button Column
@@ -555,8 +555,8 @@
             // Download PDF on click
             pdfButton.addEventListener('click', () => {
               const link = document.createElement('a');
-              link.href = `data:application/pdf;base64,${item.invoice}`;
-              link.download = `Invoice-${item.history_id}.pdf`;
+              link.href = `data:application/pdf;base64,${item.requisitioner_form_receipt}`;
+              link.download = `Invoice-${item.batch_id}.pdf`;
               link.click();
             });
             emailAndPdfDiv.appendChild(pdfButton);

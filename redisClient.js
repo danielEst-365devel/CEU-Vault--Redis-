@@ -1,5 +1,6 @@
-//Naka online na redis server. Need internet connection to connect to the server.
-//Eliminates the need for Windows Subsystem for Linux.
+// Naka online na redis server. Need internet connection to connect to the server.
+// Eliminates the need for Windows Subsystem for Linux.
+// Use this for production and testing.
 const { createClient } = require('redis');
 require('dotenv').config();
 
@@ -23,7 +24,7 @@ client.connect().catch(console.error);
 
 module.exports = client;
 
-/*
+/* Use this muna for local development. May 5gb quota per month ang network cap nung free tier nung redis. 
 const redis = require('redis');
 const client = redis.createClient({
   url: 'redis://127.0.0.1:6379'

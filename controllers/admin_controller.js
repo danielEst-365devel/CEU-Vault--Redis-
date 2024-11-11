@@ -5,7 +5,6 @@ const { db } = require('../models/connection_db'); // Import the database connec
 require('dotenv').config();
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
-const path = require('path');
 
 // Function to create the invoice PDF
 // Function to create the invoice PDF and return it as a base64 string
@@ -231,7 +230,8 @@ const transporter = nodemailer.createTransport({
 });
 
 // Secret key for JWT
-const JWT_SECRET = 'your_jwt_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET;
+
 // Send email example
 const sendEmail = async (recipientEmail, approvalLink) => {
   try {
@@ -448,6 +448,7 @@ const updateRequestStatusTwo = async (req, res) => {
     connection.release(); // Release the database connection
   }
 };
+
 const updateRequestStatus = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
@@ -461,14 +462,17 @@ const updateRequestStatus = async (req, res) => {
     return res.status(400).json({ message: 'Invalid status' });
   }
 
+  const connection = await db.getConnection();
   try {
+    await connection.beginTransaction();
+
     const decoded = jwt.verify(token, JWT_SECRET);
     const adminId = decoded.id;
     const requestApprovedBy = decoded.email;
     const statusUpdatedAt = new Date();
     let approvedAt = null;
 
-    const [rows] = await db.query(`
+    const [rows] = await connection.query(`
       SELECT r.*, ec.category_name, ec.quantity_available 
       FROM requests r 
       LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
@@ -476,15 +480,17 @@ const updateRequestStatus = async (req, res) => {
     `, [request_id]);
 
     if (rows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ message: 'Request not found' });
     }
 
     const requestDetails = rows[0];
     const currentStatus = requestDetails.status;
     const requesterEmail = requestDetails.email;
-    const historyId = requestDetails.history_id;
+    const batchId = requestDetails.batch_id;
 
     if (currentStatus === 'returned') {
+      await connection.rollback();
       return res.status(400).json({ message: 'Cannot change status of a returned request' });
     }
 
@@ -493,21 +499,23 @@ const updateRequestStatus = async (req, res) => {
     }
 
     let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
-    let updateValues = [adminId, status, statusUpdatedAt, request_id];
+    let updateValues = [adminId, status, statusUpdatedAt];
 
     if (status === 'approved') {
       updateQuery += ', approved_at = ?';
-      updateValues.splice(3, 0, approvedAt);
+      updateValues.push(approvedAt);
     }
 
     updateQuery += ' WHERE request_id = ?';
-    await db.query(updateQuery, updateValues);
+    updateValues.push(request_id);
 
-    await db.query(`
+    await connection.query(updateQuery, updateValues);
+
+    await connection.query(`
       INSERT INTO admin_log (
         request_id, email, first_name, last_name, department, nature_of_service, purpose, venue, 
         equipment_category_id, quantity_requested, requested, time_requested, return_time, 
-        time_borrowed, approved_at, status, status_updated_at, admin_id, history_id, 
+        time_borrowed, approved_at, status, status_updated_at, admin_id, batch_id, 
         request_approved_by, mcl_pass_no, released_by, time_returned, received_by, remarks
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
@@ -515,47 +523,47 @@ const updateRequestStatus = async (req, res) => {
       requestDetails.department, requestDetails.nature_of_service, requestDetails.purpose, requestDetails.venue,
       requestDetails.equipment_category_id, requestDetails.quantity_requested, requestDetails.requested,
       requestDetails.time_requested, requestDetails.return_time, requestDetails.time_borrowed,
-      approvedAt, status, statusUpdatedAt, adminId, requestDetails.history_id,
+      approvedAt, status, statusUpdatedAt, adminId, requestDetails.batch_id,
       requestApprovedBy, requestDetails.mcl_pass_no, requestDetails.released_by,
       requestDetails.time_returned, requestDetails.received_by, requestDetails.remarks
     ]);
 
-    await db.query('DELETE FROM requests WHERE request_id = ?', [request_id]);
+    await connection.query('DELETE FROM requests WHERE request_id = ?', [request_id]);
 
-    const [allRequests] = await db.query(`
-      SELECT status FROM requests WHERE history_id = ?
-    `, [historyId]);
+    const [allRequests] = await connection.query(`
+      SELECT status FROM requests WHERE batch_id = ?
+    `, [batchId]);
 
     const allApproved = allRequests.every(request => request.status === 'approved');
 
     if (allApproved) {
-      const [approvedRequests] = await db.query(`
+      const [approvedRequests] = await connection.query(`
         SELECT al.*, ec.category_name 
         FROM admin_log al 
         LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.history_id = ? AND al.status = 'approved'
-      `, [historyId]);
+        WHERE al.batch_id = ? AND al.status = 'approved'
+      `, [batchId]);
 
-      const [cancelledRequests] = await db.query(`
+      const [cancelledRequests] = await connection.query(`
         SELECT al.*, ec.category_name 
         FROM admin_log al 
         LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.history_id = ? AND al.status = 'cancelled'
-      `, [historyId]);
+        WHERE al.batch_id = ? AND al.status = 'cancelled'
+      `, [batchId]);
 
-      // Helper function to format time in 12-hour format
-      function formatTimeTo12Hour(time) {
+      // Helper functions
+      const formatTimeTo12Hour = (time) => {
         const [hours, minutes] = time.split(':').map(Number);
         const ampm = hours >= 12 ? 'PM' : 'AM';
-        const formattedHours = hours % 12 || 12; // the hour '0' should be '12'
-        const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+        const formattedHours = hours % 12 || 12;
+        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
         return `${formattedHours}:${formattedMinutes} ${ampm}`;
-      }
-      // Helper function to format date to 'Sun Oct 01 2023'
-      function formatDate(date) {
+      };
+
+      const formatDate = (date) => {
         const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
         return new Date(date).toLocaleDateString('en-US', options);
-      }
+      };
 
       const details = {
         firstName: requestDetails.first_name,
@@ -582,13 +590,23 @@ const updateRequestStatus = async (req, res) => {
           }))
         } : null
       };
-      
+
       const pdfData = await createInvoice(details);
+      
+      // Convert Base64 string to binary buffer
+      const pdfBuffer = Buffer.from(pdfData, 'base64');
+      
+      // Store binary buffer in database
+      await connection.query(`
+        UPDATE request_history 
+        SET approved_requests_receipt = ? 
+        WHERE batch_id = ?
+      `, [pdfBuffer, batchId]);
 
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
           <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">All your requests tied to Request Batch ID ${historyId} have been processed.</p>
+          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">All your requests tied to Request Batch ID ${batchId} have been processed.</p>
           <h2 style="color: #4CAF50; margin-bottom: 20px;">Approved Requests</h2>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
             <tr>
@@ -633,28 +651,39 @@ const updateRequestStatus = async (req, res) => {
         </div>
       `;
 
-      await transporter.sendMail({
-        from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
-        to: requesterEmail,
-        subject: `All Requests Approved`,
-        text: `All your requests tied to Request Batch ID ${historyId} have been processed.`,
-        html: htmlContent,
-        attachments: [
-          {
-            filename: 'invoice.pdf',
-            content: pdfData,
-            encoding: 'base64'
-          }
-        ]
-      });
+      try {
+        await transporter.sendMail({
+          from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+          to: requesterEmail,
+          subject: `All Requests Approved`,
+          text: `All your requests tied to Request Batch ID ${batchId} have been processed.`,
+          html: htmlContent,
+          attachments: [
+            {
+              filename: 'ApprovedRequestsReceipt.pdf',
+              content: pdfData,
+              encoding: 'base64'
+            }
+          ]
+        });
+      } catch (emailError) {
+        await connection.rollback();
+        console.error('Error sending email:', emailError);
+        return res.status(500).json({ message: 'Failed to send email. Transaction rolled back.' });
+      }
     }
 
+    await connection.commit();
     res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
+    await connection.rollback();
     console.error('Error updating request status:', error);
     res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    connection.release();
   }
 };
+
 const logout = (req, res) => {
   res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'None' });
   res.status(200).json({ message: 'Logout successful' });
@@ -708,66 +737,66 @@ const getAllHistory = async (req, res) => {
   `;
 
   try {
-      console.log('Executing query:', query);
-      const [rows] = await db.execute(query);
+    console.log('Executing query:', query);
+    const [rows] = await db.execute(query);
 
-      console.log('Executing count query:', countApprovedQuery);
-      const [approvedResult] = await db.execute(countApprovedQuery);
-      const approvedCount = approvedResult[0].approvedCount;
+    console.log('Executing count query:', countApprovedQuery);
+    const [approvedResult] = await db.execute(countApprovedQuery);
+    const approvedCount = approvedResult[0].approvedCount;
 
-      console.log('Executing count query:', countOngoingQuery);
-      const [ongoingResult] = await db.execute(countOngoingQuery);
-      const ongoingCount = ongoingResult[0].ongoingCount;
+    console.log('Executing count query:', countOngoingQuery);
+    const [ongoingResult] = await db.execute(countOngoingQuery);
+    const ongoingCount = ongoingResult[0].ongoingCount;
 
-      console.log('Executing count query:', countTotalQuery);
-      const [totalResult] = await db.execute(countTotalQuery);
-      const totalCount = totalResult[0].totalCount;
+    console.log('Executing count query:', countTotalQuery);
+    const [totalResult] = await db.execute(countTotalQuery);
+    const totalCount = totalResult[0].totalCount;
 
-      return res.status(200).json({
-          successful: true,
-          history: rows,
-          approvedCount: approvedCount,
-          ongoingCount: ongoingCount,
-          totalCount: totalCount
-      });
+    return res.status(200).json({
+      successful: true,
+      history: rows,
+      approvedCount: approvedCount,
+      ongoingCount: ongoingCount,
+      totalCount: totalCount
+    });
   } catch (error) {
-      console.error('Error retrieving borrowing history:', error);
-      return res.status(500).json({
-          successful: false,
-          message: 'Failed to retrieve borrowing history.'
-      });
+    console.error('Error retrieving borrowing history:', error);
+    return res.status(500).json({
+      successful: false,
+      message: 'Failed to retrieve borrowing history.'
+    });
   }
 };
 
 const getAllBorrowingRequests = async (req, res) => {
   try {
-      // Query to get all borrowing requests with category names
-      const query = `
+    // Query to get all borrowing requests with category names
+    const query = `
         SELECT requests.*, equipment_categories.category_name 
         FROM requests 
         JOIN equipment_categories 
         ON requests.equipment_category_id = equipment_categories.category_id
       `;
 
-      // Execute the query
-      const [results] = await db.execute(query);
+    // Execute the query
+    const [results] = await db.execute(query);
 
-      // Get the number of rows
-      const numberOfRows = results.length;
+    // Get the number of rows
+    const numberOfRows = results.length;
 
-      // Return the results and the number of rows in the response
-      return res.json({
-          successful: true,
-          borrowingRequests: results,
-          numberOfRows: numberOfRows,
-      });
+    // Return the results and the number of rows in the response
+    return res.json({
+      successful: true,
+      borrowingRequests: results,
+      numberOfRows: numberOfRows,
+    });
   } catch (error) {
-      console.error('Error fetching borrowing requests:', error);
-      return res.status(500).json({
-          successful: false,
-          message: 'Error fetching borrowing requests.',
-          error: error.message,
-      });
+    console.error('Error fetching borrowing requests:', error);
+    return res.status(500).json({
+      successful: false,
+      message: 'Error fetching borrowing requests.',
+      error: error.message,
+    });
   }
 };
 
@@ -784,31 +813,31 @@ const authenticateToken = (req, res, next) => {
 };
 
 const getReceipts = async (req, res) => {
-  // Query to retrieve the latest admin_log entry per history_id
+  // Query to retrieve the latest admin_log entry per batch_id
   const query = `
     WITH LatestAdminLog AS (
       SELECT 
-        rh.history_id, 
+        rh.batch_id, 
         al.first_name, 
         al.last_name, 
         al.email, 
         al.time_borrowed, 
-        rh.invoice,
+        rh.requisitioner_form_receipt,
         ROW_NUMBER() OVER (
-          PARTITION BY rh.history_id 
+          PARTITION BY rh.batch_id 
           ORDER BY al.approved_at DESC
         ) AS rn
       FROM request_history rh
       JOIN admin_log al 
-        ON rh.history_id = al.history_id
+        ON rh.batch_id = al.batch_id
     )
     SELECT 
-      history_id, 
+      batch_id, 
       first_name, 
       last_name, 
       email, 
       time_borrowed, 
-      invoice
+      requisitioner_form_receipt
     FROM LatestAdminLog
     WHERE rn = 1;
   `;
@@ -817,14 +846,14 @@ const getReceipts = async (req, res) => {
     console.log('Executing query:', query);
     const [rows] = await db.execute(query);
 
-    // Convert the invoice blob to a Base64 string and include additional fields
+    // Convert the requisitioner_form_receipt blob to a Base64 string and include additional fields
     const requestHistory = rows.map(row => ({
-      history_id: row.history_id,
+      batch_id: row.batch_id,
       first_name: row.first_name,
       last_name: row.last_name,
       email: row.email,
       time_borrowed: row.time_borrowed,
-      invoice: row.invoice.toString('base64') // Convert blob to Base64
+      form_receipt: row.requisitioner_form_receipt.toString('base64') // Convert blob to Base64
     }));
 
     // Return the results in the response
