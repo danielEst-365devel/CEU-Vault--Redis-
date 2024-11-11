@@ -813,7 +813,6 @@ const authenticateToken = (req, res, next) => {
 };
 
 const getReceipts = async (req, res) => {
-  // Query to retrieve the latest admin_log entry per batch_id
   const query = `
     WITH LatestAdminLog AS (
       SELECT 
@@ -823,6 +822,7 @@ const getReceipts = async (req, res) => {
         al.email, 
         al.time_borrowed, 
         rh.requisitioner_form_receipt,
+        rh.approved_requests_receipt,
         ROW_NUMBER() OVER (
           PARTITION BY rh.batch_id 
           ORDER BY al.approved_at DESC
@@ -837,7 +837,8 @@ const getReceipts = async (req, res) => {
       last_name, 
       email, 
       time_borrowed, 
-      requisitioner_form_receipt
+      requisitioner_form_receipt,
+      approved_requests_receipt
     FROM LatestAdminLog
     WHERE rn = 1;
   `;
@@ -846,17 +847,19 @@ const getReceipts = async (req, res) => {
     console.log('Executing query:', query);
     const [rows] = await db.execute(query);
 
-    // Convert the requisitioner_form_receipt blob to a Base64 string and include additional fields
+    // Convert the blobs to Base64 strings and include approved_receipt
     const requestHistory = rows.map(row => ({
       batch_id: row.batch_id,
       first_name: row.first_name,
       last_name: row.last_name,
       email: row.email,
       time_borrowed: row.time_borrowed,
-      form_receipt: row.requisitioner_form_receipt.toString('base64') // Convert blob to Base64
+      form_receipt: row.requisitioner_form_receipt.toString('base64'),
+      approved_receipt: row.approved_requests_receipt
+        ? row.approved_requests_receipt.toString('base64')
+        : null
     }));
 
-    // Return the results in the response
     return res.status(200).json({
       successful: true,
       requestHistory: requestHistory
