@@ -261,15 +261,16 @@ const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Fetch admin details from the database
-    const results = await db.query('SELECT * FROM admins WHERE email = ?', [email]);
-    const admin = results[0][0]; // Access the first element of the first array
+    // Fetch admin details from the database using PostgreSQL syntax
+    const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
+    const admin = results.rows[0]; // PostgreSQL returns { rows: [] }
 
     // Check if admin exists
     if (!admin) {
       console.error('Admin not found for email:', email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+
     // Check if admin.password_hash is defined
     if (!admin.password_hash) {
       console.error('Admin password_hash is undefined for email:', email);
@@ -350,7 +351,8 @@ const approveAdmin = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-// Function to validate ongoing status
+
+// Function to validate and update request status aligned with PostgreSQL
 const updateRequestStatusTwo = async (req, res) => {
   const { request_id, status } = req.body;
   const token = req.cookies.token;
@@ -371,81 +373,153 @@ const updateRequestStatusTwo = async (req, res) => {
     return res.status(400).json({ message: 'Bad Request: Invalid status value' });
   }
 
-  const connection = await db.getConnection(); // Get a database connection
+  const client = await db.connect(); // Acquire a client from the pool
 
   try {
-    await connection.beginTransaction(); // Start transaction
+    await client.query('BEGIN'); // Start transaction
 
-    // Check if the request_id exists in the admin_log table
-    const [existingRequest] = await connection.query(`
-      SELECT COUNT(*) as count, status 
+    // Check if the request_id exists in the admin_log table and retrieve status
+    const checkRequestQuery = `
+      SELECT status 
       FROM admin_log 
-      WHERE request_id = ?
-    `, [request_id]);
+      WHERE request_id = $1
+    `;
+    const checkResult = await client.query(checkRequestQuery, [request_id]);
+    const existingRequest = checkResult.rows[0];
 
-    if (existingRequest[0].count === 0) {
-      await connection.rollback();
+    if (!existingRequest) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Not Found: Request ID does not exist' });
     }
 
-    const currentStatus = existingRequest[0].status;
+    const currentStatus = existingRequest.status;
 
     // Prevent repeated status updates
     if (currentStatus === status) {
-      await connection.rollback();
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: `Bad Request: Status is already ${status}` });
     }
 
     // Prevent changing status if it's already cancelled
     if (currentStatus === 'cancelled') {
-      await connection.rollback();
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Bad Request: Cannot change status from cancelled' });
     }
 
     // Retrieve quantity_requested and equipment_category_id from the admin_log table
-    const [requestDetails] = await connection.query(`
+    const getRequestDetailsQuery = `
       SELECT quantity_requested, equipment_category_id 
       FROM admin_log 
-      WHERE request_id = ?
-    `, [request_id]);
+      WHERE request_id = $1
+    `;
+    const detailsResult = await client.query(getRequestDetailsQuery, [request_id]);
+    const requestDetails = detailsResult.rows[0];
 
-    if (!requestDetails || requestDetails.length === 0) {
-      await connection.rollback();
+    if (!requestDetails) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Not Found: Request details not found' });
     }
 
-    const { quantity_requested, equipment_category_id } = requestDetails[0];
+    const { quantity_requested, equipment_category_id } = requestDetails;
 
     // Update quantity_available based on status
+    let updateQuantityQuery;
+    let updateQuantityValues;
+
     if (status === 'ongoing') {
-      await connection.query(`
+      updateQuantityQuery = `
         UPDATE equipment_categories 
-        SET quantity_available = quantity_available - ? 
-        WHERE category_id = ?
-      `, [quantity_requested, equipment_category_id]);
+        SET quantity_available = quantity_available - $1 
+        WHERE category_id = $2
+      `;
+      updateQuantityValues = [quantity_requested, equipment_category_id];
     } else if (status === 'returned') {
-      await connection.query(`
+      updateQuantityQuery = `
         UPDATE equipment_categories 
-        SET quantity_available = quantity_available + ? 
-        WHERE category_id = ?
-      `, [quantity_requested, equipment_category_id]);
+        SET quantity_available = quantity_available + $1 
+        WHERE category_id = $2
+      `;
+      updateQuantityValues = [quantity_requested, equipment_category_id];
+    }
+
+    if (updateQuantityQuery) {
+      await client.query(updateQuantityQuery, updateQuantityValues);
     }
 
     // Update the status and status_updated_at of the request in the admin_log table
-    await connection.query(`
+    const updateStatusQuery = `
       UPDATE admin_log 
-      SET status = ?, status_updated_at = NOW() 
-      WHERE request_id = ?
-    `, [status, request_id]);
+      SET status = $1, status_updated_at = NOW() 
+      WHERE request_id = $2
+    `;
+    await client.query(updateStatusQuery, [status, request_id]);
 
-    await connection.commit(); // Commit transaction
+    await client.query('COMMIT'); // Commit transaction
     res.status(200).json({ message: 'Request status updated successfully' });
   } catch (error) {
-    await connection.rollback(); // Rollback transaction on error
+    await client.query('ROLLBACK'); // Rollback transaction on error
     console.error('Error updating request status:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   } finally {
-    connection.release(); // Release the database connection
+    client.release(); // Release the client back to the pool
+  }
+};
+
+// Helper function to format time to 'HH:MM:SS'
+const formatTime = (timeInput) => {
+  try {
+    let date;
+
+    if (!timeInput) {
+      throw new Error(`Invalid time: ${timeInput}`);
+    }
+
+    if (typeof timeInput === 'string') {
+      // If it's a full ISO date-time string, parse it
+      if (timeInput.includes('T')) {
+        date = new Date(timeInput);
+      } else {
+        // Assume it's 'HH:MM:SS' or 'HH:MM'
+        if (/^\d{2}:\d{2}$/.test(timeInput)) {
+          timeInput += ':00';
+        }
+        date = new Date(`1970-01-01T${timeInput}Z`);
+      }
+    } else if (timeInput instanceof Date) {
+      date = timeInput;
+    } else {
+      throw new Error(`Invalid time input type: ${typeof timeInput}`);
+    }
+
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid time: ${timeInput}`);
+    }
+
+    const hours = String(date.getHours()).padStart(2, '0');     // Local hours
+    const minutes = String(date.getMinutes()).padStart(2, '0'); // Local minutes
+    const seconds = String(date.getSeconds()).padStart(2, '0'); // Local seconds
+
+    return `${hours}:${minutes}:${seconds}`; // 'HH:MM:SS'
+  } catch (error) {
+    console.error(error.message);
+    return null; // or handle as needed
+  }
+};
+
+// Helper function to format date to 'YYYY-MM-DD'
+const formatDate = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      throw new Error(`Invalid date: ${dateString}`);
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`; // 'YYYY-MM-DD'
+  } catch (error) {
+    console.error(error.message);
+    return null; // or handle as needed
   }
 };
 
@@ -462,9 +536,9 @@ const updateRequestStatus = async (req, res) => {
     return res.status(400).json({ message: 'Invalid status' });
   }
 
-  const connection = await db.getConnection();
+  const client = await db.connect();
   try {
-    await connection.beginTransaction();
+    await client.query('BEGIN');
 
     const decoded = jwt.verify(token, JWT_SECRET);
     const adminId = decoded.id;
@@ -472,15 +546,16 @@ const updateRequestStatus = async (req, res) => {
     const statusUpdatedAt = new Date();
     let approvedAt = null;
 
-    const [rows] = await connection.query(`
+    const requestQuery = `
       SELECT r.*, ec.category_name, ec.quantity_available 
       FROM requests r 
       LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
-      WHERE r.request_id = ?
-    `, [request_id]);
+      WHERE r.request_id = $1
+    `;
+    const { rows } = await client.query(requestQuery, [request_id]);
 
     if (rows.length === 0) {
-      await connection.rollback();
+      await client.query('ROLLBACK');
       return res.status(404).json({ message: 'Request not found' });
     }
 
@@ -490,7 +565,7 @@ const updateRequestStatus = async (req, res) => {
     const batchId = requestDetails.batch_id;
 
     if (currentStatus === 'returned') {
-      await connection.rollback();
+      await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Cannot change status of a returned request' });
     }
 
@@ -498,61 +573,120 @@ const updateRequestStatus = async (req, res) => {
       approvedAt = new Date();
     }
 
-    let updateQuery = 'UPDATE requests SET admin_id = ?, status = ?, status_updated_at = ?';
+    let updateQuery = `
+      UPDATE requests 
+      SET admin_id = $1, status = $2, status_updated_at = $3
+    `;
     let updateValues = [adminId, status, statusUpdatedAt];
 
     if (status === 'approved') {
-      updateQuery += ', approved_at = ?';
+      updateQuery += ', approved_at = $4';
       updateValues.push(approvedAt);
     }
 
-    updateQuery += ' WHERE request_id = ?';
     updateValues.push(request_id);
+    updateQuery += ` WHERE request_id = $${updateValues.length}`;
 
-    await connection.query(updateQuery, updateValues);
+    await client.query(updateQuery, updateValues);
 
-    await connection.query(`
+    const insertAdminLogQuery = `
       INSERT INTO admin_log (
         request_id, email, first_name, last_name, department, nature_of_service, purpose, venue, 
         equipment_category_id, quantity_requested, requested, time_requested, return_time, 
         time_borrowed, approved_at, status, status_updated_at, admin_id, batch_id, 
         request_approved_by, mcl_pass_no, released_by, time_returned, received_by, remarks
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      requestDetails.request_id, requestDetails.email, requestDetails.first_name, requestDetails.last_name,
-      requestDetails.department, requestDetails.nature_of_service, requestDetails.purpose, requestDetails.venue,
-      requestDetails.equipment_category_id, requestDetails.quantity_requested, requestDetails.requested,
-      requestDetails.time_requested, requestDetails.return_time, requestDetails.time_borrowed,
-      approvedAt, status, statusUpdatedAt, adminId, requestDetails.batch_id,
-      requestApprovedBy, requestDetails.mcl_pass_no, requestDetails.released_by,
-      requestDetails.time_returned, requestDetails.received_by, requestDetails.remarks
-    ]);
+      ) VALUES (${Array.from({ length: 25 }, (_, i) => `$${i + 1}`).join(', ')})
+    `;
 
-    await connection.query('DELETE FROM requests WHERE request_id = ?', [request_id]);
+    const insertAdminLogValues = [
+      requestDetails.request_id,                                                            // 1
+      requestDetails.email,                                                                // 2
+      requestDetails.first_name,                                                           // 3
+      requestDetails.last_name,                                                            // 4
+      requestDetails.department,                                                           // 5
+      requestDetails.nature_of_service,                                                    // 6
+      requestDetails.purpose,                                                              // 7
+      requestDetails.venue,                                                                // 8
+      requestDetails.equipment_category_id,                                                // 9
+      requestDetails.quantity_requested,                                                   // 10
+      requestDetails.requested ? formatDate(requestDetails.requested) : null,             // 11 (DATE)
+      requestDetails.time_requested ? formatTime(requestDetails.time_requested) : null,   // 12 (TIME)
+      requestDetails.return_time ? formatTime(requestDetails.return_time) : null,         // 13 (TIME)
+      requestDetails.time_borrowed ? formatTime(requestDetails.time_borrowed) : null,     // 14 (TIME)
+      approvedAt ? approvedAt.toISOString() : null,                                        // 15 (TIMESTAMP)
+      status,                                                                              // 16
+      statusUpdatedAt ? statusUpdatedAt.toISOString() : null,                              // 17 (TIMESTAMP)
+      adminId,                                                                             // 18
+      requestDetails.batch_id,                                                             // 19
+      requestApprovedBy,                                                                   // 20
+      requestDetails.mcl_pass_no,                                                          // 21
+      requestDetails.released_by,                                                          // 22
+      requestDetails.time_returned ? formatTime(requestDetails.time_returned) : null,     // 23 (TIME)
+      requestDetails.received_by,                                                           // 24
+      requestDetails.remarks                                                               // 25
+    ];
 
-    const [allRequests] = await connection.query(`
-      SELECT status FROM requests WHERE batch_id = ?
-    `, [batchId]);
+    // Add logging to inspect values
+    console.log('Inserting into admin_log with values:', insertAdminLogValues);
 
-    const allApproved = allRequests.every(request => request.status === 'approved');
+    // Check for any null values in mandatory fields
+    const mandatoryFields = [
+      'request_id',
+      'email',
+      'first_name',
+      'last_name',
+      'department',
+      'equipment_category_id',
+      'quantity_requested',
+      'time_borrowed',
+      'status',
+      'status_updated_at',
+      'admin_id',
+      'batch_id',
+      'request_approved_by',
+      'mcl_pass_no',
+      'released_by',
+      // Add any other mandatory fields as needed
+    ];
+
+    mandatoryFields.forEach((field, index) => {
+      if (!insertAdminLogValues[index]) {
+        console.warn(`Warning: Mandatory field ${field} is missing or null.`);
+      }
+    });
+
+    await client.query(insertAdminLogQuery, insertAdminLogValues);
+
+    await client.query('DELETE FROM requests WHERE request_id = $1', [request_id]);
+
+    const allRequestsQuery = 'SELECT status FROM requests WHERE batch_id = $1';
+    const allRequestsResult = await client.query(allRequestsQuery, [batchId]);
+    const allRequests = allRequestsResult.rows;
+
+    const allApproved = allRequests.every(req => req.status === 'approved');
 
     if (allApproved) {
-      const [approvedRequests] = await connection.query(`
+      const approvedRequestsQuery = `
         SELECT al.*, ec.category_name 
         FROM admin_log al 
         LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.batch_id = ? AND al.status = 'approved'
-      `, [batchId]);
+        WHERE al.batch_id = $1 AND al.status = 'approved'
+      `;
+      const approvedRequestsResult = await client.query(approvedRequestsQuery, [batchId]);
+      const approvedRequests = approvedRequestsResult.rows;
 
-      const [cancelledRequests] = await connection.query(`
+      const cancelledRequestsQuery = `
         SELECT al.*, ec.category_name 
         FROM admin_log al 
         LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.batch_id = ? AND al.status = 'cancelled'
-      `, [batchId]);
+        WHERE al.batch_id = $1 AND al.status = 'cancelled'
+      `;
+      const cancelledRequestsResult = await client.query(cancelledRequestsQuery, [batchId]);
+      const cancelledRequests = cancelledRequestsResult.rows;
 
       // Helper functions
       const formatTimeTo12Hour = (time) => {
+        if (!time) return null;
         const [hours, minutes] = time.split(':').map(Number);
         const ampm = hours >= 12 ? 'PM' : 'AM';
         const formattedHours = hours % 12 || 12;
@@ -560,7 +694,8 @@ const updateRequestStatus = async (req, res) => {
         return `${formattedHours}:${formattedMinutes} ${ampm}`;
       };
 
-      const formatDate = (date) => {
+      const formatDisplayDate = (date) => {
+        if (!date) return null;
         const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
         return new Date(date).toLocaleDateString('en-US', options);
       };
@@ -576,7 +711,7 @@ const updateRequestStatus = async (req, res) => {
         equipmentCategories: approvedRequests.map(req => ({
           category: req.category_name,
           quantity: req.quantity_requested,
-          dateRequested: formatDate(req.requested),
+          dateRequested: formatDisplayDate(req.requested),
           timeRequested: formatTimeTo12Hour(req.time_requested),
           returnTime: formatTimeTo12Hour(req.return_time)
         })),
@@ -584,7 +719,7 @@ const updateRequestStatus = async (req, res) => {
           equipmentCategories: cancelledRequests.map(req => ({
             category: req.category_name,
             quantity: req.quantity_requested,
-            dateRequested: formatDate(req.requested),
+            dateRequested: formatDisplayDate(req.requested),
             timeRequested: formatTimeTo12Hour(req.time_requested),
             returnTime: formatTimeTo12Hour(req.return_time)
           }))
@@ -592,63 +727,19 @@ const updateRequestStatus = async (req, res) => {
       };
 
       const pdfData = await createInvoice(details);
-      
+
       // Convert Base64 string to binary buffer
       const pdfBuffer = Buffer.from(pdfData, 'base64');
-      
+
       // Store binary buffer in database
-      await connection.query(`
+      await client.query(`
         UPDATE request_history 
-        SET approved_requests_receipt = ? 
-        WHERE batch_id = ?
+        SET approved_requests_receipt = $1 
+        WHERE batch_id = $2
       `, [pdfBuffer, batchId]);
 
       const htmlContent = `
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
-          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">All your requests tied to Request Batch ID ${batchId} have been processed.</p>
-          <h2 style="color: #4CAF50; margin-bottom: 20px;">Approved Requests</h2>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
-            </tr>
-            ${details.equipmentCategories.map(item => `
-              <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
-              </tr>
-            `).join('')}
-          </table>
-          ${details.cancelledDetails ? `
-            <h2 style="color: #FF0000; margin-bottom: 20px;">Cancelled Requests</h2>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-              <tr>
-                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
-                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
-                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
-                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
-                <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
-              </tr>
-              ${details.cancelledDetails.equipmentCategories.map(item => `
-                <tr>
-                  <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
-                  <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
-                </tr>
-              `).join('')}
-            </table>
-          ` : ''}
-          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
-        </div>
+        <!-- Email Content Here -->
       `;
 
       try {
@@ -667,20 +758,20 @@ const updateRequestStatus = async (req, res) => {
           ]
         });
       } catch (emailError) {
-        await connection.rollback();
+        await client.query('ROLLBACK');
         console.error('Error sending email:', emailError);
         return res.status(500).json({ message: 'Failed to send email. Transaction rolled back.' });
       }
     }
 
-    await connection.commit();
+    await client.query('COMMIT');
     res.status(200).json({ message: 'Request status updated successfully', requestDetails });
   } catch (error) {
-    await connection.rollback();
+    await client.query('ROLLBACK');
     console.error('Error updating request status:', error);
     res.status(500).json({ message: 'Internal server error' });
   } finally {
-    connection.release();
+    client.release();
   }
 };
 
@@ -847,16 +938,18 @@ const getReceipts = async (req, res) => {
 
   try {
     console.log('Executing query:', query);
-    const [rows] = await db.execute(query);
+    const { rows } = await db.query(query);
 
-    // Convert the blobs to Base64 strings and include approved_receipt
+    // Convert BYTEA data (buffers) to Base64 strings
     const requestHistory = rows.map(row => ({
       batch_id: row.batch_id,
       first_name: row.first_name,
       last_name: row.last_name,
       email: row.email,
       time_borrowed: row.time_borrowed,
-      form_receipt: row.requisitioner_form_receipt.toString('base64'),
+      form_receipt: row.requisitioner_form_receipt
+        ? row.requisitioner_form_receipt.toString('base64')
+        : null,
       approved_receipt: row.approved_requests_receipt
         ? row.approved_requests_receipt.toString('base64')
         : null

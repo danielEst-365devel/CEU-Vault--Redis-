@@ -378,72 +378,110 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
 };
 const getCategoryIDByName = async (categoryName) => {
   const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = $1';
-  const result = await db.query(categoryQuery, [categoryName]);
+  const { rows: categoryRows } = await db.query(categoryQuery, [categoryName]);
 
-  if (result.rows.length === 0) {
-    throw new Error(`Category '${categoryName}' not found.`);
+  if (categoryRows.length === 0) {
+    throw new Error(`Category name ${categoryName} not found in equipment_categories table.`);
   }
 
-  return result.rows[0].category_id;
+  return categoryRows[0].category_id;
 };
+
+// Helper function to format date to 'YYYY-MM-DD'
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${dateString}`);
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // 'YYYY-MM-DD'
+};
+
+// Helper function to format time to 'HH:MM:SS'
+const formatTime = (timeString) => {
+  const date = new Date(`1970-01-01T${timeString}Z`); // 'Z' ensures UTC
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid time: ${timeString}`);
+  }
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`; // 'HH:MM:SS'
+};
+
 const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
   console.log('Inserting form data into the database...');
 
   if (!pdfBase64) {
-    throw new Error("PDF base64 is undefined.");
+    throw new Error("PDF base64 string is undefined.");
   }
 
+  const client = await db.connect();
+
   try {
+    await client.query('BEGIN');
+
     // Decode base64 to binary
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
     // Insert into request_history and get the batch_id
-    const result = await db.query(
-      'INSERT INTO request_history (requisitioner_form_receipt) VALUES ($1) RETURNING batch_id',
-      [pdfBuffer]
-    );
-    const batchId = result.rows[0].id;
+    const insertHistoryQuery = `
+      INSERT INTO request_history (requisitioner_form_receipt) 
+      VALUES ($1) RETURNING batch_id
+    `;
+    const { rows: [historyRow] } = await client.query(insertHistoryQuery, [pdfBuffer]);
+    const batchId = historyRow.batch_id;
 
-    // Loop through each equipment category
-    for (let item of formData.equipmentCategories) {
+    // Loop through each equipment category and insert a row for each
+    for (const item of formData.equipmentCategories) {
       // Get the equipment_category_id based on the category_name
       const equipmentCategoryId = await getCategoryIDByName(item.category);
+
+      // Parse and format date and time values
+      const requestedDate = formatDate(item.dateRequested);       // 'YYYY-MM-DD'
+      const timeRequested = formatTime(item.timeRequested);       // 'HH:MM:SS'
+      const returnTime = formatTime(item.returnTime);             // 'HH:MM:SS'
 
       const query = `
         INSERT INTO requests (
           email, first_name, last_name, department, nature_of_service, 
-          purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time, batch_id
+          purpose, venue, equipment_category_id, quantity_requested, 
+          requested, time_requested, return_time, batch_id
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `;
       const values = [
         formData.email,
         formData.firstName,
         formData.lastName,
-        formData.departmentName,
-        formData.natureOfService,
-        formData.purpose,
-        formData.venue,
+        formData.departmentName || null,
+        formData.natureOfService || null,
+        formData.purpose || null,
+        formData.venue || null,
         equipmentCategoryId,
         item.quantity,
-        item.dateRequested,
-        item.timeRequested,
-        item.returnTime,
+        requestedDate,
+        timeRequested,
+        returnTime,
         batchId
       ];
 
-      // Check for undefined values and replace with null
-      const sanitizedValues = values.map(value => value === undefined ? null : value);
-
-      await db.query(query, sanitizedValues);
+      await client.query(query, values);
     }
+
+    await client.query('COMMIT');
 
     return {
       successful: true,
       message: "Form submitted successfully."
     };
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error("Error inserting form data into the database:", err);
     throw new Error("An unexpected error occurred while inserting form data.");
+  } finally {
+    client.release();
   }
 };
 
@@ -451,10 +489,10 @@ const getEquipmentCategories = async (req, res) => {
   const query = 'SELECT * FROM equipment_categories';
   try {
     console.log('Executing query:', query);
-    const result = await db.query(query);
+    const { rows } = await db.query(query);
     return res.status(200).json({
       successful: true,
-      equipmentCategories: result.rows
+      equipmentCategories: rows
     });
   } catch (error) {
     console.error('Error retrieving equipment categories:', error);
@@ -464,7 +502,6 @@ const getEquipmentCategories = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   submitForm,
