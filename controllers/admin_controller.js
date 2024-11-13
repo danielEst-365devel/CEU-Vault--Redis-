@@ -720,37 +720,37 @@ const getAllHistory = async (req, res) => {
   `;
 
   const countApprovedQuery = `
-    SELECT COUNT(*) as approvedCount 
+    SELECT COUNT(*) AS approvedCount 
     FROM admin_log 
     WHERE status = 'approved'
   `;
 
   const countOngoingQuery = `
-    SELECT COUNT(*) as ongoingCount 
+    SELECT COUNT(*) AS ongoingCount 
     FROM admin_log 
     WHERE status = 'ongoing'
   `;
 
   const countTotalQuery = `
-    SELECT COUNT(*) as totalCount 
+    SELECT COUNT(*) AS totalCount 
     FROM admin_log
   `;
 
   try {
     console.log('Executing query:', query);
-    const [rows] = await db.execute(query);
+    const { rows } = await db.query(query);
 
     console.log('Executing count query:', countApprovedQuery);
-    const [approvedResult] = await db.execute(countApprovedQuery);
-    const approvedCount = approvedResult[0].approvedCount;
+    const { rows: approvedResult } = await db.query(countApprovedQuery);
+    const approvedCount = approvedResult[0].approvedcount;
 
     console.log('Executing count query:', countOngoingQuery);
-    const [ongoingResult] = await db.execute(countOngoingQuery);
-    const ongoingCount = ongoingResult[0].ongoingCount;
+    const { rows: ongoingResult } = await db.query(countOngoingQuery);
+    const ongoingCount = ongoingResult[0].ongoingcount;
 
     console.log('Executing count query:', countTotalQuery);
-    const [totalResult] = await db.execute(countTotalQuery);
-    const totalCount = totalResult[0].totalCount;
+    const { rows: totalResult } = await db.query(countTotalQuery);
+    const totalCount = totalResult[0].totalcount;
 
     return res.status(200).json({
       successful: true,
@@ -772,23 +772,20 @@ const getAllBorrowingRequests = async (req, res) => {
   try {
     // Query to get all borrowing requests with category names
     const query = `
-        SELECT requests.*, equipment_categories.category_name 
-        FROM requests 
-        JOIN equipment_categories 
-        ON requests.equipment_category_id = equipment_categories.category_id
-      `;
+      SELECT requests.*, equipment_categories.category_name 
+      FROM requests 
+      JOIN equipment_categories 
+      ON requests.equipment_category_id = equipment_categories.category_id
+    `;
 
     // Execute the query
-    const [results] = await db.execute(query);
-
-    // Get the number of rows
-    const numberOfRows = results.length;
+    const { rows, rowCount } = await db.query(query);
 
     // Return the results and the number of rows in the response
     return res.json({
       successful: true,
-      borrowingRequests: results,
-      numberOfRows: numberOfRows,
+      borrowingRequests: rows,
+      numberOfRows: rowCount,
     });
   } catch (error) {
     console.error('Error fetching borrowing requests:', error);

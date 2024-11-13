@@ -386,6 +386,7 @@ const getCategoryIDByName = async (categoryName) => {
 
   return categoryRows[0].category_id;
 };
+
 const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
   console.log('Inserting form data into the database...');
 
@@ -397,11 +398,14 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
     // Decode base64 to binary
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
-    // Insert a new row into the request_history table to generate a new batch_id
-    const [result] = await db.execute('INSERT INTO request_history (requisitioner_form_receipt) VALUES (?)', [pdfBuffer]);
-    const batchId = result.insertId;
+    // Insert into request_history and get the batch_id
+    const result = await db.query(
+      'INSERT INTO request_history (requisitioner_form_receipt) VALUES ($1) RETURNING batch_id',
+      [pdfBuffer]
+    );
+    const batchId = result.rows[0].id;
 
-    // Loop through each equipment category and insert a row for each
+    // Loop through each equipment category
     for (let item of formData.equipmentCategories) {
       // Get the equipment_category_id based on the category_name
       const equipmentCategoryId = await getCategoryIDByName(item.category);
@@ -410,7 +414,7 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
         INSERT INTO requests (
           email, first_name, last_name, department, nature_of_service, 
           purpose, venue, equipment_category_id, quantity_requested, requested, time_requested, return_time, batch_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `;
       const values = [
         formData.email,
@@ -420,18 +424,18 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
         formData.natureOfService,
         formData.purpose,
         formData.venue,
-        equipmentCategoryId, // Use the retrieved equipment_category_id
-        item.quantity, // Quantity requested for each category
-        item.dateRequested, // Requested date for the equipment
-        item.timeRequested, // Requested time for the equipment
-        item.returnTime, // Return time for the equipment
-        batchId // Assign the same batch_id to all rows
+        equipmentCategoryId,
+        item.quantity,
+        item.dateRequested,
+        item.timeRequested,
+        item.returnTime,
+        batchId
       ];
 
       // Check for undefined values and replace with null
       const sanitizedValues = values.map(value => value === undefined ? null : value);
 
-      await db.execute(query, sanitizedValues);
+      await db.query(query, sanitizedValues);
     }
 
     return {
@@ -448,10 +452,10 @@ const getEquipmentCategories = async (req, res) => {
   const query = 'SELECT * FROM equipment_categories';
   try {
     console.log('Executing query:', query);
-    const [rows] = await db.execute(query);
+    const result = await db.query(query);
     return res.status(200).json({
       successful: true,
-      equipmentCategories: rows
+      equipmentCategories: result.rows
     });
   } catch (error) {
     console.error('Error retrieving equipment categories:', error);
@@ -461,6 +465,7 @@ const getEquipmentCategories = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   submitForm,
