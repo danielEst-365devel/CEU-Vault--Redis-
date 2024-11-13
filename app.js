@@ -16,6 +16,9 @@ app.use(express.static('public'));
 
 app.use(cookieParser()); //tokens
 
+// Trust first proxy
+app.set('trust proxy', 1);
+
 app.use(session({
     store: new redisStore({ client: redisClient }),
     secret: process.env.SECRET_KEY,
