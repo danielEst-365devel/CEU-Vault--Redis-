@@ -6,8 +6,8 @@ const session = require('express-session');
 const redisStore = require('connect-redis').default; // Import connect-redis
 const redisClient = require('./redisClient'); // Import redisClient
 const cookieParser = require('cookie-parser'); // for tokens
+const cors = require('cors');
 require('dotenv').config();
-//db con
 const db = require("./models/connection_db");
 db.connectDatabase();
 
@@ -40,21 +40,28 @@ app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 
 //headers
-app.use((req, res, next) => {
-    const allowedOrigins = ['https://127.0.0.1:6379', 'https://127.0.0.1:5500', 'https://127.0.0.1:8000', process.env.NGROK_URL];
-    const origin = req.headers.origin;
-    if (allowedOrigins.includes(origin)) {
-        res.header("Access-Control-Allow-Origin", origin);
-    }
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.header("Access-Control-Allow-Credentials", "true");
 
-    if (req.method === 'OPTIONS') {
-        res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        return res.status(200).json({});
-    }
-    next();
-});
+const allowedOrigins = [
+    'https://127.0.0.1:6379',
+    'https://127.0.0.1:5500',
+    'https://127.0.0.1:8000',
+    process.env.NGROK_URL
+];
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (allowedOrigins.includes(origin) || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept']
+};
+
+app.use(cors(corsOptions));
 
 app.use('/equipments', prodRouter)
 

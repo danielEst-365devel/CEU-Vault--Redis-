@@ -895,12 +895,18 @@ const getAllBorrowingRequests = async (req, res) => {
 
 // Middleware to verify the token
 const authenticateToken = (req, res, next) => {
-  const token = req.cookies.token; // Get token from cookies
-  if (!token) return res.sendStatus(401); // Unauthorized
+  const token = req.cookies.token || 
+                (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
-  jwt.verify(token, JWT_SECRET, (err, admin) => {
-    if (err) return res.sendStatus(403); // Forbidden
-    req.admin = admin;
+  if (!token) {
+    return res.status(401).sendFile(path.join(__dirname, '..', 'admin', 'Login Page', 'adminLogin.html'));
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).sendFile(path.join(__dirname, '..', 'admin', 'Login Page', 'adminLogin.html'));
+    }
+    req.admin = decoded;
     next();
   });
 };
