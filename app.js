@@ -10,11 +10,11 @@ const cors = require('cors');
 require('dotenv').config();
 const db = require("./models/connection_db");
 db.connectDatabase();
-
-// Session middleware configuration
-app.use(express.static('public'));
+const prodRouter = require('./router/backend_router')
 
 app.use(cookieParser()); //tokens
+
+app.use('/equipments', prodRouter);
 
 // Trust first proxy
 app.set('trust proxy', 1);
@@ -33,7 +33,7 @@ app.use(session({
 }));
 
 // routers
-const prodRouter = require('./router/backend_router')
+
 //setting for body-parser and morgan
 app.use(morgan('dev'))
 app.use(bodyParser.urlencoded({ extended: true }))
@@ -63,7 +63,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.use('/equipments', prodRouter)
+
 
 redisClient.on('connect', () => {
     console.log('Connected to Redis');
