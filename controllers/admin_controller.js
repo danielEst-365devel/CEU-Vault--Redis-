@@ -720,37 +720,38 @@ const getAllHistory = async (req, res) => {
   `;
 
   const countApprovedQuery = `
-    SELECT COUNT(*) AS approvedCount 
+    SELECT COUNT(*) AS approved_count 
     FROM admin_log 
     WHERE status = 'approved'
   `;
 
   const countOngoingQuery = `
-    SELECT COUNT(*) AS ongoingCount 
+    SELECT COUNT(*) AS ongoing_count 
     FROM admin_log 
     WHERE status = 'ongoing'
   `;
 
   const countTotalQuery = `
-    SELECT COUNT(*) AS totalCount 
+    SELECT COUNT(*) AS total_count 
     FROM admin_log
   `;
 
   try {
     console.log('Executing query:', query);
-    const { rows } = await db.query(query);
+    const historyResult = await db.query(query);
+    const rows = historyResult.rows;
 
     console.log('Executing count query:', countApprovedQuery);
-    const { rows: approvedResult } = await db.query(countApprovedQuery);
-    const approvedCount = approvedResult[0].approvedcount;
+    const approvedResult = await db.query(countApprovedQuery);
+    const approvedCount = approvedResult.rows[0].approved_count;
 
     console.log('Executing count query:', countOngoingQuery);
-    const { rows: ongoingResult } = await db.query(countOngoingQuery);
-    const ongoingCount = ongoingResult[0].ongoingcount;
+    const ongoingResult = await db.query(countOngoingQuery);
+    const ongoingCount = ongoingResult.rows[0].ongoing_count;
 
     console.log('Executing count query:', countTotalQuery);
-    const { rows: totalResult } = await db.query(countTotalQuery);
-    const totalCount = totalResult[0].totalcount;
+    const totalResult = await db.query(countTotalQuery);
+    const totalCount = totalResult.rows[0].total_count;
 
     return res.status(200).json({
       successful: true,
@@ -778,14 +779,18 @@ const getAllBorrowingRequests = async (req, res) => {
       ON requests.equipment_category_id = equipment_categories.category_id
     `;
 
-    // Execute the query
-    const { rows, rowCount } = await db.query(query);
+    // Execute the query using db.query instead of db.execute
+    const borrowingResult = await db.query(query);
+    const rows = borrowingResult.rows;
+
+    // Get the number of rows
+    const numberOfRows = rows.length;
 
     // Return the results and the number of rows in the response
     return res.json({
       successful: true,
       borrowingRequests: rows,
-      numberOfRows: rowCount,
+      numberOfRows: numberOfRows,
     });
   } catch (error) {
     console.error('Error fetching borrowing requests:', error);

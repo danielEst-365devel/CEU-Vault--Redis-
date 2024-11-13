@@ -377,16 +377,15 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
   }
 };
 const getCategoryIDByName = async (categoryName) => {
-  const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = ?';
-  const [categoryRows] = await db.execute(categoryQuery, [categoryName]);
+  const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = $1';
+  const result = await db.query(categoryQuery, [categoryName]);
 
-  if (categoryRows.length === 0) {
-    throw new Error(`Category name ${categoryName} not found in equipment_categories table.`);
+  if (result.rows.length === 0) {
+    throw new Error(`Category '${categoryName}' not found.`);
   }
 
-  return categoryRows[0].category_id;
+  return result.rows[0].category_id;
 };
-
 const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
   console.log('Inserting form data into the database...');
 
