@@ -47,13 +47,13 @@
           <nav role="navigation" class="nav-menu-wrapper w-nav-menu">
             <ul role="list" class="nav-menu w-list-unstyled">
               <li class="list-item-2">
-                <a href="../Home Page/index.html" class="button-primary w-button">home</a>
+                <a href="../home-page" class="button-primary w-button">home</a>
               </li>
               <li class="list-item">
-                <a href="index.html" class="button-primary w-button">Borrow</a>
+                <a href="#" class="button-primary w-button">Borrow</a>
               </li>
               <li class="list-item-3">
-                <a href="../Inventory/index.html" class="button-primary w-button">inventory</a>
+                <a href="../Inventory" class="button-primary w-button">inventory</a>
               </li>
             </ul>
           </nav>
@@ -345,7 +345,7 @@
     console.log(jsonString); // Debug the JSON data
 
     // POST request to the API endpoint
-    fetch('https://127.0.0.1:8000/equipments/insert-details', {
+    fetch('/equipments/insert-details', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: jsonString,

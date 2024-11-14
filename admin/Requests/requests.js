@@ -4,7 +4,7 @@ function approveRequest(requestId) {
     const requestBody = { request_id: requestId, status: 'approved' };
     console.log('Request Body:', JSON.stringify(requestBody)); // Log the JSON body
 
-    fetch(`https://localhost:8000/equipments/update-status`, {
+    fetch(`/admin/update-status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -29,7 +29,7 @@ function approveRequest(requestId) {
 }
 
 const rejectRequest = (requestId) => {
-    fetch(`https://localhost:8000/equipments/update-status`, {
+    fetch(`/admin/update-status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ const rejectRequest = (requestId) => {
 };
 
 const releaseRequest = (requestId) => {
-    fetch(`https://localhost:8000/equipments/release`, {
+    fetch(`/admin/release`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ const releaseRequest = (requestId) => {
 };
 
 const returnRequest = (requestId) => {
-    fetch(`https://localhost:8000/equipments/release`, {
+    fetch(`/admin/release`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ const returnRequest = (requestId) => {
 };
 
 const cancelRequest = (requestId) => {
-    fetch(`https://localhost:8000/equipments/release`, {
+    fetch(`/admin/release`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -1,7 +1,6 @@
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
-const bodyParser = require('body-parser');
 const session = require('express-session');
 const redisStore = require('connect-redis').default; // Import connect-redis
 const redisClient = require('./redisClient'); // Import redisClient
@@ -10,13 +9,13 @@ const cors = require('cors');
 require('dotenv').config();
 const db = require("./models/connection_db");
 db.connectDatabase();
-const prodRouter = require('./router/backend_router')
+const path = require('path');
+const prodRouter = require('./router/public_router')
+const adminRouter = require('./router/admin_router')
+const { authenticateToken } = require('./controllers/admin_controller');
 
 app.use(cookieParser()); //tokens
 
-app.use('/equipments', prodRouter);
-
-// Trust first proxy
 app.set('trust proxy', 1);
 
 app.use(session({
@@ -24,27 +23,22 @@ app.use(session({
     secret: process.env.SECRET_KEY,
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
         secure: true, // Ensure the cookie is only used over HTTPS
-        httpOnly: true, 
-        maxAge: 120000, 
+        httpOnly: true,
+        maxAge: 120000,
         sameSite: 'None' // Add SameSite=None attribute
     }
 }));
 
-// routers
-
 //setting for body-parser and morgan
 app.use(morgan('dev'))
-app.use(bodyParser.urlencoded({ extended: true }))
-app.use(bodyParser.json())
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-//headers
 
 const allowedOrigins = [
-    'https://127.0.0.1:6379',
-    'https://127.0.0.1:5500',
-    'https://127.0.0.1:8000',
+    'https://localhost:8000',
     process.env.NGROK_URL
 ];
 
@@ -60,21 +54,14 @@ const corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept']
 };
-
 app.use(cors(corsOptions));
 
+app.use(express.static(path.join(__dirname, 'Public')));
+
+app.use('/admin', adminRouter);
+app.use('/equipments', prodRouter);
 
 
-redisClient.on('connect', () => {
-    console.log('Connected to Redis');
-});
-
-// Handle Redis connection errors
-redisClient.on('error', (err) => {
-    console.error('Redis error: ', err);
-});
-
-//error middleware
 app.use((req, res, next) => {
     const error = new Error('Not Found')
     error.status = 404

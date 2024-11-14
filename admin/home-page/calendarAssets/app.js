@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Fetch events from the backend
     async function fetchEvents() {
         try {
-            const response = await fetch('https://localhost:8000/equipments/get-all-history');
+            const response = await fetch('/admin/get-all-history');
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }

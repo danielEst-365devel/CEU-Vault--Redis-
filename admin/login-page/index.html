@@ -38,7 +38,7 @@
             <div class="container-regular">
                 <div class="navbar-wrapper">
                     <div class="w-layout-hflex ceuvaultbrandflex">
-                        <a href="/admin/Home Page/adminHomepage.html" class="ceulogo w-nav-brand"><img width="85"
+                        <a href="/admin/home-page/" class="ceulogo w-nav-brand"><img width="85"
                                 loading="lazy" alt="" src="../assets/img/CEU-Logo.png" class="image"></a>
                         <div class="w-layout-hflex ceuvaultbrandtext">
                             <h4 class="heading">Centro Escolar University</h4>
@@ -110,7 +110,7 @@
                 const email = loginForm.email.value;
                 const password = loginForm.password.value;
 
-                fetch('https://localhost:8000/equipments/login', {
+                fetch('/admin/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -128,7 +128,7 @@
                     .then(data => {
                         console.log('Login successful:', data);
                         // Handle successful login (e.g., redirect to another page)
-                        window.location.href = '../Home Page/dashboard.html';
+                        window.location.href = '../home-page/';
                     })
                     .catch(error => {
                         console.error('There was a problem with the fetch operation:', error);
@@ -144,7 +144,7 @@
                 const email = registerForm.email.value;
                 const password = registerForm.password.value;
 
-                fetch('https://localhost:8000/equipments/create-admin', { // Change to your register endpoint
+                fetch('/admin/create-admin', { // Change to your register endpoint
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -182,41 +182,41 @@
 </html>
 
 <script>
-    // Handle register form submission via anchor click
-    document.querySelector('.register-form .btn').addEventListener('click', function (event) {
-        event.preventDefault(); // Prevent the default anchor behavior
+    // // Handle register form submission via anchor click
+    // document.querySelector('.register-form .btn').addEventListener('click', function (event) {
+    //     event.preventDefault(); // Prevent the default anchor behavior
 
-        const registerForm = document.getElementById('registerForm');
-        const name = registerForm.name.value;
-        const email = registerForm.email.value;
-        const password = registerForm.password.value;
+    //     const registerForm = document.getElementById('registerForm');
+    //     const name = registerForm.name.value;
+    //     const email = registerForm.email.value;
+    //     const password = registerForm.password.value;
 
-        fetch('https://localhost:8000/equipments/create-admin', { // Change to your register endpoint
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name, email, password }),
-            credentials: 'include' // Include cookies in the request
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Registration successful:', data);
-                // Show the popover
-                document.getElementById('popover').style.display = 'block';
-            })
-            .catch(error => {
-                console.error('There was a problem with the fetch operation:', error);
-            });
-    });
+    //     fetch('/admin/create-admin', { // Change to your register endpoint
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         },
+    //         body: JSON.stringify({ name, email, password }),
+    //         credentials: 'include' // Include cookies in the request
+    //     })
+    //         .then(response => {
+    //             if (!response.ok) {
+    //                 throw new Error('Network response was not ok');
+    //             }
+    //             return response.json();
+    //         })
+    //         .then(data => {
+    //             console.log('Registration successful:', data);
+    //             // Show the popover
+    //             document.getElementById('popover').style.display = 'block';
+    //         })
+    //         .catch(error => {
+    //             console.error('There was a problem with the fetch operation:', error);
+    //         });
+    // });
 
-    // Handle popover close button click
-    document.getElementById('closePopover').addEventListener('click', function () {
-        document.getElementById('popover').style.display = 'none';
-    });
+    // // Handle popover close button click
+    // document.getElementById('closePopover').addEventListener('click', function () {
+    //     document.getElementById('popover').style.display = 'none';
+    // });
 </script>

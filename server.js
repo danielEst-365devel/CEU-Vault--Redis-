@@ -20,6 +20,8 @@ const credentials = { key: privateKey, cert: certificate };
 // Create HTTPS server
 const server = HTTPS.createServer(credentials, app);
 
+
+
 server.listen(port, () => {
     console.log(`Server is all up in port ${port}`);
 });

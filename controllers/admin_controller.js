@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
 const { db } = require('../models/connection_db'); // Import the database connection
 require('dotenv').config();
+const path = require('path');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
@@ -895,20 +896,20 @@ const getAllBorrowingRequests = async (req, res) => {
 
 // Middleware to verify the token
 const authenticateToken = (req, res, next) => {
-  const token = req.cookies.token || 
-                (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    const token = req.cookies.token || 
+                  (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
-  if (!token) {
-    return res.status(401).sendFile(path.join(__dirname, '..', 'admin', 'Login Page', 'adminLogin.html'));
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).sendFile(path.join(__dirname, '..', 'admin', 'Login Page', 'adminLogin.html'));
+    if (!token) {
+        return res.status(401).redirect('/admin/login-page/');
     }
-    req.admin = decoded;
-    next();
-  });
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).redirect('/admin/login-page/');
+        }
+        req.admin = decoded;
+        next();
+    });
 };
 
 const getReceipts = async (req, res) => {
