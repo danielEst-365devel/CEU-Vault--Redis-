@@ -77,6 +77,16 @@ protectedAdminPaths.forEach(adminPath => {
     app.use(adminPath, authenticateToken, express.static(path.join(__dirname, 'admin', adminPath.replace('/admin/', ''))));
 });
 
+// Redirect root to home page
+app.get('/', (req, res) => {
+    res.redirect('/home-page/index.html');
+});
+
+// Redirect /admin to login page
+app.get('/admin', (req, res) => {
+    res.redirect('/admin/login-page');
+});
+
 // Your API routes should come after static file serving
 app.use('/admin', adminRouter);
 app.use('/equipments', prodRouter);
