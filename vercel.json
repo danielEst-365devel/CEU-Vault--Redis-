@@ -1,0 +1,74 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "Public/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "admin/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "^/$",
+      "status": 301,
+      "headers": {
+        "Location": "/home-page/index.html",
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+      }
+    },
+    {
+      "src": "^/admin/?$",
+      "status": 301,
+      "headers": {
+        "Location": "/admin/login-page"
+      }
+    },
+    {
+      "src": "/Public/(.*)",
+      "dest": "/Public/$1"
+    },
+    {
+      "src": "/admin/login-page",
+      "dest": "/admin/login-page/index.html"
+    },
+    {
+      "src": "/admin/assets/(.*)",
+      "dest": "/admin/assets/$1"
+    },
+    {
+      "src": "/admin/(history|home-page|inventory-status|requests)/(.*)",
+      "dest": "/app.js"
+    },
+    {
+      "src": "/equipments/(.*)",
+      "dest": "/app.js"
+    },
+    {
+      "src": "/(.*)\\.(?:js|css|jpg|png|gif|ico|svg)$",
+      "dest": "/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/app.js",
+      "headers": {
+        "X-Frame-Options": "DENY",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+      }
+    }
+  ]
+}

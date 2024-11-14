@@ -37,22 +37,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 
-const allowedOrigins = [
-    'https://localhost:8000',
-    process.env.NGROK_URL
-];
-
 const corsOptions = {
-    origin: function (origin, callback) {
-        if (allowedOrigins.includes(origin) || !origin) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+    origin: true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept']
+    methods: '*',
+    allowedHeaders: '*'
 };
 app.use(cors(corsOptions));
 
