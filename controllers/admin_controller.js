@@ -305,14 +305,14 @@ const createAdmin = async (req, res) => {
     // Generate a token for approval
     const approvalToken = jwt.sign({ email, name, password }, JWT_SECRET, { expiresIn: '24h' });
 
-    // Use the ngrok URL for the approval link
-    const ngrokUrl = process.env.NGROK_URL;
-    const approvalLink = `${ngrokUrl}/equipments/approve-admin?token=${approvalToken}`;
+    // Use deployment URL
+    const baseUrl = 'https://ceu-vault.vercel.app/';
+    const approvalLink = `${baseUrl}/admin/approve-admin?token=${approvalToken}`;
 
     // Retrieve the IT admin email from environment variables
     const itAdminEmail = process.env.IT_ADMIN;
 
-    // Use the IT admin email in the sendEmail function
+    // Send approval email
     await sendEmail(itAdminEmail, approvalLink);
 
     res.status(200).json({ message: 'Approval email sent to your IT Administrator. Please wait for 24 hours.' });
@@ -331,8 +331,11 @@ const approveAdmin = async (req, res) => {
     const { email, name, password } = decoded;
 
     // Check if the email already exists in the database
-    const [existingAdmin] = await db.query('SELECT * FROM admins WHERE email = ?', [email]);
-    if (existingAdmin.length > 0) {
+    const existingAdmin = await db.query(
+      'SELECT * FROM admins WHERE email = $1',
+      [email]
+    );
+    if (existingAdmin.rows.length > 0) {
       return res.status(400).json({ message: 'An admin with that email already exists!' });
     }
 
@@ -342,7 +345,10 @@ const approveAdmin = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Insert the new admin into the database
-    await db.query('INSERT INTO admins (email, name, password_hash) VALUES (?, ?, ?)', [email, name, hashedPassword]);
+    await db.query(
+      'INSERT INTO admins (email, name, password_hash) VALUES ($1, $2, $3)',
+      [email, name, hashedPassword]
+    );
 
     res.status(201).json({ message: 'Admin created successfully' });
   } catch (error) {
