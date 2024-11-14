@@ -16,6 +16,13 @@
   ],
   "routes": [
     {
+      "src": "^/admin/(home-page|requests|history|inventory-status|login-page)$",
+      "status": 301,
+      "headers": {
+        "Location": "/admin/$1/"
+      }
+    },
+    {
       "src": "^/$",
       "status": 301,
       "headers": {
