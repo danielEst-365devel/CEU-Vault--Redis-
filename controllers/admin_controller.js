@@ -34,8 +34,9 @@ function createInvoice(details) {
   });
 }
 function generateHeader(doc) {
+  const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
   doc
-    .image("controllers/CEU-Logo.png", 50, 45, { width: 50 })
+    .image(logoPath, 50, 45, { width: 50 })
     .fillColor("#444444")
     .fontSize(20)
     .text("CEU VAULT", 110, 57)
@@ -896,20 +897,20 @@ const getAllBorrowingRequests = async (req, res) => {
 
 // Middleware to verify the token
 const authenticateToken = (req, res, next) => {
-    const token = req.cookies.token || 
-                  (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  const token = req.cookies.token ||
+    (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
-    if (!token) {
-        return res.status(401).redirect('/admin/login-page/');
+  if (!token) {
+    return res.status(401).redirect('/admin/login-page/');
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).redirect('/admin/login-page/');
     }
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) {
-            return res.status(403).redirect('/admin/login-page/');
-        }
-        req.admin = decoded;
-        next();
-    });
+    req.admin = decoded;
+    next();
+  });
 };
 
 const getReceipts = async (req, res) => {

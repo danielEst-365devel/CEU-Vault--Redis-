@@ -83,8 +83,9 @@ function createInvoice(details) {
   });
 }
 function generateHeader(doc) {
+  const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
   doc
-    .image("controllers/CEU-Logo.png", 50, 45, { width: 50 })
+    .image(logoPath, 50, 45, { width: 50 })
     .fillColor("#444444")
     .fontSize(20)
     .text("CEU VAULT", 110, 57)
