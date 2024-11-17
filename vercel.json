@@ -16,7 +16,7 @@
   ],
   "routes": [
     {
-      "src": "^/admin/(home-page|requests|history|inventory-status|login-page|profile|sign-in|sign-up)$",
+      "src": "^/admin/(home-page|requests|history|inventory-status|profile|sign-in|sign-up)$",
       "status": 301,
       "headers": {
         "Location": "/admin/$1/"
@@ -37,7 +37,7 @@
       "src": "^/admin/?$",
       "status": 301,
       "headers": {
-        "Location": "/admin/login-page"
+        "Location": "/admin/sign-in"
       }
     },
     {
@@ -45,8 +45,8 @@
       "dest": "/Public/$1"
     },
     {
-      "src": "/admin/login-page",
-      "dest": "/admin/login-page/index.html"
+      "src": "/admin/sign-in",
+      "dest": "/admin/sign-in"
     },
     {
       "src": "/admin/assets/(.*)",
