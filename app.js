@@ -48,18 +48,30 @@ app.use(cors(corsOptions));
 app.use(express.static(path.join(__dirname, 'Public')));
 
 // First, serve the unprotected login page
-app.use('/admin/login-page', express.static(path.join(__dirname, 'admin/login-page')));
+app.use('/admin/sign-in', express.static(path.join(__dirname, 'admin/sign-in')));
 
 // Serve admin assets globally (they are just CSS/JS files)
 app.use('/admin/assets', express.static(path.join(__dirname, 'admin/assets')));
 
 // Define protected admin paths
+// Unprotected admin paths
+const unprotectedAdminPaths = [
+    '/admin/sign-in',
+    '/admin/sign-up'
+];
+
 const protectedAdminPaths = [
     '/admin/history',
     '/admin/home-page',
     '/admin/inventory-status',
-    '/admin/requests'
+    '/admin/requests',
+    '/admin/profile',
 ];
+
+// Serve unprotected admin static files (no auth required)
+unprotectedAdminPaths.forEach(adminPath => {
+    app.use(adminPath, express.static(path.join(__dirname, 'admin', adminPath.replace('/admin/', ''))));
+});
 
 // Protect and serve admin static files
 protectedAdminPaths.forEach(adminPath => {
@@ -73,9 +85,8 @@ app.get('/', (req, res) => {
 
 // Redirect /admin to login page
 app.get('/admin', (req, res) => {
-    res.redirect('/admin/login-page');
+    res.redirect('/admin/sign-in');
 });
-
 // Your API routes should come after static file serving
 app.use('/admin', adminRouter);
 app.use('/equipments', prodRouter);

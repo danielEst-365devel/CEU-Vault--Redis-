@@ -260,42 +260,57 @@ const sendEmail = async (recipientEmail, approvalLink) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
 
-  try {
-    // Fetch admin details from the database using PostgreSQL syntax
-    const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
-    const admin = results.rows[0]; // PostgreSQL returns { rows: [] }
+    try {
+        // Fetch admin details from the database using PostgreSQL syntax
+        const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
+        const admin = results.rows[0];
 
-    // Check if admin exists
-    if (!admin) {
-      console.error('Admin not found for email:', email);
-      return res.status(401).json({ message: 'Invalid email or password' });
+        // Check if admin exists
+        if (!admin) {
+            console.error('Admin not found for email:', email);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Check if admin.password_hash is defined
+        if (!admin.password_hash) {
+            console.error('Admin password_hash is undefined for email:', email);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Compare password
+        const isMatch = await bcrypt.compare(password, admin.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Set token expiration based on rememberMe
+        const expiresIn = rememberMe ? '7d' : '1h';
+        
+        // Generate JWT token with dynamic expiration
+        const token = jwt.sign(
+            { id: admin.admin_id, email: admin.email },
+            JWT_SECRET,
+            { expiresIn }
+        );
+
+        // Set cookie options based on rememberMe
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+            maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000 // 7 days or 1 hour
+        };
+
+        // Set token in cookie with options
+        res.cookie('token', token, cookieOptions);
+
+        res.status(200).json({ message: 'Login successful' });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-
-    // Check if admin.password_hash is defined
-    if (!admin.password_hash) {
-      console.error('Admin password_hash is undefined for email:', email);
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Compare password
-    const isMatch = await bcrypt.compare(password, admin.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Generate JWT token
-    const token = jwt.sign({ id: admin.admin_id, email: admin.email }, JWT_SECRET, { expiresIn: '1h' });
-
-    // Set token in cookie
-    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'None' });
-
-    res.status(200).json({ message: 'Login successful' });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
 };
 
 const createAdmin = async (req, res) => {
@@ -907,16 +922,57 @@ const authenticateToken = (req, res, next) => {
     (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
   if (!token) {
-    return res.status(401).redirect('/admin/login-page/');
+    return res.status(401).redirect('/admin/sign-in/');
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).redirect('/admin/login-page/');
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check token expiration explicitly
+    if (Date.now() >= decoded.exp * 1000) {
+      return res.status(401).redirect('/admin/sign-in/');
     }
+
+    // Add user data to request
     req.admin = decoded;
+
+    // Clear sensitive data
+    delete req.admin.iat;
+    delete req.admin.exp;
+
     next();
-  });
+  } catch (err) {
+    // Log error for debugging
+    console.error('Token verification failed:', err.message);
+    return res.status(403).redirect('/admin/sign-in/');
+  }
+};
+
+const verifyToken = (req, res) => {
+  const token = req.cookies.token ||
+    (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+
+  if (!token) {
+    return res.status(401).json({ message: 'No token found' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (Date.now() >= decoded.exp * 1000) {
+      return res.status(401).json({ message: 'Token expired' });
+    }
+    
+    return res.status(200).json({ 
+      message: 'Valid token',
+      admin: {
+        id: decoded.id,
+        email: decoded.email
+      }
+    });
+  } catch (err) {
+    return res.status(403).json({ message: 'Invalid token' });
+  }
 };
 
 const getReceipts = async (req, res) => {
@@ -991,6 +1047,7 @@ module.exports = {
   updateRequestStatusTwo,
   authenticateToken,
   getReceipts,
+  verifyToken,
   //need to check functions below:
   getadminEquipment,
   getAllHistory,

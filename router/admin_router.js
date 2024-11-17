@@ -13,5 +13,6 @@ adminRouter.get('/get-all-history', adminController.getAllHistory);
 adminRouter.get('/get-all-requests', adminController.getAllBorrowingRequests);
 adminRouter.get('/verify-auth', adminController.authenticateToken);
 adminRouter.get('/get-receipts', adminController.getReceipts);
+adminRouter.get('/verify-login', adminController.verifyToken);
 
 module.exports = adminRouter;

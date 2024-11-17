@@ -16,7 +16,7 @@
   ],
   "routes": [
     {
-      "src": "^/admin/(home-page|requests|history|inventory-status|login-page)$",
+      "src": "^/admin/(home-page|requests|history|inventory-status|login-page|profile|sign-in|sign-up)$",
       "status": 301,
       "headers": {
         "Location": "/admin/$1/"
@@ -53,7 +53,7 @@
       "dest": "/admin/assets/$1"
     },
     {
-      "src": "/admin/(history|home-page|inventory-status|requests)/(.*)",
+      "src": "/admin/(history|home-page|inventory-status|requests|sign-up|sign-in|profile)/(.*)",
       "dest": "/app.js"
     },
     {
