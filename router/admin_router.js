@@ -18,5 +18,8 @@ adminRouter.get('/confirm-admin', adminController.confirmAdmin);
 adminRouter.get('/approve-admin', adminController.approveAdmin);
 
 adminRouter.put('/update-equipment/:categoryId', adminController.updateEquipmentCategory);
+adminRouter.delete('/equipment-categories/:categoryId', adminController.deleteEquipmentCategory);
+adminRouter.post('/equipment-categories', adminController.addEquipmentCategory);
+adminRouter.post('/reset-equipment', adminController.resetEquipment);
 
 module.exports = adminRouter;

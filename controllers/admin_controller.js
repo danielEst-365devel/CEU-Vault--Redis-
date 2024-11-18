@@ -603,5 +603,8 @@ module.exports = {
   verifyToken: adminActions.verifyToken,
   getReceipts: adminActions.getReceipts,
   login: adminActions.login,
-  updateEquipmentCategory: adminActions.updateEquipmentCategory
+  updateEquipmentCategory: adminActions.updateEquipmentCategory,
+  deleteEquipmentCategory: adminActions.deleteEquipmentCategory,
+  addEquipmentCategory: adminActions.addEquipmentCategory,
+  resetEquipment: adminActions.resetEquipment
 };

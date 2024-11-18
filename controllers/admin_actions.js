@@ -778,6 +778,161 @@ const updateEquipmentCategory = async (req, res) => {
     }
 };
 
+const deleteEquipmentCategory = async (req, res) => {
+    const { categoryId } = req.params;
+
+    try {
+        // Check if category exists and can be deleted
+        const checkQuery = `
+            SELECT COUNT(*) as count 
+            FROM admin_log 
+            WHERE equipment_category_id = $1
+        `;
+        const checkResult = await db.query(checkQuery, [categoryId]);
+
+        if (checkResult.rows[0].count > 0) {
+            return res.status(400).json({
+                successful: false,
+                message: 'Cannot delete category: It is referenced in borrowing history'
+            });
+        }
+
+        // Delete the category
+        const deleteQuery = `
+            DELETE FROM equipment_categories 
+            WHERE category_id = $1 
+            RETURNING *
+        `;
+        const result = await db.query(deleteQuery, [categoryId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                successful: false,
+                message: 'Equipment category not found'
+            });
+        }
+
+        res.status(200).json({
+            successful: true,
+            message: 'Equipment category deleted successfully',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error deleting equipment category:', error);
+        res.status(500).json({
+            successful: false,
+            message: 'Failed to delete equipment category'
+        });
+    }
+};
+
+const addEquipmentCategory = async (req, res) => {
+    const { category_name, quantity_available } = req.body;
+
+    try {
+        // Input validation
+        if (!category_name || quantity_available === undefined) {
+            return res.status(400).json({
+                successful: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        // Check if category name already exists
+        const checkQuery = 'SELECT * FROM equipment_categories WHERE category_name = $1';
+        const checkResult = await db.query(checkQuery, [category_name]);
+
+        if (checkResult.rows.length > 0) {
+            return res.status(400).json({
+                successful: false,
+                message: 'Category name already exists'
+            });
+        }
+
+        // Insert new category
+        const insertQuery = `
+            INSERT INTO equipment_categories (category_name, quantity_available) 
+            VALUES ($1, $2) 
+            RETURNING *
+        `;
+        const result = await db.query(insertQuery, [category_name, quantity_available]);
+
+        res.status(201).json({
+            successful: true,
+            message: 'Equipment category added successfully',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error adding equipment category:', error);
+        res.status(500).json({
+            successful: false,
+            message: 'Failed to add equipment category'
+        });
+    }
+};
+
+const resetEquipment = async (req, res) => {
+    const client = await db.connect();
+    
+    try {
+        await client.query('BEGIN');
+
+        // Truncate with CASCADE to ignore constraints temporarily
+        await client.query('TRUNCATE TABLE equipment_categories RESTART IDENTITY CASCADE');
+
+        // Insert default equipment
+        const defaultEquipment = `
+            INSERT INTO equipment_categories (category_name, quantity_available) VALUES 
+            ('DLP-LCD Projector', 100),
+            ('Laptop', 100),
+            ('Overhead Projector', 100),
+            ('VHS Player', 100),
+            ('Sound System', 100),
+            ('DVD Player', 100),
+            ('VCD Player', 100),
+            ('CD Cassette Player', 100),
+            ('Karaoke', 100),
+            ('Microphone', 100),
+            ('Document Camera', 100),
+            ('Digital Video Camera', 100),
+            ('Digital Still Camera', 100),
+            ('Audio Voltage Regulator', 100),
+            ('Amplifier', 100),
+            ('Audio Mixer', 100),
+            ('Stereo Graphic Equalizer', 100),
+            ('Globe Map', 100),
+            ('Television Set', 100),
+            ('Tripod', 100),
+            ('Microphone Stand', 100),
+            ('Wireless Microphone', 100),
+            ('Lapel Microphone', 100),
+            ('Radio Cassette', 100),
+            ('Projector Screen', 100),
+            ('External Hard Drive', 100)
+        `;
+
+        await client.query(defaultEquipment);
+        await client.query('COMMIT');
+
+        res.status(200).json({
+            successful: true,
+            message: 'Equipment inventory reset successfully'
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error resetting equipment inventory:', error);
+        res.status(500).json({
+            successful: false,
+            message: 'Failed to reset equipment inventory'
+        });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     updateRequestStatus,
     updateRequestStatusTwo,
@@ -789,5 +944,8 @@ module.exports = {
     verifyToken,
     getReceipts,
     login,
-    updateEquipmentCategory
+    updateEquipmentCategory,
+    deleteEquipmentCategory,
+    addEquipmentCategory,
+    resetEquipment
 };

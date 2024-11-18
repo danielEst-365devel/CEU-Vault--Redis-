@@ -18,6 +18,31 @@
     <link href="../assets/css/nucleo-svg.css" rel="stylesheet" />
     <!-- CSS Files -->
     <link id="pagestyle" href="../assets/css/soft-ui-dashboard.css" rel="stylesheet" />
+
+    <style>
+        .delete-circle {
+            width: 18px;
+            height: 18px;
+            background-color: #f5365c;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .delete-btn {
+            padding: 0;
+            display: inline-block;
+        }
+
+        .delete-circle i {
+            color: white;
+            font-size: 8px;
+            /* Reduced from 12px */
+        }
+    </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -251,8 +276,17 @@
             <div class="row">
                 <div class="col-12">
                     <div class="card mb-4">
-                        <div class="card-header pb-0">
+                        <!-- In the card header section -->
+                        <div class="card-header pb-0 d-flex justify-content-between align-items-center">
                             <h6>Equipment Categories</h6>
+                            <div>
+                                <button class="btn badge bg-gradient-secondary mb-0 me-2" onclick="confirmReset()">
+                                    <i class="fas fa-sync-alt"></i>&nbsp;&nbsp;Reset to Defaults
+                                </button>
+                                <button class="btn badge bg-gradient-secondary mb-0" onclick="openAddModal()">
+                                    <i class="fas fa-plus"></i>&nbsp;&nbsp;Add Equipment
+                                </button>
+                            </div>
                         </div>
                         <div class="card-body px-0 pt-0 pb-2">
                             <div class="table-responsive p-0">
@@ -260,10 +294,18 @@
                                     class="table align-items-center justify-content-center mb-0">
                                     <thead>
                                         <tr>
-                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Category ID</th>
-                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Category Name</th>
-                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Quantity Available</th>
-                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Actions</th>
+                                            <th
+                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">
+                                                Category ID</th>
+                                            <th
+                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">
+                                                Category Name</th>
+                                            <th
+                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">
+                                                Quantity Available</th>
+                                            <th
+                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">
+                                                Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="equipmentCategoriesTableBody">
@@ -304,42 +346,57 @@
                     const tableBody = document.getElementById(containerId);
                     tableBody.innerHTML = '';
 
-                    categories.forEach((category) => {
+                    // Sort categories by category_id
+                    const sortedCategories = [...categories].sort((a, b) => a.category_id - b.category_id);
+
+                    sortedCategories.forEach((category) => {
                         const row = document.createElement('tr');
                         row.innerHTML = `
-            <td class="text-center">
-                <p class="text-xs font-weight-bold mb-0">${category.category_id}</p>
-            </td>
-            <td class="text-center">
-                <span class="text-xs font-weight-bold mb-0 category-name" data-id="${category.category_id}">${category.category_name}</span>
-            </td>
-            <td class="text-center">
-                <span class="text-xs font-weight-bold mb-0 quantity" data-id="${category.category_id}">${category.quantity_available}</span>
-            </td>
-            <td class="text-center">
-                <button onclick="editCategory(${category.category_id})" class="btn btn-link text-secondary mb-0">
-                    <i class="fa fa-edit text-xs"></i>
-                </button>
-            </td>
-        `;
+                            <td class="text-center">
+                                <p class="text-xs font-weight-bold mb-0">${category.category_id}</p>
+                            </td>
+                            <td class="text-center">
+                                <span class="text-xs font-weight-bold mb-0 category-name" data-id="${category.category_id}">${category.category_name}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="text-xs font-weight-bold mb-0 quantity" data-id="${category.category_id}">${category.quantity_available}</span>
+                            </td>
+                            <td class="text-center d-flex align-items-center justify-content-center gap-1"> <!-- Added gap-1 -->
+                                <button onclick="openEditModal(${category.category_id}, '${category.category_name}', ${category.quantity_available})" 
+                                        class="btn btn-link text-secondary mb-0 p-1"> <!-- Added p-1 -->
+                                    <i class="fa fa-edit text-xs"></i>
+                                </button>
+                                <button onclick="confirmDelete(${category.category_id})" 
+                                        class="btn btn-link delete-btn mb-0 p-1" <!-- Added p-1 -->
+                                        <title="Delete Category">
+                                    <div class="delete-circle">
+                                        <i class="fas fa-minus"></i>
+                                    </div>
+                                </button>
+                            </td>
+                        `;
                         tableBody.appendChild(row);
                     });
                 }
 
-                // Add edit function
-                async function editCategory(categoryId) {
-                    // Get current values
-                    const nameElement = document.querySelector(`.category-name[data-id="${categoryId}"]`);
-                    const quantityElement = document.querySelector(`.quantity[data-id="${categoryId}"]`);
-                    
-                    const currentName = nameElement.textContent;
-                    const currentQuantity = parseInt(quantityElement.textContent);
+                function openEditModal(categoryId, categoryName, quantity) {
+                    document.getElementById('categoryId').value = categoryId;
+                    document.getElementById('categoryName').value = categoryName;
+                    document.getElementById('quantityAvailable').value = quantity;
 
-                    // Create edit form
-                    const newName = prompt('Enter new category name:', currentName);
-                    const newQuantity = parseInt(prompt('Enter new quantity:', currentQuantity));
+                    const modal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+                    modal.show();
+                }
 
-                    if (!newName && !newQuantity) return; // Cancel if no changes
+                async function saveChanges() {
+                    const categoryId = document.getElementById('categoryId').value;
+                    const categoryName = document.getElementById('categoryName').value;
+                    const quantityAvailable = document.getElementById('quantityAvailable').value;
+
+                    if (!categoryName || !quantityAvailable) {
+                        alert('Please fill in all fields');
+                        return;
+                    }
 
                     try {
                         const response = await fetch(`/admin/update-equipment/${categoryId}`, {
@@ -348,8 +405,8 @@
                                 'Content-Type': 'application/json',
                             },
                             body: JSON.stringify({
-                                category_name: newName || currentName,
-                                quantity_available: isNaN(newQuantity) ? currentQuantity : newQuantity
+                                category_name: categoryName,
+                                quantity_available: parseInt(quantityAvailable)
                             })
                         });
 
@@ -357,19 +414,231 @@
 
                         if (data.successful) {
                             // Update UI
-                            if (newName) nameElement.textContent = newName;
-                            if (!isNaN(newQuantity)) quantityElement.textContent = newQuantity;
-                            
-                            // Show success message
-                            alert('Category updated successfully');
+                            const nameElement = document.querySelector(`.category-name[data-id="${categoryId}"]`);
+                            const quantityElement = document.querySelector(`.quantity[data-id="${categoryId}"]`);
+
+                            nameElement.textContent = categoryName;
+                            quantityElement.textContent = quantityAvailable;
+
+                            // Close modal and show success message
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
+                            modal.hide();
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: 'Category updated successfully',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
                         } else {
-                            alert(data.message || 'Failed to update category');
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to update category'
+                            });
                         }
                     } catch (error) {
                         console.error('Error updating category:', error);
-                        alert('Failed to update category');
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to update category'
+                        });
                     }
                 }
+
+                function confirmDelete(categoryId) {
+                    Swal.fire({
+                        title: 'Are you sure?',
+                        text: "You won't be able to revert this!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#f5365c',
+                        cancelButtonColor: '#ccc',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            deleteCategory(categoryId);
+                        }
+                    });
+                }
+
+                async function deleteCategory(categoryId) {
+                    try {
+                        const response = await fetch(`/admin/equipment-categories/${categoryId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (data.successful) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: 'Equipment category has been deleted.',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+
+                            // Remove the row from UI
+                            const row = document.querySelector(`tr[data-category-id="${categoryId}"]`);
+                            if (row) {
+                                row.remove();
+                            } else {
+                                // Refresh the table if row not found
+                                fetchEquipmentCategoriesData();
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to delete category'
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error deleting category:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to delete category'
+                        });
+                    }
+                }
+
+                // Add these functions to your existing script
+                function openAddModal() {
+                    document.getElementById('newCategoryName').value = '';
+                    document.getElementById('newQuantityAvailable').value = '';
+                    const modal = new bootstrap.Modal(document.getElementById('addEquipmentModal'));
+                    modal.show();
+                }
+
+                async function addEquipment() {
+                    const categoryName = document.getElementById('newCategoryName').value;
+                    const quantityAvailable = document.getElementById('newQuantityAvailable').value;
+
+                    if (!categoryName || !quantityAvailable) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Please fill in all fields'
+                        });
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/admin/equipment-categories', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                category_name: categoryName,
+                                quantity_available: parseInt(quantityAvailable)
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.successful) {
+                            // Close modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('addEquipmentModal'));
+                            modal.hide();
+
+                            // Show success message
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: 'Equipment category added successfully',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+
+                            // Refresh table
+                            fetchEquipmentCategoriesData();
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to add equipment category'
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error adding equipment:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to add equipment category'
+                        });
+                    }
+                }
+
+                function confirmReset() {
+                    Swal.fire({
+                        title: 'Reset Equipment Inventory?',
+                        text: "This will delete all current equipment and restore defaults. This action cannot be undone!",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#f5365c',
+                        cancelButtonColor: '#ccc',
+                        confirmButtonText: 'Yes, reset it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            resetInventory();
+                        }
+                    });
+                }
+
+                async function resetInventory() {
+                    try {
+                        const response = await fetch('/admin/reset-equipment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (data.successful) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Reset Complete!',
+                                text: 'Equipment inventory has been reset to defaults.',
+                                showConfirmButton: false,
+                                timer: 1500
+                            });
+
+                            // Refresh table
+                            fetchEquipmentCategoriesData();
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to reset inventory'
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error resetting inventory:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to reset inventory'
+                        });
+                    }
+                }
+
+                // Initialize tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                });
 
                 // Call the function to fetch and display data
                 fetchEquipmentCategoriesData();
@@ -494,6 +763,69 @@
     <script async defer src="https://buttons.github.io/buttons.js"></script>
     <!-- Control Center for Soft Dashboard: parallax effects, scripts for the example pages etc -->
     <script src="../assets/js/soft-ui-dashboard.min.js?v=1.0.7"></script>
+
+    <!-- Add this modal structure before the closing body tag -->
+    <div class="modal fade" id="editCategoryModal" tabindex="-1" role="dialog" aria-labelledby="editCategoryModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCategoryModalLabel">Edit Equipment Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editCategoryForm">
+                        <input type="hidden" id="categoryId">
+                        <div class="form-group">
+                            <label for="categoryName" class="form-control-label">Category Name</label>
+                            <input type="text" class="form-control" id="categoryName" required>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="quantityAvailable" class="form-control-label">Quantity Available</label>
+                            <input type="number" class="form-control" id="quantityAvailable" min="0" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn bg-gradient-primary" onclick="saveChanges()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this before the closing body tag -->
+    <div class="modal fade" id="addEquipmentModal" tabindex="-1" role="dialog" aria-labelledby="addEquipmentModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEquipmentModalLabel">Add New Equipment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addEquipmentForm">
+                        <div class="form-group">
+                            <label for="newCategoryName" class="form-control-label">Category Name</label>
+                            <input type="text" class="form-control" id="newCategoryName" required>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="newQuantityAvailable" class="form-control-label">Quantity Available</label>
+                            <input type="number" class="form-control" id="newQuantityAvailable" min="0" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn bg-gradient-primary" onclick="addEquipment()">Add
+                        Equipment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add SweetAlert2 for better notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 
 </html>
