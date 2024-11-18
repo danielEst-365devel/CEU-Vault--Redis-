@@ -80,7 +80,7 @@ protectedAdminPaths.forEach(adminPath => {
 
 // Redirect root to home page
 app.get('/', (req, res) => {
-    res.redirect('/home-page/index.html');
+    res.redirect('/home-page/');
 });
 
 // Redirect /admin to login page

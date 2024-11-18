@@ -14,5 +14,6 @@ adminRouter.get('/get-all-requests', adminController.getAllBorrowingRequests);
 adminRouter.get('/verify-auth', adminController.authenticateToken);
 adminRouter.get('/get-receipts', adminController.getReceipts);
 adminRouter.get('/verify-login', adminController.verifyToken);
+adminRouter.get('/confirm-admin', adminController.confirmAdmin);
 
 module.exports = adminRouter;
