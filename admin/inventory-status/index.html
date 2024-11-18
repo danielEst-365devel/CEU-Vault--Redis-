@@ -306,26 +306,69 @@
 
                     categories.forEach((category) => {
                         const row = document.createElement('tr');
-
                         row.innerHTML = `
             <td class="text-center">
                 <p class="text-xs font-weight-bold mb-0">${category.category_id}</p>
             </td>
             <td class="text-center">
-                <p class="text-xs font-weight-bold mb-0">${category.category_name}</p>
+                <span class="text-xs font-weight-bold mb-0 category-name" data-id="${category.category_id}">${category.category_name}</span>
             </td>
             <td class="text-center">
-                <p class="text-xs font-weight-bold mb-0">${category.quantity_available}</p>
+                <span class="text-xs font-weight-bold mb-0 quantity" data-id="${category.category_id}">${category.quantity_available}</span>
             </td>
             <td class="text-center">
-                <a href="javascript:;" class="text-secondary font-weight-bold text-xs" data-toggle="tooltip" data-original-title="Edit user">
-                    Edit
-                </a>
+                <button onclick="editCategory(${category.category_id})" class="btn btn-link text-secondary mb-0">
+                    <i class="fa fa-edit text-xs"></i>
+                </button>
             </td>
         `;
-
                         tableBody.appendChild(row);
                     });
+                }
+
+                // Add edit function
+                async function editCategory(categoryId) {
+                    // Get current values
+                    const nameElement = document.querySelector(`.category-name[data-id="${categoryId}"]`);
+                    const quantityElement = document.querySelector(`.quantity[data-id="${categoryId}"]`);
+                    
+                    const currentName = nameElement.textContent;
+                    const currentQuantity = parseInt(quantityElement.textContent);
+
+                    // Create edit form
+                    const newName = prompt('Enter new category name:', currentName);
+                    const newQuantity = parseInt(prompt('Enter new quantity:', currentQuantity));
+
+                    if (!newName && !newQuantity) return; // Cancel if no changes
+
+                    try {
+                        const response = await fetch(`/admin/update-equipment/${categoryId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                category_name: newName || currentName,
+                                quantity_available: isNaN(newQuantity) ? currentQuantity : newQuantity
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.successful) {
+                            // Update UI
+                            if (newName) nameElement.textContent = newName;
+                            if (!isNaN(newQuantity)) quantityElement.textContent = newQuantity;
+                            
+                            // Show success message
+                            alert('Category updated successfully');
+                        } else {
+                            alert(data.message || 'Failed to update category');
+                        }
+                    } catch (error) {
+                        console.error('Error updating category:', error);
+                        alert('Failed to update category');
+                    }
                 }
 
                 // Call the function to fetch and display data

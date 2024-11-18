@@ -666,57 +666,117 @@ const getReceipts = async (req, res) => {
 
 const login = async (req, res) => {
     const { email, password, rememberMe } = req.body;
-  
+
     try {
-      // Fetch admin details from the database using PostgreSQL syntax
-      const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
-      const admin = results.rows[0];
-  
-      // Check if admin exists
-      if (!admin) {
-        console.error('Admin not found for email:', email);
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-  
-      // Check if admin.password_hash is defined
-      if (!admin.password_hash) {
-        console.error('Admin password_hash is undefined for email:', email);
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-  
-      // Compare password
-      const isMatch = await bcrypt.compare(password, admin.password_hash);
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid email or password' });
-      }
-  
-      // Set token expiration based on rememberMe
-      const expiresIn = rememberMe ? '7d' : '1h';
-  
-      // Generate JWT token with dynamic expiration
-      const token = jwt.sign(
-        { id: admin.admin_id, email: admin.email },
-        JWT_SECRET,
-        { expiresIn }
-      );
-  
-      // Set cookie options based on rememberMe
-      const cookieOptions = {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'None',
-        maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000 // 7 days or 1 hour
-      };
-  
-      // Set token in cookie with options
-      res.cookie('token', token, cookieOptions);
-  
-      res.status(200).json({ message: 'Login successful' });
+        // Fetch admin details from the database using PostgreSQL syntax
+        const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
+        const admin = results.rows[0];
+
+        // Check if admin exists
+        if (!admin) {
+            console.error('Admin not found for email:', email);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Check if admin.password_hash is defined
+        if (!admin.password_hash) {
+            console.error('Admin password_hash is undefined for email:', email);
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Compare password
+        const isMatch = await bcrypt.compare(password, admin.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // Set token expiration based on rememberMe
+        const expiresIn = rememberMe ? '7d' : '1h';
+
+        // Generate JWT token with dynamic expiration
+        const token = jwt.sign(
+            { id: admin.admin_id, email: admin.email },
+            JWT_SECRET,
+            { expiresIn }
+        );
+
+        // Set cookie options based on rememberMe
+        const cookieOptions = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+            maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000 // 7 days or 1 hour
+        };
+
+        // Set token in cookie with options
+        res.cookie('token', token, cookieOptions);
+
+        res.status(200).json({ message: 'Login successful' });
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-  };
+};
+
+const updateEquipmentCategory = async (req, res) => {
+    const { categoryId } = req.params;
+    const { category_name, quantity_available } = req.body;
+
+    try {
+        // Input validation
+        if (!categoryId || (!category_name && quantity_available === undefined)) {
+            return res.status(400).json({
+                successful: false,
+                message: 'Missing required fields'
+            });
+        }
+
+        // Build dynamic query based on provided fields
+        let updateQuery = 'UPDATE equipment_categories SET ';
+        const updateValues = [];
+        const updates = [];
+        let paramCount = 1;
+
+        if (category_name) {
+            updates.push(`category_name = $${paramCount}`);
+            updateValues.push(category_name);
+            paramCount++;
+        }
+
+        if (quantity_available !== undefined) {
+            updates.push(`quantity_available = $${paramCount}`);
+            updateValues.push(quantity_available);
+            paramCount++;
+        }
+
+        updateQuery += updates.join(', ');
+        updateQuery += ` WHERE category_id = $${paramCount} RETURNING *`;
+        updateValues.push(categoryId);
+
+        // Execute update query
+        const result = await db.query(updateQuery, updateValues);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                successful: false,
+                message: 'Equipment category not found'
+            });
+        }
+
+        res.status(200).json({
+            successful: true,
+            message: 'Equipment category updated successfully',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating equipment category:', error);
+        res.status(500).json({
+            successful: false,
+            message: 'Failed to update equipment category'
+        });
+    }
+};
 
 module.exports = {
     updateRequestStatus,
@@ -728,5 +788,6 @@ module.exports = {
     authenticateToken,
     verifyToken,
     getReceipts,
-    login
+    login,
+    updateEquipmentCategory
 };

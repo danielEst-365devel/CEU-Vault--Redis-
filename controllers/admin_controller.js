@@ -602,5 +602,6 @@ module.exports = {
   authenticateToken: adminActions.authenticateToken,
   verifyToken: adminActions.verifyToken,
   getReceipts: adminActions.getReceipts,
-  login: adminActions.login
+  login: adminActions.login,
+  updateEquipmentCategory: adminActions.updateEquipmentCategory
 };
