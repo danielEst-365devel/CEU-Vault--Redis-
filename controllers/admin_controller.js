@@ -221,14 +221,13 @@ function generateHr(doc, y) {
 }
 
 // Enhanced email sending function with retries and better error handling
-const sendEmailWithRetry = async (recipientEmail, emailType, link, maxRetries = 3) => {
+const sendEmailWithRetry = async (recipientEmail, emailType, link, registrationDetails = null, maxRetries = 3) => {
   let attempts = 0;
-  
+
   while (attempts < maxRetries) {
     try {
-      const template = emailTemplates[emailType](link);
-      
-      // Add delay between retries
+      const template = emailTemplates[emailType](link, registrationDetails);
+
       if (attempts > 0) {
         await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
       }
@@ -238,7 +237,6 @@ const sendEmailWithRetry = async (recipientEmail, emailType, link, maxRetries = 
         to: recipientEmail,
         subject: template.subject,
         html: template.html,
-        // Add additional email options
         priority: 'high',
         headers: {
           'x-attempt': attempts + 1
@@ -252,12 +250,10 @@ const sendEmailWithRetry = async (recipientEmail, emailType, link, maxRetries = 
       attempts++;
       console.error(`Email sending attempt ${attempts} failed:`, error);
 
-      // Check if we should retry
       if (attempts === maxRetries) {
         throw new Error(`Failed to send email after ${maxRetries} attempts: ${error.message}`);
       }
-      
-      // If error is fatal, don't retry
+
       if (error.code === 'EAUTH' || error.code === 'ESCHEDULED') {
         throw error;
       }
@@ -284,7 +280,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verify transporter connection on startup
-transporter.verify(function(error, success) {
+transporter.verify(function (error, success) {
   if (error) {
     console.error('SMTP connection error:', error);
   } else {
@@ -297,16 +293,25 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // Email templates
 const emailTemplates = {
-  approvalRequest: (approvalLink) => ({
-    subject: 'Admin Approval Request',
+  approvalRequest: (approvalLink, registrationDetails) => ({
+    subject: 'New Admin Account Approval Request',
     html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
-        <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-        <p style="font-size: 18px; color: #333; margin-bottom: 10px;">A new admin account has been requested.</p>
-        <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please click the button below to approve the admin account creation:</p>
-        <a href="${approvalLink}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #4CAF50; border-radius: 5px; text-decoration: none;">Approve Admin</a>
-        <p style="font-size: 14px; color: #999; margin-top: 20px;">Note: This link will expire in 24 hours.</p>
-        <p style="font-size: 14px; color: #999; margin-top: 10px;">Before proceeding, please contact the IT admin or the TLTS Facility to verify the request.</p>
+        <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault - New Admin Registration</h1>
+        
+        <div style="background-color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: left;">
+          <h2 style="color: #333; font-size: 18px; margin-bottom: 15px;">Registration Details:</h2>
+          <p style="margin: 8px 0;"><strong>Name:</strong> ${registrationDetails.name}</p>
+          <p style="margin: 8px 0;"><strong>Email:</strong> ${registrationDetails.email}</p>
+          <p style="margin: 8px 0;"><strong>Registration Time:</strong> ${new Date().toLocaleString()}</p>
+        </div>
+
+        <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please review the registration details and click the button below to approve or deny the admin account creation:</p>
+        
+        <a href="${approvalLink}" style="display: inline-block; padding: 12px 24px; font-size: 16px; color: #fff; background-color: #4CAF50; border-radius: 5px; text-decoration: none; margin-bottom: 20px;">Review & Approve</a>
+        
+        <p style="font-size: 14px; color: #666; margin-bottom: 10px;">This approval link will expire in 24 hours.</p>
+        <p style="font-size: 14px; color: #666;">Please verify the requester's identity before approval.</p>
       </div>
     `
   }),
@@ -322,23 +327,6 @@ const emailTemplates = {
       </div>
     `
   })
-};
-
-const sendEmail = async (recipientEmail, emailType, link) => {
-  try {
-    const template = emailTemplates[emailType](link);
-    const info = await transporter.sendMail({
-      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
-      to: recipientEmail,
-      subject: template.subject,
-      html: template.html
-    });
-    console.log('Message sent: %s', info.messageId);
-    return info;
-  } catch (error) {
-    console.error('Error sending email:', error);
-    throw error; // Re-throw to handle in caller
-  }
 };
 
 const login = async (req, res) => {
@@ -401,8 +389,8 @@ const createAdmin = async (req, res) => {
 
   try {
     const approvalToken = jwt.sign(
-      { email, name, password }, 
-      JWT_SECRET, 
+      { email, name, password },
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -410,22 +398,32 @@ const createAdmin = async (req, res) => {
     const approvalLink = `${baseUrl}/admin/approve-admin?token=${approvalToken}`;
     const itAdminEmail = process.env.IT_ADMIN;
 
-    await sendEmailWithRetry(itAdminEmail, 'approvalRequest', approvalLink);
+    const registrationDetails = {
+      name,
+      email
+    };
 
-    res.status(200).json({ 
-      message: 'Sign up request sent to IT Administrator. Approval may take up to 24 hours. Please wait for confirmation in your email.' 
+    await sendEmailWithRetry(
+      itAdminEmail,
+      'approvalRequest',
+      approvalLink,
+      registrationDetails
+    );
+
+    res.status(200).json({
+      message: 'Sign up request sent to IT Administrator. Approval may take up to 24 hours. Please wait for confirmation in your email.'
     });
 
   } catch (error) {
     console.error('Error creating admin:', error);
-    
+
     // Send more specific error messages
     if (error.code === 'EAUTH') {
-      res.status(500).json({ 
-        message: 'Email authentication failed. Please check email configuration.' 
+      res.status(500).json({
+        message: 'Email authentication failed. Please check email configuration.'
       });
     } else {
-      res.status(500).json({ 
+      res.status(500).json({
         message: 'Failed to create admin account.'
       });
     }
@@ -449,12 +447,9 @@ const approveAdmin = async (req, res) => {
       `);
     }
 
-    // Debug log
-    console.log('Received token:', token);
-
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-
+    
     if (!decoded) {
       console.error('Token verification failed');
       return res.status(401).send(`
@@ -479,8 +474,12 @@ const approveAdmin = async (req, res) => {
     const baseUrl = 'https://ceu-vault.vercel.app';
     const confirmationLink = `${baseUrl}/admin/confirm-admin?token=${confirmationToken}`;
 
-    // Send confirmation email
-    await sendEmail(email, 'confirmationRequest', confirmationLink);
+    // Only use sendEmailWithRetry - remove any other email sending
+    await sendEmailWithRetry(
+      email, 
+      'confirmationRequest', 
+      confirmationLink
+    );
 
     res.status(200).send(`
       <html>
@@ -616,6 +615,80 @@ const confirmAdmin = async (req, res) => {
 
     if (!approved) {
       return res.status(401).json({ message: 'Admin not yet approved by IT Administrator' });
+    }
+
+    // Check if admin already exists
+    const existingAdmin = await db.query(
+      'SELECT * FROM admins WHERE email = $1',
+      [email]
+    );
+
+    if (existingAdmin.rows.length > 0) {
+      // Return styled error page for existing admin
+      return res.status(200).send(`
+        <html>
+          <head>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              body {
+                font-family: 'Montserrat', sans-serif;
+                background-color: #f5f5f5;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+              }
+              .container {
+                background-color: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                max-width: 600px;
+                width: 100%;
+                text-align: center;
+              }
+              h1 {
+                color: #f44336;
+                font-weight: 700;
+                font-size: 28px;
+                margin-bottom: 24px;
+              }
+              p {
+                color: #333;
+                font-size: 16px;
+                line-height: 1.6;
+                margin-bottom: 16px;
+              }
+              .button {
+                display: inline-block;
+                padding: 12px 24px;
+                background-color: #f44336;
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 500;
+                transition: background-color 0.3s;
+              }
+              .button:hover {
+                background-color: #e53935;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Account Already Exists</h1>
+              <p>An admin account with this email already exists.</p>
+              <a href="/admin/sign-in" class="button">Go to Sign-in Page</a>
+            </div>
+          </body>
+        </html>
+      `);
     }
 
     // Generate a salt and hash the password
