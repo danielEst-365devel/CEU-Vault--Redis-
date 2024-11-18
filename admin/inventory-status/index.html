@@ -260,15 +260,10 @@
                                     class="table align-items-center justify-content-center mb-0">
                                     <thead>
                                         <tr>
-                                            <th
-                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
-                                                Category ID</th>
-                                            <th
-                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
-                                                Category Name</th>
-                                            <th
-                                                class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">
-                                                Quantity Available</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Category ID</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Category Name</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Quantity Available</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="equipmentCategoriesTableBody">
@@ -284,7 +279,7 @@
             <script>
                 async function fetchEquipmentCategoriesData() {
                     try {
-                        const response = await fetch('/equipments/get-equipments');
+                        const response = await fetch('/admin/get-adminEquipment');
                         console.log('Response Status:', response.status);
                         console.log('Response Headers:', response.headers);
 
@@ -313,16 +308,21 @@
                         const row = document.createElement('tr');
 
                         row.innerHTML = `
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${category.category_id}</p>
-        </td>
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${category.category_name}</p>
-        </td>
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${category.quantity_available}</p>
-        </td>
-      `;
+            <td class="text-center">
+                <p class="text-xs font-weight-bold mb-0">${category.category_id}</p>
+            </td>
+            <td class="text-center">
+                <p class="text-xs font-weight-bold mb-0">${category.category_name}</p>
+            </td>
+            <td class="text-center">
+                <p class="text-xs font-weight-bold mb-0">${category.quantity_available}</p>
+            </td>
+            <td class="text-center">
+                <a href="javascript:;" class="text-secondary font-weight-bold text-xs" data-toggle="tooltip" data-original-title="Edit user">
+                    Edit
+                </a>
+            </td>
+        `;
 
                         tableBody.appendChild(row);
                     });

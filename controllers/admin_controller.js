@@ -1208,22 +1208,20 @@ const getadminEquipment = async (req, res) => {
   const query = 'SELECT * FROM equipment_categories';
   try {
     console.log('Executing query:', query);
-    const [rows] = await db.execute(query);
-    console.log('Query result:', rows);
-
-    // Return a successful response with the equipment data
+    const { rows } = await db.query(query);
     return res.status(200).json({
       successful: true,
-      equipment: rows
+      equipmentCategories: rows
     });
   } catch (error) {
-    console.error('Error retrieving equipment:', error);
+    console.error('Error retrieving equipment categories:', error);
     return res.status(500).json({
       successful: false,
-      message: 'Failed to retrieve equipment.'
+      message: 'Failed to retrieve equipment categories.'
     });
   }
 };
+
 
 const getAllHistory = async (req, res) => {
   // Query to get all history with category names
