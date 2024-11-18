@@ -24,24 +24,186 @@
   <script defer data-site="YOUR_DOMAIN_HERE" src="https://api.nepcha.com/js/nepcha-analytics.js"></script>
 
   <style>
+    /* Update alert styles for more subtle appearance */
     .alert {
-      margin-top: 1rem;
-      padding: 0.75rem;
-      border-radius: 0.25rem;
+      background-color: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+      border: 0;
+      padding: 1rem;
+      transition: all 0.3s ease-in-out;
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .alert-success {
-      background-color: #d4edda;
-      border-color: #c3e6cb;
-      color: #155724;
+      color: #344767;
+      /* Soft UI's default text color */
+      border-left: 3px solid #82d616;
+      /* More subtle green */
+      background: linear-gradient(to right, rgba(130, 214, 22, 0.05), transparent);
     }
 
     .alert-danger {
-      background-color: #f8d7da;
-      border-color: #f5c6cb;
-      color: #721c24;
+      color: #344767;
+      border-left: 3px solid #ea0606;
+      /* More subtle red */
+      background: linear-gradient(to right, rgba(234, 6, 6, 0.05), transparent);
+    }
+
+    .alert.fade {
+      transition: all 0.3s ease-in-out;
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    .alert.fade.show {
+      opacity: 1;
+      transform: translateY(0);
     }
   </style>
+  <style>
+    /* Loading overlay styles */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+
+  <!-- Add this style block to the head section -->
+  <style>
+    .input-group {
+      display: flex;
+      position: relative;
+    }
+
+    .input-group .form-control {
+      border-right: 0;
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+      height: 41px;
+      /* Set explicit height */
+    }
+
+    .input-group .btn-outline-secondary {
+      margin-left: -1px;
+      border: 1px solid #d2d6da;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      padding: 0.625rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+      height: 41px;
+      /* Match form-control height */
+      line-height: 1.5;
+    }
+
+    .input-group .form-control:focus {
+      z-index: 3;
+    }
+
+    .input-group .form-control:focus+.btn-outline-secondary {
+      border-color: #e293d3;
+      border-left-color: #e293d3;
+    }
+
+    .input-group .btn-outline-secondary:hover {
+      background-color: transparent;
+      color: #67748e;
+      border-color: #d2d6da;
+    }
+  </style>
+
+  <!-- Add JavaScript to control visibility -->
+  <script>
+    const passwordInput = document.getElementById('adminPassword');
+    const requirements = document.getElementById('passwordRequirements');
+
+    passwordInput.addEventListener('focus', () => {
+      requirements.style.display = 'block';
+    });
+
+    passwordInput.addEventListener('input', () => {
+      requirements.style.display = 'block';
+    });
+
+    passwordInput.addEventListener('blur', () => {
+      if (!passwordInput.value) {
+        requirements.style.display = 'none';
+      }
+    });
+  </script>
+
+  <style>
+    #passwordRequirements {
+      display: none;
+      transition: all 0.3s ease;
+    }
+  </style>
+
+  <script>
+    // Add this to your existing JavaScript
+    document.addEventListener('DOMContentLoaded', () => {
+      const termsCheck = document.getElementById('termsCheck');
+
+      // Set initial validation message
+      termsCheck.setCustomValidity('Please accept the Terms and Conditions to proceed');
+
+      // Update validation message based on checkbox state
+      termsCheck.addEventListener('change', function () {
+        if (this.checked) {
+          this.setCustomValidity(''); // Clear validation message when checked
+        } else {
+          this.setCustomValidity('Please accept the Terms and Conditions to proceed');
+        }
+      });
+    });
+  </script>
+
+  <style>
+    /* Add these styles */
+    .alert.fade {
+      transition: all 0.3s ease-in-out;
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+
+    .alert.fade.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+
 </head>
 
 <body class="">
@@ -62,8 +224,7 @@
       <div class="collapse navbar-collapse" id="navigation">
         <ul class="navbar-nav mx-auto ms-xl-auto me-xl-7">
           <li class="nav-item">
-            <a class="nav-link d-flex align-items-center me-2 active" aria-current="page"
-              href="../home-page/">
+            <a class="nav-link d-flex align-items-center me-2 active" aria-current="page" href="../home-page/">
               <i class="fa fa-chart-pie opacity-6  me-1"></i>
               Dashboard
             </a>
@@ -110,7 +271,7 @@
         <div class="row mt-lg-n10 mt-md-n11 mt-n10">
           <div class="col-xl-4 col-lg-5 col-md-7 mx-auto">
             <div class="card z-index-0">
-              
+
               <div class="card-header text-center pt-4">
                 <h4>Register</h4>
               </div>
@@ -156,24 +317,58 @@
                   </div>
                   <div class="mb-3">
                     <input type="email" id="adminEmail" class="form-control" placeholder="Email" aria-label="Email"
-                      required>
+                      pattern="[a-zA-Z0-9._%+-]+@(ceu\.edu\.ph|mls\.ceu\.edu\.ph)$"
+                      title="Please use your CEU email address (@ceu.edu.ph or @mls.ceu.edu.ph)" required>
+                    <div class="invalid-feedback">
+                      Please enter a valid CEU email address (@ceu.edu.ph or @mls.ceu.edu.ph)
+                    </div>
                   </div>
+                  <!-- Update the password input div -->
                   <div class="mb-3">
-                    <input type="password" id="adminPassword" class="form-control" placeholder="Password"
-                      aria-label="Password" required>
+                    <div class="input-group">
+                      <input type="password" id="adminPassword" class="form-control" placeholder="Password"
+                        aria-label="Password"
+                        pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,24}$" required
+                        oninput="validatePassword(this)" minlength="8" maxlength="24">
+                      <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                        <i class="far fa-eye"></i>
+                      </button>
+                    </div>
+
+                    <div id="passwordRequirements" class="mt-2 small text-muted">
+                      <p class="mb-1">Password must contain:</p>
+                      <ul class="ps-3 mb-0">
+                        <li id="minLength">Between 8-24 characters</li>
+                        <li id="hasUpper">At least one uppercase letter</li>
+                        <li id="hasLower">At least one lowercase letter</li>
+                        <li id="hasNumber">At least one number</li>
+                        <li id="hasSpecial">At least one special character (@$!%*?&)</li>
+                      </ul>
+                    </div>
                   </div>
+
                   <div class="form-check form-check-info text-left">
                     <input class="form-check-input" type="checkbox" id="termsCheck" required>
                     <label class="form-check-label" for="termsCheck">
-                      I agree the <a href="javascript:;" class="text-dark font-weight-bolder">Terms and Conditions</a>
+                      I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal"
+                        class="text-dark font-weight-bolder">Terms and Conditions</a>
                     </label>
                   </div>
-                  <div id="messageArea" class="alert" style="display: none;"></div>
+
                   <div class="text-center">
                     <button type="submit" class="btn bg-gradient-dark w-100 my-4 mb-2">Sign up</button>
                   </div>
                 </form>
+
+                <div id="loadingOverlay" class="loading-overlay">
+                  <div class="spinner"></div>
+                </div>
+
               </div>
+            </div>
+
+            <div id="messageArea" class="alert mt-3 fade show shadow-sm" role="alert" style="display: none;">
+              <!-- Message content will be injected here -->
             </div>
           </div>
         </div>
@@ -214,11 +409,69 @@
   <script async defer src="https://buttons.github.io/buttons.js"></script>
   <!-- Control Center for Soft Dashboard: parallax effects, scripts for the example pages etc -->
   <script src="../assets/js/soft-ui-dashboard.min.js?v=1.0.7"></script>
+  <!-- Terms and Conditions Modal -->
+  <div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h3>ACCEPTANCE OF TERMS</h3>
+          <p>By accessing and using the CEU VAULT Administrator system, you agree to be bound by these Terms and
+            Conditions.</p>
+
+          <h6>1. User Responsibilities</h6>
+          <p>As an administrator, you are responsible for:</p>
+          <ul>
+            <li>Maintaining the confidentiality of your account credentials</li>
+            <li>All activities that occur under your account</li>
+            <li>Ensuring the accuracy of information entered into the system</li>
+            <li>Complying with all applicable laws and regulations</li>
+          </ul>
+
+          <h6>2. Privacy and Data Protection</h6>
+          <p>You agree to:</p>
+          <ul>
+            <li>Handle user data with confidentiality</li>
+            <li>Use personal information only for authorized purposes</li>
+            <li>Comply with data protection regulations</li>
+          </ul>
+
+          <h6>3. System Access and Security</h6>
+          <p>You must:</p>
+          <ul>
+            <li>Use secure passwords</li>
+            <li>Log out after each session</li>
+            <li>Report any security concerns immediately</li>
+          </ul>
+
+          <h6>4. Account Creation</h6>
+          <p>Upon registration, please expect:</p>
+          <ul>
+            <li>That the request for account creation will require admin approval</li>
+            <li>Admin approval should only last within 24 hours.</li>
+            <li>Contact your IT Administrator or the TLTS Staff should you have any concern.</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn bg-gradient-primary" id="acceptTerms">Accept Terms</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 <script>
   document.getElementById('adminSignupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    // Get form values
     const name = document.getElementById('adminName').value;
     const email = document.getElementById('adminEmail').value;
     const password = document.getElementById('adminPassword').value;
@@ -231,6 +484,11 @@
     }
 
     try {
+      // Show loading overlay and disable submit button
+      loadingOverlay.style.display = 'flex';
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing up...';
+
       const response = await fetch('/admin/create-admin', {
         method: 'POST',
         headers: {
@@ -249,15 +507,194 @@
       }
     } catch (error) {
       showMessage('An error occurred. Please try again later.', 'error');
+    } finally {
+      // Hide loading overlay and restore submit button
+      loadingOverlay.style.display = 'none';
+      submitButton.disabled = false;
+      submitButton.innerHTML = 'Sign up';
     }
   });
 
+  // Single showMessage function - place this in one script block
   function showMessage(message, type) {
     const messageArea = document.getElementById('messageArea');
     messageArea.textContent = message;
-    messageArea.className = `alert alert-${type === 'success' ? 'success' : 'danger'}`;
+    messageArea.className = `alert mt-3 fade shadow-sm alert-${type === 'success' ? 'success' : 'danger'}`;
     messageArea.style.display = 'block';
+
+    // Force reflow to trigger animation
+    void messageArea.offsetWidth;
+    messageArea.classList.add('show');
+
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+      messageArea.classList.remove('show');
+      // Wait for fade animation to complete before hiding
+      setTimeout(() => {
+        messageArea.style.display = 'none';
+      }, 300); // Match transition duration
+    }, 5000);
   }
+</script>
+<script> //Terms & Conditions Modal
+  // Terms and conditions modal handling
+  document.getElementById('acceptTerms').addEventListener('click', function () {
+    // Check the checkbox
+    document.getElementById('termsCheck').checked = true;
+
+    // Close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('termsModal'));
+    modal.hide();
+  });
+
+  // Handle checkbox clicks
+  document.getElementById('termsCheck').addEventListener('click', function (e) {
+    if (this.checked) {
+      // If trying to check the box, prevent default and show modal
+      e.preventDefault();
+      const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+      modal.show();
+    }
+    // Allow unchecking to proceed normally
+  });
+
+  // Reset checkbox when modal is dismissed without accepting
+  document.getElementById('termsModal').addEventListener('hidden.bs.modal', function () {
+    if (!document.getElementById('termsCheck').checked) {
+      document.getElementById('termsCheck').checked = false;
+    }
+  });
+</script>
+
+<script> //Password
+  // Password functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const passwordInput = document.getElementById('adminPassword');
+    const requirements = document.getElementById('passwordRequirements');
+
+    // Initially hide requirements
+    requirements.style.display = 'none';
+
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function () {
+      const icon = this.querySelector('i');
+
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    });
+
+    // Show requirements on focus and input
+    passwordInput.addEventListener('focus', () => {
+      requirements.style.display = 'block';
+    });
+
+    passwordInput.addEventListener('input', () => {
+      requirements.style.display = 'block';
+    });
+
+    // Hide requirements only when leaving field and it's empty
+    passwordInput.addEventListener('blur', () => {
+      if (!passwordInput.value) {
+        requirements.style.display = 'none';
+      }
+    });
+
+    // Validation function
+    function validatePassword(input) {
+      const password = input.value;
+      const requirements = {
+        minLength: password.length >= 8,
+        hasUpper: /[A-Z]/.test(password),
+        hasLower: /[a-z]/.test(password),
+        hasNumber: /\d/.test(password),
+        hasSpecial: /[@$!%*?&]/.test(password)
+      };
+
+      // Update visual feedback for each requirement
+      Object.keys(requirements).forEach(req => {
+        const element = document.getElementById(req);
+        const originalText = element.textContent.replace('✓ ', '');
+
+        if (requirements[req]) {
+          element.style.color = '#198754';
+          element.textContent = `✓ ${originalText}`;
+        } else {
+          element.style.color = '#dc3545';
+          element.textContent = originalText;
+        }
+      });
+
+      input.setCustomValidity(
+        Object.values(requirements).every(Boolean)
+          ? ''
+          : 'Please meet all password requirements'
+      );
+    }
+
+    // Add input event listener for validation
+    passwordInput.addEventListener('input', function () {
+      validatePassword(this);
+    });
+  });
+</script>
+<script>
+  // Add this JavaScript for real-time validation
+  document.getElementById('adminEmail').addEventListener('input', function (e) {
+    const email = e.target.value;
+    const validDomains = ['@ceu.edu.ph', '@mls.ceu.edu.ph'];
+    const isValid = validDomains.some(domain => email.toLowerCase().endsWith(domain));
+
+    if (email && !isValid) {
+      e.target.setCustomValidity('Please use your CEU email address');
+      e.target.classList.add('is-invalid');
+    } else {
+      e.target.setCustomValidity('');
+      e.target.classList.remove('is-invalid');
+    }
+  });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const termsCheck = document.getElementById('termsCheck');
+    const form = document.getElementById('adminSignupForm');
+
+    // Set initial validation message
+    termsCheck.setCustomValidity('Please accept the Terms and Conditions to proceed');
+
+    // Handle checkbox changes
+    termsCheck.addEventListener('change', function () {
+      if (this.checked) {
+        this.setCustomValidity(''); // Clear validation message
+      } else {
+        this.setCustomValidity('Please accept the Terms and Conditions to proceed');
+      }
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', function (e) {
+      if (!termsCheck.checked) {
+        e.preventDefault();
+        termsCheck.setCustomValidity('Please accept the Terms and Conditions to proceed');
+        termsCheck.reportValidity();
+      } else {
+        termsCheck.setCustomValidity('');
+      }
+    });
+
+    // Handle terms acceptance from modal
+    document.getElementById('acceptTerms').addEventListener('click', function () {
+      termsCheck.checked = true;
+      termsCheck.setCustomValidity('');
+      termsCheck.reportValidity();
+    });
+  });
 </script>
 
 </html>
