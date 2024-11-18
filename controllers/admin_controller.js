@@ -413,7 +413,7 @@ const createAdmin = async (req, res) => {
     await sendEmailWithRetry(itAdminEmail, 'approvalRequest', approvalLink);
 
     res.status(200).json({ 
-      message: 'Approval email sent to your IT Administrator. Please wait for 24 hours.' 
+      message: 'Sign up request sent to IT Administrator. Approval may take up to 24 hours. Please wait for confirmation in your email.' 
     });
 
   } catch (error) {
