@@ -1,224 +1,10 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs'); // Use bcryptjs instead of bcrypt
-const { db } = require('../models/connection_db'); // Import the database connection
+const bcrypt = require('bcryptjs'); 
+const { db } = require('../models/connection_db'); 
 require('dotenv').config();
-const path = require('path');
-const PDFDocument = require('pdfkit');
-const fs = require('fs');
-
-// Function to create the invoice PDF
-// Function to create the invoice PDF and return it as a base64 string
-function createInvoice(details) {
-  return new Promise((resolve, reject) => {
-    let doc = new PDFDocument({ size: "A4", margin: 50 });
-    let buffers = [];
-
-    doc.on('data', buffers.push.bind(buffers));
-    doc.on('end', () => {
-      let pdfData = Buffer.concat(buffers);
-      resolve(pdfData.toString('base64'));
-    });
-
-    generateHeader(doc);
-    generateCustomerInformation(doc, details);
-    generateInvoiceTable(doc, details);
-
-    if (details.cancelledDetails) {
-      generateCancelledRequestsTable(doc, details.cancelledDetails);
-    }
-
-    generateFooter(doc);
-
-    doc.end();
-  });
-}
-function generateHeader(doc) {
-  const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
-  doc
-    .image(logoPath, 50, 45, { width: 50 })
-    .fillColor("#444444")
-    .fontSize(20)
-    .text("CEU VAULT", 110, 57)
-    .fontSize(10)
-    .text("CEU VAULT.", 200, 50, { align: "right" })
-    .text("Teaching, Learning, and Technology Section", 200, 65, { align: "right" })
-    .text("CEU Malolos", 200, 80, { align: "right" })
-    .moveDown();
-}
-function generateCustomerInformation(doc, details) {
-  doc
-    .fillColor("#444444")
-    .fontSize(20)
-    .text("Service Request", 50, 160);
-
-  generateHr(doc, 185);
-
-  const customerInformationTop = 200;
-
-  doc
-    .fontSize(10)
-    .text("Name:", 50, customerInformationTop)
-    .font("Helvetica-Bold")
-    .text(`${details.firstName} ${details.lastName}`, 150, customerInformationTop)
-    .font("Helvetica")
-    .text("Department:", 50, customerInformationTop + 15)
-    .text(details.departmentName, 150, customerInformationTop + 15)
-    .text("Email:", 50, customerInformationTop + 30)
-    .text(details.email, 150, customerInformationTop + 30)
-    .text("Nature of Service:", 50, customerInformationTop + 45)
-    .text(details.natureOfService, 150, customerInformationTop + 45)
-    .text("Purpose:", 50, customerInformationTop + 60)
-    .text(details.purpose, 150, customerInformationTop + 60)
-    .text("Venue:", 50, customerInformationTop + 75)
-    .text(details.venue, 150, customerInformationTop + 75)
-    .moveDown();
-
-  generateHr(doc, customerInformationTop + 90);
-}
-function generateInvoiceTable(doc, details) {
-  const invoiceTableTop = 330;
-
-  // Add title for the Approved Requests table
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(14)
-    .text("Approved Requests", 50, invoiceTableTop - 30);
-
-  doc.font("Helvetica-Bold");
-  generateTableRow(
-    doc,
-    invoiceTableTop,
-    "Category",
-    "Quantity",
-    "Date Requested",
-    "Time Requested",
-    "Return Time"
-  );
-  generateHr(doc, invoiceTableTop + 20);
-  doc.font("Helvetica");
-
-  details.equipmentCategories.forEach((item, i) => {
-    const position = invoiceTableTop + (i + 1) * 30;
-    generateTableRow(
-      doc,
-      position,
-      item.category,
-      item.quantity,
-      item.dateRequested,
-      item.timeRequested,
-      item.returnTime
-    );
-    generateHr(doc, position + 20);
-  });
-}
-function generateCancelledRequestsTable(doc, cancelledDetails) {
-  const cancelledTableTop = 500; // Adjust the position as needed
-
-  // Add title for the Cancelled Requests table
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(14)
-    .text("Cancelled Requests", 50, cancelledTableTop - 30);
-
-  doc.font("Helvetica-Bold");
-  generateTableRow(
-    doc,
-    cancelledTableTop,
-    "Category",
-    "Quantity",
-    "Date Requested",
-    "Time Requested",
-    "Return Time"
-  );
-  generateHr(doc, cancelledTableTop + 20);
-  doc.font("Helvetica");
-
-  cancelledDetails.equipmentCategories.forEach((item, i) => {
-    const position = cancelledTableTop + (i + 1) * 30;
-    generateTableRow(
-      doc,
-      position,
-      item.category,
-      item.quantity,
-      item.dateRequested,
-      item.timeRequested,
-      item.returnTime
-    );
-    generateHr(doc, position + 20);
-  });
-}
-function generateCancelledRequestsTable(doc, cancelledDetails) {
-  const cancelledTableTop = 500; // Adjust the position as needed
-
-  // Add title for the Cancelled Requests table
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(14)
-    .text("Cancelled Requests", 50, cancelledTableTop - 30);
-
-  doc.font("Helvetica-Bold");
-  generateTableRow(
-    doc,
-    cancelledTableTop,
-    "Category",
-    "Quantity",
-    "Date Requested",
-    "Time Requested",
-    "Return Time"
-  );
-  generateHr(doc, cancelledTableTop + 20);
-  doc.font("Helvetica");
-
-  cancelledDetails.equipmentCategories.forEach((item, i) => {
-    const position = cancelledTableTop + (i + 1) * 30;
-    generateTableRow(
-      doc,
-      position,
-      item.category,
-      item.quantity,
-      item.dateRequested,
-      item.timeRequested,
-      item.returnTime
-    );
-    generateHr(doc, position + 20);
-  });
-}
-function generateFooter(doc) {
-  doc
-    .fontSize(10)
-    .text(
-      "Thank you for your request. We will process it as soon as possible. Please wait for request approval.",
-      50,
-      780,
-      { align: "center", width: 500 }
-    );
-}
-function generateTableRow(
-  doc,
-  y,
-  category,
-  quantity,
-  dateRequested,
-  timeRequested,
-  returnTime
-) {
-  doc
-    .fontSize(10)
-    .text(category, 50, y)
-    .text(quantity, 150, y)
-    .text(dateRequested, 250, y)
-    .text(timeRequested, 350, y)
-    .text(returnTime, 450, y);
-}
-function generateHr(doc, y) {
-  doc
-    .strokeColor("#aaaaaa")
-    .lineWidth(1)
-    .moveTo(50, y)
-    .lineTo(550, y)
-    .stroke();
-}
+const adminActions = require('./admin_actions');
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Enhanced email sending function with retries and better error handling
 const sendEmailWithRetry = async (recipientEmail, emailType, link, registrationDetails = null, maxRetries = 3) => {
@@ -288,9 +74,6 @@ transporter.verify(function (error, success) {
   }
 });
 
-// Secret key for JWT
-const JWT_SECRET = process.env.JWT_SECRET;
-
 // Email templates
 const emailTemplates = {
   approvalRequest: (approvalLink, registrationDetails) => ({
@@ -329,73 +112,26 @@ const emailTemplates = {
   })
 };
 
-const login = async (req, res) => {
-  const { email, password, rememberMe } = req.body;
-
-  try {
-    // Fetch admin details from the database using PostgreSQL syntax
-    const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
-    const admin = results.rows[0];
-
-    // Check if admin exists
-    if (!admin) {
-      console.error('Admin not found for email:', email);
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Check if admin.password_hash is defined
-    if (!admin.password_hash) {
-      console.error('Admin password_hash is undefined for email:', email);
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Compare password
-    const isMatch = await bcrypt.compare(password, admin.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    // Set token expiration based on rememberMe
-    const expiresIn = rememberMe ? '7d' : '1h';
-
-    // Generate JWT token with dynamic expiration
-    const token = jwt.sign(
-      { id: admin.admin_id, email: admin.email },
-      JWT_SECRET,
-      { expiresIn }
-    );
-
-    // Set cookie options based on rememberMe
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'None',
-      maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000 // 7 days or 1 hour
-    };
-
-    // Set token in cookie with options
-    res.cookie('token', token, cookieOptions);
-
-    res.status(200).json({ message: 'Login successful' });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
 // Update the createAdmin function to use the new email sending function
 const createAdmin = async (req, res) => {
   const { email, name, password } = req.body;
 
   try {
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET not configured');
+      return res.status(500).send('Server configuration error');
+    }
+
     const approvalToken = jwt.sign(
       { email, name, password },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    const baseUrl = 'https://ceu-vault.vercel.app/';
+    const baseUrl = process.env.FRONTEND_URL || 'https://ceu-vault.vercel.app';
     const approvalLink = `${baseUrl}/admin/approve-admin?token=${approvalToken}`;
+
+    console.log('Generated approval link:', approvalLink);
     const itAdminEmail = process.env.IT_ADMIN;
 
     const registrationDetails = {
@@ -415,7 +151,7 @@ const createAdmin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating admin:', error);
+    console.error('Full error details:', error);
 
     // Send more specific error messages
     if (error.code === 'EAUTH') {
@@ -432,16 +168,53 @@ const createAdmin = async (req, res) => {
 
 const approveAdmin = async (req, res) => {
   try {
-    const token = req.query.token;
+    console.log('Full request URL:', req.url);
+    console.log('Query parameters:', req.query);
 
-    // Validate token exists
+    // Extract token from query params
+    const token = req.query.token;
+    
     if (!token) {
-      console.error('No token provided in request');
+      console.error('Missing token in request:', {
+        originalUrl: req.originalUrl,
+        path: req.path,
+        query: req.query,
+        headers: req.headers
+      });
+      
       return res.status(400).send(`
         <html>
-          <body style="text-align: center; font-family: Arial, sans-serif; margin-top: 50px;">
-            <h1>Error</h1>
-            <p>Invalid approval link. No token provided.</p>
+          <head>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: 'Montserrat', sans-serif;
+                background-color: #f5f5f5;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+              }
+              .container {
+                background-color: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                max-width: 600px;
+                width: 100%;
+                text-align: center;
+              }
+              h1 { color: #f44336; font-weight: 700; font-size: 28px; margin-bottom: 24px; }
+              p { color: #333; font-size: 16px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Invalid Approval Link</h1>
+              <p>The approval link is invalid or has expired. Please request a new registration.</p>
+            </div>
           </body>
         </html>
       `);
@@ -449,7 +222,7 @@ const approveAdmin = async (req, res) => {
 
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     if (!decoded) {
       console.error('Token verification failed');
       return res.status(401).send(`
@@ -476,8 +249,8 @@ const approveAdmin = async (req, res) => {
 
     // Only use sendEmailWithRetry - remove any other email sending
     await sendEmailWithRetry(
-      email, 
-      'confirmationRequest', 
+      email,
+      'confirmationRequest',
       confirmationLink
     );
 
@@ -538,7 +311,7 @@ const approveAdmin = async (req, res) => {
     `);
 
   } catch (error) {
-    console.error('Error in approval process:', error);
+    console.error('Full approval error:', error);
 
     if (error.name === 'TokenExpiredError') {
       return res.status(401).send(`
@@ -606,10 +379,49 @@ const approveAdmin = async (req, res) => {
 };
 
 const confirmAdmin = async (req, res) => {
-  const { token } = req.query;
-
   try {
-    // Verify the token
+    // Check if token exists in query params
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).send(`
+        <html>
+          <head>
+            <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: 'Montserrat', sans-serif;
+                background-color: #f5f5f5;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+              }
+              .container {
+                background-color: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                max-width: 600px;
+                width: 100%;
+                text-align: center;
+              }
+              h1 { color: #f44336; font-weight: 700; font-size: 28px; margin-bottom: 24px; }
+              p { color: #333; font-size: 16px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Invalid Request</h1>
+              <p>No confirmation token provided. Please use the link from your email.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    // Continue with existing verification logic
     const decoded = jwt.verify(token, JWT_SECRET);
     const { email, name, password, approved } = decoded;
 
@@ -776,679 +588,19 @@ const confirmAdmin = async (req, res) => {
   }
 };
 
-// Function to validate and update request status aligned with PostgreSQL
-const updateRequestStatusTwo = async (req, res) => {
-  const { request_id, status } = req.body;
-  const token = req.cookies.token;
-
-  // Validate token
-  if (!token) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  // Validate input data
-  if (!request_id || !status) {
-    return res.status(400).json({ message: 'Bad Request: Missing request_id or status' });
-  }
-
-  // Validate status value
-  const validStatuses = ['ongoing', 'returned', 'cancelled'];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ message: 'Bad Request: Invalid status value' });
-  }
-
-  const client = await db.connect(); // Acquire a client from the pool
-
-  try {
-    await client.query('BEGIN'); // Start transaction
-
-    // Check if the request_id exists in the admin_log table and retrieve status
-    const checkRequestQuery = `
-      SELECT status 
-      FROM admin_log 
-      WHERE request_id = $1
-    `;
-    const checkResult = await client.query(checkRequestQuery, [request_id]);
-    const existingRequest = checkResult.rows[0];
-
-    if (!existingRequest) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Not Found: Request ID does not exist' });
-    }
-
-    const currentStatus = existingRequest.status;
-
-    // Prevent repeated status updates
-    if (currentStatus === status) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: `Bad Request: Status is already ${status}` });
-    }
-
-    // Prevent changing status if it's already cancelled
-    if (currentStatus === 'cancelled') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Bad Request: Cannot change status from cancelled' });
-    }
-
-    // Retrieve quantity_requested and equipment_category_id from the admin_log table
-    const getRequestDetailsQuery = `
-      SELECT quantity_requested, equipment_category_id 
-      FROM admin_log 
-      WHERE request_id = $1
-    `;
-    const detailsResult = await client.query(getRequestDetailsQuery, [request_id]);
-    const requestDetails = detailsResult.rows[0];
-
-    if (!requestDetails) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Not Found: Request details not found' });
-    }
-
-    const { quantity_requested, equipment_category_id } = requestDetails;
-
-    // Update quantity_available based on status
-    let updateQuantityQuery;
-    let updateQuantityValues;
-
-    if (status === 'ongoing') {
-      updateQuantityQuery = `
-        UPDATE equipment_categories 
-        SET quantity_available = quantity_available - $1 
-        WHERE category_id = $2
-      `;
-      updateQuantityValues = [quantity_requested, equipment_category_id];
-    } else if (status === 'returned') {
-      updateQuantityQuery = `
-        UPDATE equipment_categories 
-        SET quantity_available = quantity_available + $1 
-        WHERE category_id = $2
-      `;
-      updateQuantityValues = [quantity_requested, equipment_category_id];
-    }
-
-    if (updateQuantityQuery) {
-      await client.query(updateQuantityQuery, updateQuantityValues);
-    }
-
-    // Update the status and status_updated_at of the request in the admin_log table
-    const updateStatusQuery = `
-      UPDATE admin_log 
-      SET status = $1, status_updated_at = NOW() 
-      WHERE request_id = $2
-    `;
-    await client.query(updateStatusQuery, [status, request_id]);
-
-    await client.query('COMMIT'); // Commit transaction
-    res.status(200).json({ message: 'Request status updated successfully' });
-  } catch (error) {
-    await client.query('ROLLBACK'); // Rollback transaction on error
-    console.error('Error updating request status:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  } finally {
-    client.release(); // Release the client back to the pool
-  }
-};
-
-// Helper function to format time to 'HH:MM:SS'
-const formatTime = (timeInput) => {
-  try {
-    let date;
-
-    if (!timeInput) {
-      throw new Error(`Invalid time: ${timeInput}`);
-    }
-
-    if (typeof timeInput === 'string') {
-      // If it's a full ISO date-time string, parse it
-      if (timeInput.includes('T')) {
-        date = new Date(timeInput);
-      } else {
-        // Assume it's 'HH:MM:SS' or 'HH:MM'
-        if (/^\d{2}:\d{2}$/.test(timeInput)) {
-          timeInput += ':00';
-        }
-        date = new Date(`1970-01-01T${timeInput}Z`);
-      }
-    } else if (timeInput instanceof Date) {
-      date = timeInput;
-    } else {
-      throw new Error(`Invalid time input type: ${typeof timeInput}`);
-    }
-
-    if (isNaN(date.getTime())) {
-      throw new Error(`Invalid time: ${timeInput}`);
-    }
-
-    const hours = String(date.getHours()).padStart(2, '0');     // Local hours
-    const minutes = String(date.getMinutes()).padStart(2, '0'); // Local minutes
-    const seconds = String(date.getSeconds()).padStart(2, '0'); // Local seconds
-
-    return `${hours}:${minutes}:${seconds}`; // 'HH:MM:SS'
-  } catch (error) {
-    console.error(error.message);
-    return null; // or handle as needed
-  }
-};
-
-// Helper function to format date to 'YYYY-MM-DD'
-const formatDate = (dateString) => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      throw new Error(`Invalid date: ${dateString}`);
-    }
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`; // 'YYYY-MM-DD'
-  } catch (error) {
-    console.error(error.message);
-    return null; // or handle as needed
-  }
-};
-
-const updateRequestStatus = async (req, res) => {
-  const { request_id, status } = req.body;
-  const token = req.cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ message: 'Unauthorized: No token provided' });
-  }
-
-  const validStatuses = ['approved', 'cancelled'];
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ message: 'Invalid status' });
-  }
-
-  const client = await db.connect();
-  try {
-    await client.query('BEGIN');
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const adminId = decoded.id;
-    const requestApprovedBy = decoded.email;
-    const statusUpdatedAt = new Date();
-    let approvedAt = null;
-
-    const requestQuery = `
-      SELECT r.*, ec.category_name, ec.quantity_available 
-      FROM requests r 
-      LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
-      WHERE r.request_id = $1
-    `;
-    const { rows } = await client.query(requestQuery, [request_id]);
-
-    if (rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Request not found' });
-    }
-
-    const requestDetails = rows[0];
-    const currentStatus = requestDetails.status;
-    const requesterEmail = requestDetails.email;
-    const batchId = requestDetails.batch_id;
-
-    if (currentStatus === 'returned') {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Cannot change status of a returned request' });
-    }
-
-    if (status === 'approved') {
-      approvedAt = new Date();
-    }
-
-    let updateQuery = `
-      UPDATE requests 
-      SET admin_id = $1, status = $2, status_updated_at = $3
-    `;
-    let updateValues = [adminId, status, statusUpdatedAt];
-
-    if (status === 'approved') {
-      updateQuery += ', approved_at = $4';
-      updateValues.push(approvedAt);
-    }
-
-    updateValues.push(request_id);
-    updateQuery += ` WHERE request_id = $${updateValues.length}`;
-
-    await client.query(updateQuery, updateValues);
-
-    const insertAdminLogQuery = `
-      INSERT INTO admin_log (
-        request_id, email, first_name, last_name, department, nature_of_service, purpose, venue, 
-        equipment_category_id, quantity_requested, requested, time_requested, return_time, 
-        time_borrowed, approved_at, status, status_updated_at, admin_id, batch_id, 
-        request_approved_by, mcl_pass_no, released_by, time_returned, received_by, remarks
-      ) VALUES (${Array.from({ length: 25 }, (_, i) => `$${i + 1}`).join(', ')})
-    `;
-
-    const insertAdminLogValues = [
-      requestDetails.request_id,                                                            // 1
-      requestDetails.email,                                                                // 2
-      requestDetails.first_name,                                                           // 3
-      requestDetails.last_name,                                                            // 4
-      requestDetails.department,                                                           // 5
-      requestDetails.nature_of_service,                                                    // 6
-      requestDetails.purpose,                                                              // 7
-      requestDetails.venue,                                                                // 8
-      requestDetails.equipment_category_id,                                                // 9
-      requestDetails.quantity_requested,                                                   // 10
-      requestDetails.requested ? formatDate(requestDetails.requested) : null,             // 11 (DATE)
-      requestDetails.time_requested ? formatTime(requestDetails.time_requested) : null,   // 12 (TIME)
-      requestDetails.return_time ? formatTime(requestDetails.return_time) : null,         // 13 (TIME)
-      requestDetails.time_borrowed ? formatTime(requestDetails.time_borrowed) : null,     // 14 (TIME)
-      approvedAt ? approvedAt.toISOString() : null,                                        // 15 (TIMESTAMP)
-      status,                                                                              // 16
-      statusUpdatedAt ? statusUpdatedAt.toISOString() : null,                              // 17 (TIMESTAMP)
-      adminId,                                                                             // 18
-      requestDetails.batch_id,                                                             // 19
-      requestApprovedBy,                                                                   // 20
-      requestDetails.mcl_pass_no,                                                          // 21
-      requestDetails.released_by,                                                          // 22
-      requestDetails.time_returned ? formatTime(requestDetails.time_returned) : null,     // 23 (TIME)
-      requestDetails.received_by,                                                           // 24
-      requestDetails.remarks                                                               // 25
-    ];
-
-    // Add logging to inspect values
-    console.log('Inserting into admin_log with values:', insertAdminLogValues);
-
-    // Check for any null values in mandatory fields
-    const mandatoryFields = [
-      'request_id',
-      'email',
-      'first_name',
-      'last_name',
-      'department',
-      'equipment_category_id',
-      'quantity_requested',
-      'time_borrowed',
-      'status',
-      'status_updated_at',
-      'admin_id',
-      'batch_id',
-      'request_approved_by',
-      'mcl_pass_no',
-      'released_by',
-      // Add any other mandatory fields as needed
-    ];
-
-    mandatoryFields.forEach((field, index) => {
-      if (!insertAdminLogValues[index]) {
-        console.warn(`Warning: Mandatory field ${field} is missing or null.`);
-      }
-    });
-
-    await client.query(insertAdminLogQuery, insertAdminLogValues);
-
-    await client.query('DELETE FROM requests WHERE request_id = $1', [request_id]);
-
-    const allRequestsQuery = 'SELECT status FROM requests WHERE batch_id = $1';
-    const allRequestsResult = await client.query(allRequestsQuery, [batchId]);
-    const allRequests = allRequestsResult.rows;
-
-    const allApproved = allRequests.every(req => req.status === 'approved');
-
-    if (allApproved) {
-      const approvedRequestsQuery = `
-        SELECT al.*, ec.category_name 
-        FROM admin_log al 
-        LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.batch_id = $1 AND al.status = 'approved'
-      `;
-      const approvedRequestsResult = await client.query(approvedRequestsQuery, [batchId]);
-      const approvedRequests = approvedRequestsResult.rows;
-
-      const cancelledRequestsQuery = `
-        SELECT al.*, ec.category_name 
-        FROM admin_log al 
-        LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
-        WHERE al.batch_id = $1 AND al.status = 'cancelled'
-      `;
-      const cancelledRequestsResult = await client.query(cancelledRequestsQuery, [batchId]);
-      const cancelledRequests = cancelledRequestsResult.rows;
-
-      // Helper functions
-      const formatTimeTo12Hour = (time) => {
-        if (!time) return null;
-        const [hours, minutes] = time.split(':').map(Number);
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const formattedHours = hours % 12 || 12;
-        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-        return `${formattedHours}:${formattedMinutes} ${ampm}`;
-      };
-
-      const formatDisplayDate = (date) => {
-        if (!date) return null;
-        const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-        return new Date(date).toLocaleDateString('en-US', options);
-      };
-
-      const details = {
-        firstName: requestDetails.first_name,
-        lastName: requestDetails.last_name,
-        departmentName: requestDetails.department,
-        email: requestDetails.email,
-        natureOfService: requestDetails.nature_of_service,
-        purpose: requestDetails.purpose,
-        venue: requestDetails.venue,
-        equipmentCategories: approvedRequests.map(req => ({
-          category: req.category_name,
-          quantity: req.quantity_requested,
-          dateRequested: formatDisplayDate(req.requested),
-          timeRequested: formatTimeTo12Hour(req.time_requested),
-          returnTime: formatTimeTo12Hour(req.return_time)
-        })),
-        cancelledDetails: cancelledRequests.length > 0 ? {
-          equipmentCategories: cancelledRequests.map(req => ({
-            category: req.category_name,
-            quantity: req.quantity_requested,
-            dateRequested: formatDisplayDate(req.requested),
-            timeRequested: formatTimeTo12Hour(req.time_requested),
-            returnTime: formatTimeTo12Hour(req.return_time)
-          }))
-        } : null
-      };
-
-      const pdfData = await createInvoice(details);
-
-      // Convert Base64 string to binary buffer
-      const pdfBuffer = Buffer.from(pdfData, 'base64');
-
-      // Store binary buffer in database
-      await client.query(`
-        UPDATE request_history 
-        SET approved_requests_receipt = $1 
-        WHERE batch_id = $2
-      `, [pdfBuffer, batchId]);
-
-      const htmlContent = `
-        <!-- Email Content Here -->
-      `;
-
-      try {
-        await transporter.sendMail({
-          from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
-          to: requesterEmail,
-          subject: `All Requests Approved`,
-          text: `All your requests tied to Request Batch ID ${batchId} have been processed.`,
-          html: htmlContent,
-          attachments: [
-            {
-              filename: 'ApprovedRequestsReceipt.pdf',
-              content: pdfData,
-              encoding: 'base64'
-            }
-          ]
-        });
-      } catch (emailError) {
-        await client.query('ROLLBACK');
-        console.error('Error sending email:', emailError);
-        return res.status(500).json({ message: 'Failed to send email. Transaction rolled back.' });
-      }
-    }
-
-    await client.query('COMMIT');
-    res.status(200).json({ message: 'Request status updated successfully', requestDetails });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error updating request status:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  } finally {
-    client.release();
-  }
-};
-
-const logout = (req, res) => {
-  res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'None' });
-  res.status(200).json({ message: 'Logout successful' });
-};
-
-const getadminEquipment = async (req, res) => {
-  const query = 'SELECT * FROM equipment_categories';
-  try {
-    console.log('Executing query:', query);
-    const { rows } = await db.query(query);
-    return res.status(200).json({
-      successful: true,
-      equipmentCategories: rows
-    });
-  } catch (error) {
-    console.error('Error retrieving equipment categories:', error);
-    return res.status(500).json({
-      successful: false,
-      message: 'Failed to retrieve equipment categories.'
-    });
-  }
-};
-
-
-const getAllHistory = async (req, res) => {
-  // Query to get all history with category names
-  const query = `
-    SELECT admin_log.*, equipment_categories.category_name 
-    FROM admin_log 
-    JOIN equipment_categories 
-    ON admin_log.equipment_category_id = equipment_categories.category_id
-  `;
-
-  const countApprovedQuery = `
-    SELECT COUNT(*) AS approved_count 
-    FROM admin_log 
-    WHERE status = 'approved'
-  `;
-
-  const countOngoingQuery = `
-    SELECT COUNT(*) AS ongoing_count 
-    FROM admin_log 
-    WHERE status = 'ongoing'
-  `;
-
-  const countTotalQuery = `
-    SELECT COUNT(*) AS total_count 
-    FROM admin_log
-  `;
-
-  try {
-    console.log('Executing query:', query);
-    const historyResult = await db.query(query);
-    const rows = historyResult.rows;
-
-    console.log('Executing count query:', countApprovedQuery);
-    const approvedResult = await db.query(countApprovedQuery);
-    const approvedCount = approvedResult.rows[0].approved_count;
-
-    console.log('Executing count query:', countOngoingQuery);
-    const ongoingResult = await db.query(countOngoingQuery);
-    const ongoingCount = ongoingResult.rows[0].ongoing_count;
-
-    console.log('Executing count query:', countTotalQuery);
-    const totalResult = await db.query(countTotalQuery);
-    const totalCount = totalResult.rows[0].total_count;
-
-    return res.status(200).json({
-      successful: true,
-      history: rows,
-      approvedCount: approvedCount,
-      ongoingCount: ongoingCount,
-      totalCount: totalCount
-    });
-  } catch (error) {
-    console.error('Error retrieving borrowing history:', error);
-    return res.status(500).json({
-      successful: false,
-      message: 'Failed to retrieve borrowing history.'
-    });
-  }
-};
-
-const getAllBorrowingRequests = async (req, res) => {
-  try {
-    // Query to get all borrowing requests with category names
-    const query = `
-      SELECT requests.*, equipment_categories.category_name 
-      FROM requests 
-      JOIN equipment_categories 
-      ON requests.equipment_category_id = equipment_categories.category_id
-    `;
-
-    // Execute the query using db.query instead of db.execute
-    const borrowingResult = await db.query(query);
-    const rows = borrowingResult.rows;
-
-    // Get the number of rows
-    const numberOfRows = rows.length;
-
-    // Return the results and the number of rows in the response
-    return res.json({
-      successful: true,
-      borrowingRequests: rows,
-      numberOfRows: numberOfRows,
-    });
-  } catch (error) {
-    console.error('Error fetching borrowing requests:', error);
-    return res.status(500).json({
-      successful: false,
-      message: 'Error fetching borrowing requests.',
-      error: error.message,
-    });
-  }
-};
-
-// Middleware to verify the token
-const authenticateToken = (req, res, next) => {
-  const token = req.cookies.token ||
-    (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-
-  if (!token) {
-    return res.status(401).redirect('/admin/sign-in/');
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Check token expiration explicitly
-    if (Date.now() >= decoded.exp * 1000) {
-      return res.status(401).redirect('/admin/sign-in/');
-    }
-
-    // Add user data to request
-    req.admin = decoded;
-
-    // Clear sensitive data
-    delete req.admin.iat;
-    delete req.admin.exp;
-
-    next();
-  } catch (err) {
-    // Log error for debugging
-    console.error('Token verification failed:', err.message);
-    return res.status(403).redirect('/admin/sign-in/');
-  }
-};
-
-const verifyToken = (req, res) => {
-  const token = req.cookies.token ||
-    (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-
-  if (!token) {
-    return res.status(401).json({ message: 'No token found' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (Date.now() >= decoded.exp * 1000) {
-      return res.status(401).json({ message: 'Token expired' });
-    }
-
-    return res.status(200).json({
-      message: 'Valid token',
-      admin: {
-        id: decoded.id,
-        email: decoded.email
-      }
-    });
-  } catch (err) {
-    return res.status(403).json({ message: 'Invalid token' });
-  }
-};
-
-const getReceipts = async (req, res) => {
-  const query = `
-    WITH LatestAdminLog AS (
-      SELECT 
-        rh.batch_id, 
-        al.first_name, 
-        al.last_name, 
-        al.email, 
-        al.time_borrowed, 
-        rh.requisitioner_form_receipt,
-        rh.approved_requests_receipt,
-        ROW_NUMBER() OVER (
-          PARTITION BY rh.batch_id 
-          ORDER BY al.approved_at DESC
-        ) AS rn
-      FROM request_history rh
-      JOIN admin_log al 
-        ON rh.batch_id = al.batch_id
-    )
-    SELECT 
-      batch_id, 
-      first_name, 
-      last_name, 
-      email, 
-      time_borrowed, 
-      requisitioner_form_receipt,
-      approved_requests_receipt
-    FROM LatestAdminLog
-    WHERE rn = 1;
-  `;
-
-  try {
-    console.log('Executing query:', query);
-    const { rows } = await db.query(query);
-
-    // Convert BYTEA data (buffers) to Base64 strings
-    const requestHistory = rows.map(row => ({
-      batch_id: row.batch_id,
-      first_name: row.first_name,
-      last_name: row.last_name,
-      email: row.email,
-      time_borrowed: row.time_borrowed,
-      form_receipt: row.requisitioner_form_receipt
-        ? row.requisitioner_form_receipt.toString('base64')
-        : null,
-      approved_receipt: row.approved_requests_receipt
-        ? row.approved_requests_receipt.toString('base64')
-        : null
-    }));
-
-    return res.status(200).json({
-      successful: true,
-      requestHistory: requestHistory
-    });
-  } catch (error) {
-    console.error('Error retrieving request history:', error);
-    return res.status(500).json({
-      successful: false,
-      message: 'Failed to retrieve request history.'
-    });
-  }
-};
-
 module.exports = {
-  login,
+
   createAdmin,
-  updateRequestStatus,
-  logout,
   approveAdmin,
-  updateRequestStatusTwo,
-  authenticateToken,
-  getReceipts,
-  verifyToken,
   confirmAdmin,
-  getadminEquipment,
-  getAllHistory,
-  getAllBorrowingRequests
+  updateRequestStatus: adminActions.updateRequestStatus,
+  updateRequestStatusTwo: adminActions.updateRequestStatusTwo,
+  logout: adminActions.logout,
+  getadminEquipment: adminActions.getadminEquipment,
+  getAllHistory: adminActions.getAllHistory,
+  getAllBorrowingRequests: adminActions.getAllBorrowingRequests,
+  authenticateToken: adminActions.authenticateToken,
+  verifyToken: adminActions.verifyToken,
+  getReceipts: adminActions.getReceipts,
+  login: adminActions.login
 };
