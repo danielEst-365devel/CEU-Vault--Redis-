@@ -346,49 +346,81 @@
           const tableBody = document.getElementById(containerId);
           tableBody.innerHTML = '';
 
+          // Sort requests by batch_id
+          requests.sort((a, b) => (a.batch_id || '').toString().localeCompare((b.batch_id || '').toString()));
+
+          // Group requests by batch_id
+          let currentBatchId = null;
+          let rowspanCount = 0;
+          let firstRowOfBatch = null;
+
           requests.forEach((request, index) => {
             const row = document.createElement('tr');
 
-            row.innerHTML = `
-                <td>
-                  <div class="d-flex px-2 py-1">
-                    <div class="d-flex flex-column justify-content-center">
-                      <h6 class="mb-0 text-sm">${request.first_name} ${request.last_name}</h6>
-                      <p class="text-xs text-secondary mb-0">${request.email}</p>
-                    </div>
+            // Create row content without batch_id cell
+            let rowContent = `
+              <td>
+                <div class="d-flex px-2 py-1">
+                  <div class="d-flex flex-column justify-content-center">
+                    <h6 class="mb-0 text-sm">${request.first_name} ${request.last_name}</h6>
+                    <p class="text-xs text-secondary mb-0">${request.email}</p>
                   </div>
-                </td>
-                <td class="align-middle text-center align-items-center">
-                  <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
-                </td>
-                <td>
-                  <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
-                  <p class="text-xs text-secondary mb-0">${request.category_name}</p>
-                </td>
-                <td class="align-middle align-items-center text-center">
-                  <p class="text-xs font-weight-bold mb-0">${request.quantity_requested}</p>
-                </td>
-                <td class="align-middle text-center text-sm">
-                  <span class="badge badge-sm bg-gradient-secondary">${request.status}</span>
-                </td>
-                <td>
-                  <p class="text-xs font-weight-bold mb-0">${formatDate(request.requested)}</p>
-                </td>
-                <td>
-                  <p class="text-xs font-weight-bold mb-0">${formatTime(request.time_requested)}</p>
-                </td>
-                <td>
-                  <p class="text-xs font-weight-bold mb-0">${formatTime(request.return_time)}</p>
-                </td>
-                <td class="align-middle">
-                    <a id="approveButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-success text-xs mb-1" data-toggle="tooltip" data-original-title="Approve" onclick="approveRequest(${request.request_id})">Approve</a>
-                    <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="rejectRequest(${request.request_id})">Cancel</a>
-                </td>
-              `;
+                </div>
+              </td>`;
 
+            // Handle batch_id cell
+            if (request.batch_id !== currentBatchId) {
+              // Set rowspan for previous batch if exists
+              if (firstRowOfBatch && rowspanCount > 1) {
+                const batchCell = firstRowOfBatch.cells[1];
+                batchCell.rowSpan = rowspanCount;
+                batchCell.className = "merged-cell align-middle text-center align-items-center";
+              }
+
+              // Start new batch
+              currentBatchId = request.batch_id;
+              rowspanCount = 1;
+              firstRowOfBatch = row;
+
+              // Add batch_id cell only for first row of new batch
+              rowContent += `
+                <td class="merged-cell align-middle text-center align-items-center">
+                  <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
+                </td>`;
+            } else {
+              rowspanCount++;
+            }
+
+            // Add remaining cells
+            rowContent += `
+              <td>
+                <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
+                <p class="text-xs text-secondary mb-0">${request.category_name}</p>
+              </td>
+              <td class="align-middle align-items-center text-center">
+                <p class="text-xs font-weight-bold mb-0">${request.quantity_requested}</p>
+              </td>
+              <td class="align-middle text-center text-sm">
+                <span class="badge badge-sm bg-gradient-secondary">${request.status}</span>
+              </td>
+              <td>
+                <p class="text-xs font-weight-bold mb-0">${formatDate(request.requested)}</p>
+              </td>
+              <td>
+                <p class="text-xs font-weight-bold mb-0">${formatTime(request.time_requested)}</p>
+              </td>
+              <td>
+                <p class="text-xs font-weight-bold mb-0">${formatTime(request.return_time)}</p>
+              </td>
+              <td class="align-middle">
+                <a id="approveButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-success text-xs mb-1" data-toggle="tooltip" data-original-title="Approve" onclick="approveRequest(${request.request_id})">Approve</a>
+                <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="rejectRequest(${request.request_id})">Cancel</a>
+              </td>`;
+
+            row.innerHTML = rowContent;
             tableBody.appendChild(row);
 
-            // Add event listeners for the buttons
+            // Add event listeners
             document.getElementById(`approveButton-${index}`).addEventListener('click', function () {
               console.log(`Approve button clicked for request ${request.request_id}`);
             });
@@ -397,7 +429,36 @@
               console.log(`Cancel button clicked for request ${request.request_id}`);
             });
           });
+
+          // Handle rowspan for last batch
+          if (firstRowOfBatch && rowspanCount > 1) {
+            const batchCell = firstRowOfBatch.cells[1];
+            batchCell.rowSpan = rowspanCount;
+          }
         }
+
+        // First add this CSS to your stylesheet or <style> tag
+        const style = document.createElement('style');
+        style.textContent = `
+        .merged-cell {
+          border: 1px solid rgba(0,0,0,0.05);
+          background: linear-gradient(310deg, #ffffff 0%, #f8f9fa 100%);
+          box-shadow: 0 0 2px 0 rgba(0,0,0,0.05);
+          transition: all 0.15s ease-in-out;
+        }
+
+        .merged-cell:hover {
+          box-shadow: 0 0 4px 0 rgba(0,0,0,0.1);
+        }
+
+        .merged-cell p {
+          margin: 0;
+          position: relative;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        `;
+        document.head.appendChild(style);
 
         // Call the function to fetch and display data
         fetchBorrowingRequestsData();
@@ -501,21 +562,62 @@
           // Filter out requests with statuses of "cancelled" and "returned"
           const filteredRequests = requests.filter(request => request.status !== 'cancelled' && request.status !== 'returned');
 
-          filteredRequests.forEach((request, index) => {
-            console.log('Request Data:', request); // Log each request data
+          // Sort requests by batch_id
+          filteredRequests.sort((a, b) => (a.batch_id || '').toString().localeCompare((b.batch_id || '').toString()));
 
+          // Group requests by batch_id
+          let currentBatchId = null;
+          let rowspanCount = 0;
+          let firstRowOfBatch = null;
+
+          filteredRequests.forEach((request, index) => {
             const row = document.createElement('tr');
 
+            // Create row content without batch_id cell
+            let rowContent = `
+        <td>
+          <div class="d-flex px-2 py-1">
+            <div class="d-flex flex-column justify-content-center">
+              <h6 class="mb-0 text-sm">${request.first_name} ${request.last_name}</h6>
+              <p class="text-xs text-secondary mb-0">${request.email}</p>
+            </div>
+          </div>
+        </td>`;
+
+            // Handle batch_id cell
+            if (request.batch_id !== currentBatchId) {
+              // Set rowspan for previous batch if exists
+              if (firstRowOfBatch && rowspanCount > 1) {
+                const batchCell = firstRowOfBatch.cells[1];
+                batchCell.rowSpan = rowspanCount;
+                batchCell.className = "merged-cell align-middle text-center align-items-center";
+              }
+
+              // Start new batch
+              currentBatchId = request.batch_id;
+              rowspanCount = 1;
+              firstRowOfBatch = row;
+
+              // Add batch_id cell only for first row of new batch
+              rowContent += `
+          <td class="merged-cell align-middle text-center align-items-center">
+            <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
+          </td>`;
+            } else {
+              rowspanCount++;
+            }
+
+            // Determine action buttons based on status
             let actionButtons = '';
             if (request.status === 'ongoing') {
               actionButtons = `
-                          <a id="returnButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-warning text-xs" data-toggle="tooltip" data-original-title="Return" onclick="returnRequest(${request.request_id})">Return</a>
-                      `;
+          <a id="returnButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-warning text-xs" data-toggle="tooltip" data-original-title="Return" onclick="returnRequest(${request.request_id})">Return</a>
+        `;
             } else if (request.status === 'approved') {
               actionButtons = `
-                          <a id="releaseButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-info text-xs mb-1" data-toggle="tooltip" data-original-title="Release" onclick="releaseRequest(${request.request_id})">Release</a>
-                          <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="cancelRequest(${request.request_id})">Cancel</a>
-                      `;
+          <a id="releaseButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-info text-xs mb-1" data-toggle="tooltip" data-original-title="Release" onclick="releaseRequest(${request.request_id})">Release</a>
+          <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="cancelRequest(${request.request_id})">Cancel</a>
+        `;
             }
 
             const statusClass = request.status === 'approved'
@@ -524,45 +626,35 @@
                 ? 'badge badge-sm bg-gradient-info'
                 : 'badge badge-sm bg-gradient-info';
 
-            row.innerHTML = `
-                      <td>
-                          <div class="d-flex px-2 py-1">
-                              <div class="d-flex flex-column justify-content-center">
-                                  <h6 class="mb-0 text-sm">${request.first_name} ${request.last_name}</h6>
-                                  <p class="text-xs text-secondary mb-0">${request.email}</p>
-                              </div>
-                          </div>
-                      </td>
-                      <td class="align-middle text-center align-items-center">
-                          <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
-                      </td>
-                      <td>
-                          <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
-                          <p class="text-xs text-secondary mb-0">${request.category_name}</p>
-                      </td>
-                      <td class="align-middle align-items-center text-center">
-                          <p class="text-xs font-weight-bold mb-0">${request.quantity_requested}</p>
-                      </td>
-                      <td class="align-middle text-center text-sm">
-                          <span class="${statusClass}">${request.status}</span>
-                      </td>
-                      <td>
-                          <p class="text-xs font-weight-bold mb-0">${formatDate(request.requested)}</p>
-                      </td>
-                      <td>
-                          <p class="text-xs font-weight-bold mb-0">${formatTime(request.time_requested)}</p>
-                      </td>
-                      <td>
-                          <p class="text-xs font-weight-bold mb-0">${formatTime(request.return_time)}</p>
-                      </td>
-                      <td class="align-middle">
-                          ${actionButtons}
-                      </td>
-                  `;
+            // Add remaining cells
+            rowContent += `
+        <td>
+          <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
+          <p class="text-xs text-secondary mb-0">${request.category_name}</p>
+        </td>
+        <td class="align-middle align-items-center text-center">
+          <p class="text-xs font-weight-bold mb-0">${request.quantity_requested}</p>
+        </td>
+        <td class="align-middle text-center text-sm">
+          <span class="${statusClass}">${request.status}</span>
+        </td>
+        <td>
+          <p class="text-xs font-weight-bold mb-0">${formatDate(request.requested)}</p>
+        </td>
+        <td>
+          <p class="text-xs font-weight-bold mb-0">${formatTime(request.time_requested)}</p>
+        </td>
+        <td>
+          <p class="text-xs font-weight-bold mb-0">${formatTime(request.return_time)}</p>
+        </td>
+        <td class="align-middle">
+          ${actionButtons}
+        </td>`;
 
+            row.innerHTML = rowContent;
             tableBody.appendChild(row);
 
-            // Ensure the elements are appended before adding event listeners
+            // Add event listeners
             const releaseButton = document.getElementById(`releaseButton-${index}`);
             const returnButton = document.getElementById(`returnButton-${index}`);
             const cancelButton = document.getElementById(`cancelButton-${index}`);
@@ -588,8 +680,14 @@
               });
             }
           });
-        }
 
+          // Handle rowspan for last batch
+          if (firstRowOfBatch && rowspanCount > 1) {
+            const batchCell = firstRowOfBatch.cells[1];
+            batchCell.rowSpan = rowspanCount;
+            batchCell.className = "merged-cell align-middle text-center align-items-center";
+          }
+        }
         // Call the function to fetch and display data
         fetchApprovedRequestsData();
       </script>
