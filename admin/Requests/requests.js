@@ -1,8 +1,26 @@
 // Modified functions in requests.js
 
+// Add a loading state tracker
+let isProcessing = false;
+
 function approveRequest(requestId) {
+    // Prevent multiple clicks while processing
+    if (isProcessing) return;
+    
+    isProcessing = true;
+
+    // Show loading state
+    Swal.fire({
+        title: 'Processing...',
+        html: 'Please wait while we approve the request.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
     const requestBody = { request_id: requestId, status: 'approved' };
-    console.log('Request Body:', JSON.stringify(requestBody)); // Log the JSON body
 
     fetch(`/admin/update-status`, {
         method: 'POST',
@@ -14,116 +32,288 @@ function approveRequest(requestId) {
     })
     .then(response => response.json())
     .then(data => {
+        isProcessing = false;
         if (data.message === 'Request status updated successfully') {
-            showToast(`Request ${requestId} has been approved.`, 'success');
-            fetchBorrowingRequestsData(); // Refresh the pending requests table
-            fetchApprovedRequestsData(); // Refresh the approved requests table
+            Swal.fire({
+                title: 'Success!',
+                text: `Request ${requestId} has been approved.`,
+                icon: 'success',
+                confirmButtonText: 'OK'
+            }).then(() => {
+                fetchBorrowingRequestsData();
+                fetchApprovedRequestsData();
+            });
         } else {
-            showToast(`Failed to approve request: ${data.message}`, 'danger');
+            Swal.fire({
+                title: 'Error!',
+                text: `Failed to approve request: ${data.message}`,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
         }
     })
     .catch(error => {
+        isProcessing = false;
+        Swal.fire({
+            title: 'Error!',
+            text: 'An error occurred while approving the request.',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
         console.error(`Error approving request: ${error.message}`);
-        showToast('An error occurred while approving the request.', 'danger');
     });
 }
 
-const rejectRequest = (requestId) => {
-    fetch(`/admin/update-status`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, status: 'cancelled' }),
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'Request status updated successfully') {
-            showToast(`Request ${requestId} has been cancelled.`, 'success');
-            fetchBorrowingRequestsData(); // Refresh the pending requests table
-            fetchApprovedRequestsData(); // Refresh the approved requests table
-        } else {
-            showToast(`Failed to cancel request: ${data.message}`, 'danger');
+function rejectRequest(requestId) {
+    if (isProcessing) return;
+    
+    // Show confirmation dialog
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You're about to cancel this request.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            isProcessing = true;
+            
+            Swal.fire({
+                title: 'Processing...',
+                html: 'Please wait while we cancel the request.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/admin/update-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'cancelled' }),
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                isProcessing = false;
+                if (data.message === 'Request status updated successfully') {
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: `Request ${requestId} has been cancelled.`,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        fetchBorrowingRequestsData();
+                        fetchApprovedRequestsData();
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                isProcessing = false;
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the request.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                console.error(`Error cancelling request: ${error.message}`);
+            });
         }
-    })
-    .catch(error => {
-        console.error(`Error cancelling request: ${error.message}`);
-        showToast('An error occurred while cancelling the request.', 'danger');
     });
-};
+}
 
 const releaseRequest = (requestId) => {
-    fetch(`/admin/release`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, status: 'ongoing' }),
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'Request status updated successfully') {
-            showToast(`Request ${requestId} has been released to the requisitioner.`, 'success');
-            fetchApprovedRequestsData(); // Refresh the approved requests table
-        } else {
-            showToast(`Failed to release request: ${data.message}`, 'danger');
-        }
-    })
-    .catch(error => {
-        console.error(`Error releasing request: ${error.message}`);
-        showToast('An error occurred while releasing the request.', 'danger');
-    });
-};
+    if (isProcessing) return;
 
-const returnRequest = (requestId) => {
-    fetch(`/admin/release`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, status: 'returned' }),
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'Request status updated successfully') {
-            showToast(`Request ${requestId} has been returned.`, 'success');
-            fetchApprovedRequestsData(); // Refresh the approved requests table
-        } else {
-            showToast(`Failed to return request: ${data.message}`, 'danger');
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You're about to release this request to the requisitioner.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, release it!',
+        cancelButtonText: 'No, wait'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            isProcessing = true;
+
+            Swal.fire({
+                title: 'Processing...',
+                html: 'Please wait while we release the request.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/admin/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'ongoing' }),
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                isProcessing = false;
+                if (data.message === 'Request status updated successfully') {
+                    Swal.fire({
+                        title: 'Released!',
+                        text: `Request ${requestId} has been released to the requisitioner.`,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        fetchApprovedRequestsData();
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                isProcessing = false;
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while releasing the request.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                console.error(`Error releasing request: ${error.message}`);
+            });
         }
-    })
-    .catch(error => {
-        console.error(`Error returning request: ${error.message}`);
-        showToast('An error occurred while returning the request.', 'danger');
     });
 };
 
 const cancelRequest = (requestId) => {
-    fetch(`/admin/release`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, status: 'cancelled' }),
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'Request status updated successfully') {
-            showToast(`Request ${requestId} has been cancelled.`, 'success');
-            fetchApprovedRequestsData(); // Refresh the approved requests table
-        } else {
-            showToast(`Failed to cancel request: ${data.message}`, 'danger');
+    if (isProcessing) return;
+
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You're about to cancel this approved request.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            isProcessing = true;
+
+            Swal.fire({
+                title: 'Processing...',
+                html: 'Please wait while we cancel the request.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/admin/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'cancelled' }),
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                isProcessing = false;
+                if (data.message === 'Request status updated successfully') {
+                    Swal.fire({
+                        title: 'Cancelled!',
+                        text: `Request ${requestId} has been cancelled.`,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        fetchApprovedRequestsData();
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                isProcessing = false;
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the request.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                console.error(`Error cancelling request: ${error.message}`);
+            });
         }
-    })
-    .catch(error => {
-        console.error(`Error cancelling request: ${error.message}`);
-        showToast('An error occurred while cancelling the request.', 'danger');
     });
 };
+
+function returnRequest(requestId) {
+    if (isProcessing) return;
+
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You're about to mark this request as returned.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, return it!',
+        cancelButtonText: 'No, wait'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            isProcessing = true;
+
+            Swal.fire({
+                title: 'Processing...',
+                html: 'Please wait while we process the return.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch(`/admin/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'returned' }),
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                isProcessing = false;
+                if (data.message === 'Request status updated successfully') {
+                    Swal.fire({
+                        title: 'Returned!',
+                        text: `Request ${requestId} has been marked as returned.`,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        fetchApprovedRequestsData();
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                isProcessing = false;
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while processing the return.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                console.error(`Error returning request: ${error.message}`);
+            });
+        }
+    });
+}
+
 // Updated showToast function in requests.js
 function showToast(message, type) {
     const toastContainer = document.getElementById('toast-container');
