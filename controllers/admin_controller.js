@@ -1,10 +1,28 @@
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs'); 
-const { db } = require('../models/connection_db'); 
+const bcrypt = require('bcryptjs');
+const { db } = require('../models/connection_db');
 require('dotenv').config();
 const adminActions = require('./admin_actions');
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Update the transporter configuration
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  // Add additional configuration
+  pool: true, // Use pooled connections
+  maxConnections: 5,
+  maxMessages: 100,
+  socketTimeout: 30000, // 30 seconds
+  logger: true,
+  debug: process.env.NODE_ENV === 'development'
+});
 
 // Enhanced email sending function with retries and better error handling
 const sendEmailWithRetry = async (recipientEmail, emailType, link, registrationDetails = null, maxRetries = 3) => {
@@ -46,24 +64,6 @@ const sendEmailWithRetry = async (recipientEmail, emailType, link, registrationD
     }
   }
 };
-
-// Update the transporter configuration
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  // Add additional configuration
-  pool: true, // Use pooled connections
-  maxConnections: 5,
-  maxMessages: 100,
-  socketTimeout: 30000, // 30 seconds
-  logger: true,
-  debug: process.env.NODE_ENV === 'development'
-});
 
 // Verify transporter connection on startup
 transporter.verify(function (error, success) {
@@ -173,7 +173,7 @@ const approveAdmin = async (req, res) => {
 
     // Extract token from query params
     const token = req.query.token;
-    
+
     if (!token) {
       console.error('Missing token in request:', {
         originalUrl: req.originalUrl,
@@ -181,7 +181,7 @@ const approveAdmin = async (req, res) => {
         query: req.query,
         headers: req.headers
       });
-      
+
       return res.status(400).send(`
         <html>
           <head>

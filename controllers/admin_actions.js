@@ -6,6 +6,26 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const adminPdfGenerator = require('./adminPdfGenerator');
 const JWT_SECRET = process.env.JWT_SECRET;
+const nodemailer = require('nodemailer');
+
+// Update the transporter configuration
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    // Add additional configuration
+    pool: true, // Use pooled connections
+    maxConnections: 5,
+    maxMessages: 100,
+    socketTimeout: 30000, // 30 seconds
+    logger: true,
+    debug: process.env.NODE_ENV === 'development'
+});
+
 // Helper function to format time to 'HH:MM:SS'
 const formatTime = (timeInput) => {
     try {
@@ -875,12 +895,19 @@ const addEquipmentCategory = async (req, res) => {
 
 const resetEquipment = async (req, res) => {
     const client = await db.connect();
-    
+
     try {
         await client.query('BEGIN');
 
-        // Truncate with CASCADE to ignore constraints temporarily
-        await client.query('TRUNCATE TABLE equipment_categories RESTART IDENTITY CASCADE');
+        // Set equipment_category_id to NULL in related tables
+        await client.query('UPDATE admin_log SET equipment_category_id = NULL WHERE equipment_category_id IS NOT NULL');
+        await client.query('UPDATE requests SET equipment_category_id = NULL WHERE equipment_category_id IS NOT NULL');
+
+        // Delete all records instead of truncate
+        await client.query('DELETE FROM equipment_categories');
+        
+        // Reset the sequence
+        await client.query('ALTER SEQUENCE equipment_categories_category_id_seq RESTART WITH 1');
 
         // Insert default equipment
         const defaultEquipment = `
