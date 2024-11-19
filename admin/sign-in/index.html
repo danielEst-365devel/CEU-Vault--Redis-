@@ -193,7 +193,7 @@
       </div>
     </div>
   </footer>
->
+  >
   <script src="../assets/js/core/popper.min.js"></script>
   <script src="../assets/js/core/bootstrap.min.js"></script>
   <script src="../assets/js/plugins/perfect-scrollbar.min.js"></script>
@@ -213,7 +213,27 @@
   <script src="../assets/js/soft-ui-dashboard.min.js"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    // In your sign-in page
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const response = await fetch('/admin/verify-login', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          // If already authenticated, redirect to home
+          window.location.href = '/admin/home-page/';
+          return;
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+
+      // Initialize login form if not authenticated
+      initializeLoginForm();
+    });
+
+    function initializeLoginForm() {
       // Check for existing token first
       const checkAuth = async () => {
         try {
@@ -295,7 +315,7 @@
           });
         }
       });
-    });
+    }
 
     // Replace your existing showToast function with this:
     function showToast(message, type = 'danger') {

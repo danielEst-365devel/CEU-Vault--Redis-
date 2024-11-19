@@ -564,33 +564,41 @@ const getAllBorrowingRequests = async (req, res) => {
 };
 
 const authenticateToken = (req, res, next) => {
-    const token = req.cookies.token ||
+    const token = req.cookies.token || 
         (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
-    if (!token) {
-        return res.status(401).redirect('/admin/sign-in/');
+    // If no token and it's an API request, return 401
+    if (!token && req.xhr) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
+
+    // If no token and it's a page request, redirect to sign-in
+    if (!token && !req.xhr) {
+        // Prevent redirect loops by checking current path
+        if (!req.path.includes('/sign-in')) {
+            return res.redirect('/admin/sign-in/');
+        }
+        return next();
     }
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Check token expiration explicitly
         if (Date.now() >= decoded.exp * 1000) {
-            return res.status(401).redirect('/admin/sign-in/');
+            if (req.xhr) {
+                return res.status(401).json({ message: 'Token expired' });
+            }
+            return res.redirect('/admin/sign-in/');
         }
 
-        // Add user data to request
         req.admin = decoded;
-
-        // Clear sensitive data
-        delete req.admin.iat;
-        delete req.admin.exp;
-
         next();
     } catch (err) {
-        // Log error for debugging
         console.error('Token verification failed:', err.message);
-        return res.status(403).redirect('/admin/sign-in/');
+        if (req.xhr) {
+            return res.status(403).json({ message: 'Invalid token' });
+        }
+        return res.redirect('/admin/sign-in/');
     }
 };
 
