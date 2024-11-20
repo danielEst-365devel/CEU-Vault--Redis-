@@ -28,5 +28,6 @@ adminRouter.put('/update-equipment/:categoryId', adminController.updateEquipment
 adminRouter.delete('/equipment-categories/:categoryId', adminController.deleteEquipmentCategory);
 adminRouter.post('/equipment-categories', adminController.addEquipmentCategory);
 adminRouter.post('/reset-equipment', adminController.resetEquipment);
+adminRouter.post('/generate-inventory-pdf', adminController.generateInventoryPDF);
 
 module.exports = adminRouter;

@@ -318,6 +318,13 @@
                 </div>
             </div>
 
+            <!-- Add this right after the table div -->
+            <div class="text-center mt-4">
+                <button class="btn bg-gradient-secondary" onclick="printInventoryStatus()">
+                    <i class="fas fa-print"></i>&nbsp;&nbsp;Print Inventory Status
+                </button>
+            </div>
+
             <script>
                 async function fetchEquipmentCategoriesData() {
                     try {
@@ -827,5 +834,85 @@
     <!-- Add SweetAlert2 for better notifications -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
+
+
+<script>
+    async function printInventoryStatus() {
+        let loadingAlert;
+        try {
+            // Show initial loading alert
+            loadingAlert = Swal.fire({
+                title: 'Generating PDF...',
+                html: 'Please wait while we generate your inventory report',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const response = await fetch('/admin/get-adminEquipment');
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.successful && data.equipmentCategories) {
+                const pdfResponse = await fetch('/admin/generate-inventory-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        inventoryData: data.equipmentCategories
+                    })
+                });
+
+                if (!pdfResponse.ok) {
+                    throw new Error(`HTTP error! status: ${pdfResponse.status}`);
+                }
+
+                const blob = await pdfResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventory-status-${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+
+                // Close loading alert first
+                Swal.close();
+
+                // Show success message
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Download Starting',
+                    text: 'Your inventory report will download shortly',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Trigger download
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+            } else {
+                throw new Error('Failed to fetch inventory data');
+            }
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            // Ensure loading alert is closed before showing error
+            Swal.close();
+            await Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to generate inventory status PDF'
+            });
+        }
+    }
+</script>
 
 </html>

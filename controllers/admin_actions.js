@@ -968,6 +968,28 @@ const resetEquipment = async (req, res) => {
     }
 };
 
+const { createInventoryStatus } = require('./inventoryStatusPDF');
+
+const generateInventoryPDF = async (req, res) => {
+    try {
+        const { inventoryData } = req.body;
+        const pdfBuffer = await createInventoryStatus(inventoryData);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=inventory-status-${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        // Convert base64 to buffer and send
+        const buffer = Buffer.from(pdfBuffer, 'base64');
+        res.send(buffer);
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).json({ 
+            successful: false, 
+            message: 'Error generating PDF' 
+        });
+    }
+};
+
 module.exports = {
     updateRequestStatus,
     updateRequestStatusTwo,
@@ -982,5 +1004,6 @@ module.exports = {
     updateEquipmentCategory,
     deleteEquipmentCategory,
     addEquipmentCategory,
-    resetEquipment
+    resetEquipment,
+    generateInventoryPDF
 };
