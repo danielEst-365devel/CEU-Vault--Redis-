@@ -26,6 +26,85 @@ const transporter = nodemailer.createTransport({
     debug: process.env.NODE_ENV === 'development'
 });
 
+// Common styles as constants
+const EMAIL_STYLES = {
+    container: `font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;`,
+    header: `color: #4CAF50; margin-bottom: 20px;`,
+    table: `width: 100%; border-collapse: collapse; margin-bottom: 20px;`,
+    tableHeader: `border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;`,
+    tableCell: `border: 1px solid #ddd; padding: 8px;`,
+    infoBox: `margin-top: 20px; padding: 20px; background-color: #f5f5f5; border-radius: 5px;`
+};
+
+// Email templates object
+const emailTemplates = {
+    // Template for approved/cancelled requests
+    requestStatus: (details) => `
+    <div style="${EMAIL_STYLES.container}">
+      <h1 style="${EMAIL_STYLES.header}">CEU Vault</h1>
+      <p style="font-size: 18px; color: #333; margin-bottom: 10px;">Your equipment borrowing requests have been processed.</p>
+      
+      ${emailTemplates.approvedRequestsTable(details.equipmentCategories)}
+      ${details.cancelledDetails ? emailTemplates.cancelledRequestsTable(details.cancelledDetails.equipmentCategories) : ''}
+      ${emailTemplates.borrowerDetails(details)}
+      
+      <p style="font-size: 16px; color: #555; margin-top: 20px;">A PDF copy of your approved requests is attached to this email.</p>
+      <p style="font-size: 14px; color: #777;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+    </div>
+  `,
+
+    // Reusable table component for approved requests
+    approvedRequestsTable: (items) => `
+    <h2 style="${EMAIL_STYLES.header}">Approved Requests</h2>
+    <table style="${EMAIL_STYLES.table}">
+      ${emailTemplates.tableHeader()}
+      ${items.map(item => emailTemplates.tableRow(item)).join('')}
+    </table>
+  `,
+
+    // Reusable table component for cancelled requests
+    cancelledRequestsTable: (items) => `
+    <h2 style="color: #f44336; margin-bottom: 20px;">Cancelled Requests</h2>
+    <table style="${EMAIL_STYLES.table}">
+      ${emailTemplates.tableHeader()}
+      ${items.map(item => emailTemplates.tableRow(item)).join('')}
+    </table>
+  `,
+
+    // Reusable table header
+    tableHeader: () => `
+    <tr>
+      <th style="${EMAIL_STYLES.tableHeader}">Category</th>
+      <th style="${EMAIL_STYLES.tableHeader}">Quantity</th>
+      <th style="${EMAIL_STYLES.tableHeader}">Date Requested</th>
+      <th style="${EMAIL_STYLES.tableHeader}">Time Requested</th>
+      <th style="${EMAIL_STYLES.tableHeader}">Return Time</th>
+    </tr>
+  `,
+
+    // Reusable table row
+    tableRow: (item) => `
+    <tr>
+      <td style="${EMAIL_STYLES.tableCell}">${item.category}</td>
+      <td style="${EMAIL_STYLES.tableCell}">${item.quantity}</td>
+      <td style="${EMAIL_STYLES.tableCell}">${item.dateRequested}</td>
+      <td style="${EMAIL_STYLES.tableCell}">${item.timeRequested}</td>
+      <td style="${EMAIL_STYLES.tableCell}">${item.returnTime}</td>
+    </tr>
+  `,
+
+    // Reusable borrower details component
+    borrowerDetails: (details) => `
+    <div style="${EMAIL_STYLES.infoBox}">
+      <p style="font-size: 16px; color: #333; margin-bottom: 10px;"><strong>Borrower Details:</strong></p>
+      <p style="font-size: 14px; color: #555; margin: 5px 0;">Name: ${details.firstName} ${details.lastName}</p>
+      <p style="font-size: 14px; color: #555; margin: 5px 0;">Department: ${details.departmentName}</p>
+      <p style="font-size: 14px; color: #555; margin: 5px 0;">Purpose: ${details.purpose}</p>
+      <p style="font-size: 14px; color: #555; margin: 5px 0;">Venue: ${details.venue}</p>
+    </div>
+  `
+};
+
 // Helper function to format time to 'HH:MM:SS'
 const formatTime = (timeInput) => {
     try {
@@ -299,9 +378,7 @@ const updateRequestStatus = async (req, res) => {
           WHERE batch_id = $2
         `, [pdfBuffer, batchId]);
 
-            const htmlContent = `
-          <!-- Email Content Here -->
-        `;
+            const htmlContent = emailTemplates.requestStatus(details);
 
             try {
                 await transporter.sendMail({
@@ -564,7 +641,7 @@ const getAllBorrowingRequests = async (req, res) => {
 };
 
 const authenticateToken = (req, res, next) => {
-    const token = req.cookies.token || 
+    const token = req.cookies.token ||
         (req.headers.authorization && req.headers.authorization.split(' ')[1]);
 
     // If no token and it's an API request, return 401
@@ -913,7 +990,7 @@ const resetEquipment = async (req, res) => {
 
         // Delete all records instead of truncate
         await client.query('DELETE FROM equipment_categories');
-        
+
         // Reset the sequence
         await client.query('ALTER SEQUENCE equipment_categories_category_id_seq RESTART WITH 1');
 
@@ -974,18 +1051,18 @@ const generateInventoryPDF = async (req, res) => {
     try {
         const { inventoryData } = req.body;
         const pdfBuffer = await createInventoryStatus(inventoryData);
-        
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=inventory-status-${new Date().toISOString().split('T')[0]}.pdf`);
-        
+
         // Convert base64 to buffer and send
         const buffer = Buffer.from(pdfBuffer, 'base64');
         res.send(buffer);
     } catch (error) {
         console.error('Error generating PDF:', error);
-        res.status(500).json({ 
-            successful: false, 
-            message: 'Error generating PDF' 
+        res.status(500).json({
+            successful: false,
+            message: 'Error generating PDF'
         });
     }
 };

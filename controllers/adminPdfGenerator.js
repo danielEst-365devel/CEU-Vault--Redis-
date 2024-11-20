@@ -182,7 +182,7 @@ function generateFooter(doc) {
     doc
         .fontSize(10)
         .text(
-            "Thank you for your request. We will process it as soon as possible. Please wait for request approval.",
+            "Your requests has been successfully processed. Please keep this document for future reference. This receipt is digitally generated, signature is not required.",
             50,
             780,
             { align: "center", width: 500 }
