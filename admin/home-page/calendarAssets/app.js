@@ -6,19 +6,21 @@ document.addEventListener('DOMContentLoaded', async function () {
     let currentDate = new Date();
     let fetchedEvents = {}; // Store fetched events
 
-    // Fetch events from the backend
+    // Modify the fetchEvents function
     async function fetchEvents() {
         try {
             const response = await fetch('/admin/get-all-history');
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
 
             if (data.successful && Array.isArray(data.history)) {
-                fetchedEvents = {}; // Reset fetchedEvents
+                fetchedEvents = {};
                 data.history.forEach(event => {
-                    const dateKey = new Date(event.requested).toISOString().split('T')[0];
+                    // Create date object and adjust for timezone
+                    const eventDate = new Date(event.requested);
+                    // Convert to local date string YYYY-MM-DD
+                    const dateKey = eventDate.toLocaleDateString('en-CA'); // Uses YYYY-MM-DD format
+
                     if (!fetchedEvents[dateKey]) {
                         fetchedEvents[dateKey] = [];
                     }
@@ -36,15 +38,13 @@ document.addEventListener('DOMContentLoaded', async function () {
                         status: event.status
                     });
                 });
-            } else {
-                console.error('Unexpected data format:', data);
             }
         } catch (error) {
             console.error('Error fetching events:', error);
         }
     }
 
-    // Render the calendar
+    // Modify the renderCalendar function
     async function renderCalendar() {
         calendar.innerHTML = '';  // Clear previous calendar
         const year = currentDate.getFullYear();
@@ -66,8 +66,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         for (let i = 1; i <= daysInMonth; i++) {
             const dayDiv = document.createElement('div');
             dayDiv.classList.add('day', 'col', 'border'); // Added 'col' and 'border' for visibility
+            
+            // Create date in local timezone
             const date = new Date(year, month, i);
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = date.toLocaleDateString('en-CA'); // Uses YYYY-MM-DD format
+            
             dayDiv.innerHTML = `<div class="text-center">${i}</div>`;
             dayDiv.dataset.date = dateKey;
 
