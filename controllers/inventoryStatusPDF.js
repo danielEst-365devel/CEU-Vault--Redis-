@@ -25,18 +25,26 @@ function createInventoryStatus(inventoryData) {
 }
 
 function generateHeader(doc) {
-    const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
+   // const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
+    const pageWidth = 595.28;
+   // const logoWidth = 100;
+
     doc
-        .image(logoPath, 50, 45, { width: 50 })
-        .fillColor("#444444")
-        .fontSize(20)
-        .text("CEU VAULT - Inventory Status", 150, 57, { align: 'center' })
-        .fontSize(10)
-        .moveDown()
-        .text("Generated on: " + new Date().toLocaleString(), { align: "center" })
-        .text("Teaching, Learning, and Technology Section", { align: "center" })
-        .text("CEU Malolos", { align: "center" })
-        .moveDown(2);
+ 
+        const logoPath = path.join(__dirname, '..', 'Public', 'images', 'CEU-Logo.png');
+        doc
+            .image(logoPath, 50, 45, { width: 50 })
+            .fillColor("#444444")
+            .fontSize(20)
+            .text("CEU VAULT", 110, 57)
+            .fontSize(10)
+            .text("CEU VAULT - INVENTORY STATUS", 200, 50, { align: "right" })
+            .text("Teaching, Learning, and Technology Section", 200, 65, { align: "right" })
+            .text("CEU Malolos", 200, 80, { align: "right" })
+            .moveDown()
+            .text("Generated on: " + new Date().toLocaleString(), 0, 140, { align: "center", width: pageWidth })
+            .moveDown(2);
+    
 }
 
 function generateInventoryTable(doc, inventoryData) {
