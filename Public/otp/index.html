@@ -11,19 +11,22 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
         .container {
             background-color: white;
-            padding: 20px;
+            padding: 30px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            width: 90%;
+            max-width: 800px;
         }
         h2 {
             text-align: center;
             color: #333;
+            margin-bottom: 30px;
         }
         .otp-input {
             width: 92%;
@@ -31,36 +34,86 @@
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
         .btn {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
+            transition: background-color 0.3s;
         }
         .btn:hover {
             background-color: #218838;
         }
-        .error {
-            color: red;
+        .error, .success {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
         }
         .success {
-            color: green;
-            text-align: center;
-            margin-bottom: 10px;
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0 30px;
+        }
+        .details-table th,
+        .details-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .details-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .details-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .details-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
         }
     </style>
+    <!-- Add SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <div class="container">
         <h2>OTP Verification</h2>
+        <div class="details-section">
+            <h3 style="margin-top: 0;">Equipment Request Details</h3>
+            <table class="details-table" id="equipmentTable">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Quantity</th>
+                        <th>Date Requested</th>
+                        <th>Time Requested</th>
+                        <th>Return Time</th>
+                    </tr>
+                </thead>
+                <tbody id="equipmentTableBody">
+                    <!-- Table rows will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
         <div id="message" class="error" style="display: none;"></div>
         <form id="otpForm">
             <input type="text" id="otp-input" class="otp-input" placeholder="Enter OTP" required>
@@ -69,32 +122,110 @@
     </div>
 
     <script>
-      function verifyOTP(event) {
+      // Add date formatting helper function
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+
+      function formatTime(timeStr) {
+        return new Date(`2000/01/01 ${timeStr}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+
+      async function verifyOTP(event) {
         event.preventDefault();
+        
+        // Disable the submit button
+        const submitButton = document.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        
+        // Show loading alert
+        Swal.fire({
+          title: 'Verifying OTP',
+          text: 'Please wait...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
 
         const otp = document.getElementById('otp-input').value;
 
-        fetch('/equipments/verify-otp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ otp }),
-          credentials: 'include' // Include cookies in the request
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.successful) {
-              alert('OTP verified successfully!');
-              window.location.href = '../requisitioner-form/'; // Redirect to success page
-            } else {
-              alert(`Error: ${data.message}`);
-            }
-          })
-          .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while verifying the OTP.');
+        try {
+          const response = await fetch('/equipments/verify-otp', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ otp }),
+            credentials: 'include'
           });
+          
+          const data = await response.json();
+
+          if (data.successful) {
+            await Swal.fire({
+              icon: 'success',
+              title: 'Success!',
+              text: 'OTP verified successfully!',
+              timer: 2000,
+              showConfirmButton: false
+            });
+            window.location.href = '../requisitioner-form/';
+          } else {
+            submitButton.disabled = false; // Re-enable button on error
+            await Swal.fire({
+              icon: 'error',
+              title: 'Verification Failed',
+              text: data.message
+            });
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          submitButton.disabled = false; // Re-enable button on error
+          await Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while verifying the OTP.'
+          });
+        }
+      }
+
+      async function populateEquipmentTable() {
+        try {
+            const response = await fetch('/equipments/get-session-data', {
+                credentials: 'include'
+            });
+            const data = await response.json();
+            
+            if (data.successful && data.formData) {
+                const tbody = document.getElementById('equipmentTableBody');
+                tbody.innerHTML = data.formData.equipmentCategories.map(item => `
+                    <tr>
+                        <td>${item.category}</td>
+                        <td>${item.quantity}</td>
+                        <td>${formatDate(item.dateRequested)}</td>
+                        <td>${formatTime(item.timeRequested)}</td>
+                        <td>${formatTime(item.returnTime)}</td>
+                    </tr>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('Error fetching session data:', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Failed to load equipment details.'
+            });
+        }
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -102,6 +233,7 @@
         if (otpForm) {
           otpForm.addEventListener('submit', verifyOTP);
         }
+        populateEquipmentTable(); // Call this to populate the table when page loads
       });
     </script>
 </body>

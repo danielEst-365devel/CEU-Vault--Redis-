@@ -504,8 +504,36 @@ const getEquipmentCategories = async (req, res) => {
   }
 };
 
+// Add this new function to get session data
+const getSessionData = async (req, res) => {
+    try {
+        const sessionID = req.sessionID;
+        const sessionData = await redisClient.get(sessionID);
+        
+        if (!sessionData) {
+            return res.status(404).json({
+                successful: false,
+                message: "Session data not found"
+            });
+        }
+
+        const parsedData = JSON.parse(sessionData);
+        return res.status(200).json({
+            successful: true,
+            formData: parsedData.formData
+        });
+    } catch (error) {
+        console.error("Error retrieving session data:", error);
+        return res.status(500).json({
+            successful: false,
+            message: "Failed to retrieve session data"
+        });
+    }
+};
+
 module.exports = {
-  submitForm,
-  verifyOTP,
-  getEquipmentCategories
+    submitForm,
+    verifyOTP,
+    getEquipmentCategories,
+    getSessionData // Add this to exports
 };
