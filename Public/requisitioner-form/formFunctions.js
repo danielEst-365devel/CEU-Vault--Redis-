@@ -1,320 +1,557 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const dropdown = document.getElementById('dropdown');
-  const container = document.getElementById('additional-field-container');
+// Utility functions
+const utils = {
+  getCurrentDateTime() {
+    const now = new Date();
+    now.setHours(now.getHours() + 24); // Add 24 hours
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0,16);
+  },
 
-  dropdown.addEventListener('change', function () {
-    const existingField = document.getElementById('additional-text-field');
+  formatTimeToHHMMSS(timeString) {
+    const [hours, minutes] = timeString.split(':');
+    return `${hours}:${minutes}:00`;
+  },
 
-    if (dropdown.value === 'other') {
-      if (!existingField) {
-        const textFieldHTML = `
-        <div class="form-group">
-          <input type="text" name="other-details" id="additional-text-field" class="form-control" placeholder="Please specify" required="">
-        </div>
-      `;
-        container.insertAdjacentHTML('beforeend', textFieldHTML);
-      }
-    } else {
-      if (existingField) {
-        container.removeChild(existingField.parentElement);
-      }
-    }
-  });
-
-  const purposeDropdown = document.getElementById('purposeDropdown');
-  const purposeContainer = document.getElementById('purpose-field-container');
-
-  purposeDropdown.addEventListener('change', function () {
-    const existingPurposeField = document.getElementById('additional-purpose-field');
-
-    if (purposeDropdown.value === 'otherPurpose') {
-      if (!existingPurposeField) {
-        const textFieldHTML = `
-        <div class="form-group">
-          <input type="text" name="other-purpose" id="additional-purpose-field" class="form-control" placeholder="Please specify your purpose" required="">
-        </div>
-      `;
-        purposeContainer.insertAdjacentHTML('beforeend', textFieldHTML);
-      }
-    } else {
-      if (existingPurposeField) {
-        purposeContainer.removeChild(existingPurposeField.parentElement);
-      }
-    }
-  });
-
-  const checkboxes = document.querySelectorAll('.input-checkbox');
-
-  checkboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', function () {
-      if (checkbox.value === 'Others') {
-        handleOthersCheckbox(checkbox);
-      } else if (checkbox.value === 'Instructional Materials') {
-        handleInstructionalMaterialsCheckbox(checkbox);
+  setupDateTimeInput(input) {
+    const minDateTime = this.getCurrentDateTime();
+    input.setAttribute('min', minDateTime);
+    
+    input.addEventListener('focus', () => {
+      input.setAttribute('min', this.getCurrentDateTime());
+    });
+    
+    input.addEventListener('keydown', e => e.preventDefault());
+    
+    // Add validation on change
+    input.addEventListener('input', () => {
+      const startDateTime = input.value;
+      const endTimeInput = input.closest('.row, #inputs-container').querySelector('input[name="endTime"]');
+      
+      if (endTimeInput && endTimeInput.value) {
+        validateDateTime(input, endTimeInput);
       }
     });
-  });
-});
-
-function handleOthersCheckbox(checkbox) {
-  const textInputContainer = document.getElementById('Others-text-container');
-
-  if (checkbox.checked) {
-    if (!document.getElementById('Others-text')) {
-      const textFieldHTML = `
-        <div class="form-group">
-          <label for="Others-text">Specify Others:</label>
-          <input type="text" name="Others-text" id="Others-text" class="form-control" placeholder="Please specify" required>
-        </div>
-      `;
-      textInputContainer.innerHTML = textFieldHTML;
-    }
-  } else {
-    textInputContainer.innerHTML = '';
   }
+};
 
-}
+// Validation rules
+const validators = {
+  names: value => /^[A-Za-z\s'-]{2,50}$/.test(value),
+  department: value => /^[A-Za-z0-9\s\/.()-]{3,100}$/.test(value),
+  email: value => /^[a-zA-Z0-9._%+-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/.test(value),
+  operatingHours: (timeString) => {
+    if (!timeString) return false;
+    const [hours] = timeString.split(':').map(Number);
+    return hours >= 6 && hours < 17; // 6 AM to 5 PM
+  },
+  datetime: (start, end) => {
+    if (!start || !end) return false;
+    
+    const startDate = new Date(start);
+    const [endHours, endMinutes] = end.split(':');
+    const endDate = new Date(startDate);
+    endDate.setHours(parseInt(endHours), parseInt(endMinutes), 0);
+    
+    // Get current date and add 24 hours
+    const minDate = new Date();
+    minDate.setHours(minDate.getHours() + 24);
+    
+    // Check operating hours for both start and end times
+    const startHours = startDate.getHours();
+    const endHoursNum = parseInt(endHours);
+    
+    const withinOperatingHours = startHours >= 6 && startHours < 17 && 
+                                endHoursNum >= 6 && endHoursNum < 17;
+    
+    return startDate > minDate && endDate > startDate && withinOperatingHours;
+  },
+  quantity: value => value > 0 && value <= 3 // Change max to 3
+};
 
-function handleInstructionalMaterialsCheckbox(checkbox) {
-  const textInputContainer = document.getElementById('Instructional-Materials-text-container');
-  if (checkbox.checked) {
-    if (!document.getElementById('Instructional-Materials-text')) {
-      const textFieldHTML = `
-        <div class="form-group">
-          <label for="Instructional-Materials-text">Specify Instructional Materials:</label>
-          <input type="text" name="Instructional-Materials-text" id="Instructional-Materials-text" class="form-control" placeholder="Please specify" required>
-        </div>
-      `;
-      textInputContainer.innerHTML = textFieldHTML;
-    }
-  } else {
-    textInputContainer.innerHTML = '';
-  }
-
-
-}
-
-
-// Show terms popup with animation
-document.getElementById('terms-checkbox').addEventListener('change', function() {
-  if (this.checked) {
-    const popup = document.getElementById('terms-popup');
-    popup.style.display = 'flex';
-    // Trigger reflow
-    void popup.offsetWidth;
-    popup.classList.add('active');
-    this.checked = false;
-  }
-});
-
-// Modify the agree button handler
-document.getElementById('agree-button').addEventListener('click', function(event) {
-  event.preventDefault(); // Prevent form submission
-  const popup = document.getElementById('terms-popup');
-  document.getElementById('terms-checkbox').checked = true;
-  popup.classList.remove('active');
-  setTimeout(() => popup.style.display = 'none', 300);
-});
-
-// Add form submission validation
-document.getElementById('main-form').addEventListener('submit', function(event) {
-  const termsCheckbox = document.getElementById('terms-checkbox');
+// Form initialization
+function initForm() {
+  initializeFormAnimations();
+  setupTermsPopup();
+  setupValidation();
+  setupEquipmentHandling();
+  setupDateTimeRestrictions();
+  setupDateTimeValidation(); // Add this line
+  setupQuantityValidation(); // Add this line
+  initScrollSpy();
   
-  if (!termsCheckbox.checked) {
-    event.preventDefault();
-    alert('Please agree to the Terms and Conditions before submitting.');
-    return false;
-  }
-});
+  // Add form submit handler
+  const form = document.getElementById('main-form');
+  form.addEventListener('submit', handleSubmit);
+}
 
-// Modify close button to also prevent form submission
-document.getElementById('close-button').addEventListener('click', function(event) {
-  event.preventDefault();
+// Add this to formFunctions.js
+function initializeFormAnimations() {
+  const formGroups = document.querySelectorAll('.form-group');
+  
+  formGroups.forEach((group, index) => {
+    // Remove opacity 0
+    group.style.opacity = '1';
+    
+    // Add animation
+    group.style.animation = `fadeInUp 0.5s ease forwards ${index * 0.1}s`;
+  });
+}
+
+function setupTermsPopup() {
+  const termsCheckbox = document.getElementById('terms-checkbox');
   const popup = document.getElementById('terms-popup');
-  document.getElementById('terms-checkbox').checked = false;
-  popup.classList.remove('active');
-  setTimeout(() => popup.style.display = 'none', 300);
-});
+  
+  termsCheckbox.addEventListener('change', () => {
+    if (termsCheckbox.checked) {
+      popup.style.display = 'flex';
+      void popup.offsetWidth;
+      popup.classList.add('active');
+      termsCheckbox.checked = false;
+    }
+  });
+
+  document.getElementById('agree-button').addEventListener('click', e => {
+    e.preventDefault();
+    termsCheckbox.checked = true;
+    popup.classList.remove('active');
+    setTimeout(() => popup.style.display = 'none', 300);
+  });
+
+  document.getElementById('close-button').addEventListener('click', e => {
+    e.preventDefault();
+    termsCheckbox.checked = false;
+    popup.classList.remove('active');
+    setTimeout(() => popup.style.display = 'none', 300);
+  });
+}
+
+function setupValidation() {
+  const validationRules = {
+    'first-name': { validator: validators.names, message: 'Please enter a valid first name' },
+    'last-name': { validator: validators.names, message: 'Please enter a valid last name' },
+    'department-name': { validator: validators.department, message: 'Please enter a valid department name' },
+    'email': { validator: validators.email, message: 'Please enter a valid CEU email address' }
+  };
+
+  Object.entries(validationRules).forEach(([id, {validator, message}]) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.addEventListener('input', () => validateField(element, validator(element.value), message));
+    }
+  });
+
+  // Setup datetime validation for all equipment sections
+  setupDateTimeValidation();
+}
+
+function validateField(element, isValid, message) {
+  const group = element.closest('.form-group');
+  group.classList.toggle('error', !isValid);
+  group.classList.toggle('success', isValid);
+  
+  const error = group.querySelector('.error-message') || document.createElement('div');
+  if (!isValid) {
+    error.className = 'error-message';
+    error.textContent = message;
+    if (!group.querySelector('.error-message')) {
+      group.appendChild(error);
+    }
+  } else if (group.contains(error)) {
+    error.remove();
+  }
+}
+
+function setupEquipmentHandling() {
+  document.getElementById('add-more').addEventListener('click', () => {
+    const section = createEquipmentSection();
+    document.getElementById('form-duplicates').appendChild(section);
+    utils.setupDateTimeInput(section.querySelector('input[type="datetime-local"]'));
+    updateScrollSpy();
+    section.scrollIntoView({ behavior: 'smooth' });
+  });
+}
+
+function createEquipmentSection() {
+  const section = document.createElement('div');
+  section.className = 'equipment-section';
+  const container = document.getElementById('inputs-container').cloneNode(true);
+  
+  section.innerHTML = '<div class="section-header"><span class="section-title">Additional Equipment Request</span></div>';
+  section.appendChild(container);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = 'Remove Equipment';
+  removeBtn.className = 'form-control remove-button';
+  removeBtn.onclick = () => {
+    section.remove();
+    updateScrollSpy(); // Update scroll spy when removing section
+  };
+  section.appendChild(removeBtn);
+
+  updateScrollSpy(); // Update scroll spy when adding section
+  return section;
+}
+
+function setupDateTimeRestrictions() {
+  const dateInputs = document.querySelectorAll('input[type="datetime-local"]');
+  dateInputs.forEach(input => utils.setupDateTimeInput(input));
+}
 
 function updateScrollSpy() {
   const nav = document.querySelector('.form-sections-nav');
   const sections = document.querySelectorAll('.equipment-section');
   
   nav.innerHTML = '';
+  
+  if (sections.length === 0) {
+    nav.style.display = 'none';
+    return;
+  }
+  
+  nav.style.display = 'flex';
   sections.forEach((section, index) => {
     const dot = document.createElement('div');
     dot.className = 'section-dot';
-    dot.setAttribute('data-label', `Equipment ${String.fromCharCode(65 + index)}`);
+    dot.dataset.label = `Equipment ${String.fromCharCode(65 + index)}`;
     dot.onclick = () => section.scrollIntoView({ behavior: 'smooth' });
     nav.appendChild(dot);
   });
+}
+
+function handleSubmit(event) {
+  event.preventDefault();
   
-  // Update active dot on scroll
-  window.addEventListener('scroll', () => {
-    const sections = document.querySelectorAll('.equipment-section');
-    sections.forEach((section, index) => {
-      const rect = section.getBoundingClientRect();
-      const dot = document.querySelectorAll('.section-dot')[index];
-      if (rect.top <= window.innerHeight/2 && rect.bottom >= window.innerHeight/2) {
-        dot.classList.add('active');
-      } else {
-        dot.classList.remove('active');
-      }
+  // Check for any validation errors
+  const hasErrors = document.querySelectorAll('.form-group.error').length > 0;
+  if (hasErrors) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Validation Error',
+      text: 'Please correct all errors before submitting.'
     });
+    return;
+  }
+  
+  if (!document.getElementById('terms-checkbox').checked) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Terms Required',
+      text: 'Please agree to the Terms and Conditions.'
+    });
+    return;
+  }
+
+  // Continue with form submission if no errors
+  const formData = new FormData(event.target);
+  const jsonData = {
+    firstName: formData.get('first-name'),
+    lastName: formData.get('last-name'),
+    departmentName: formData.get('department-name'),
+    email: formData.get('email'),
+    natureOfService: formData.get('natureOfService'),
+    purpose: formData.get('purpose'),
+    venue: formData.get('venue'),
+    equipmentCategories: getEquipmentData()
+  };
+
+  submitForm(jsonData);
+  return false;
+}
+
+async function submitForm(data) {
+  const submitBtn = document.getElementById('submit');
+  const buttonText = submitBtn.querySelector('.button-text');
+  
+  submitBtn.disabled = true;
+  submitBtn.classList.add('loading');
+  buttonText.textContent = 'Submitting...';
+  
+  try {
+    const response = await fetch('/equipments/insert-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    
+    const result = await response.json();
+    if (result.successful) {
+      document.getElementById('main-form').reset();
+      document.getElementById('form-duplicates').innerHTML = '';
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Your equipment request has been submitted successfully.',
+        timer: 3000,
+        timerProgressBar: true,
+        showConfirmButton: true,
+        allowOutsideClick: false
+      }).then(() => {
+        window.location.href = '../otp/index.html';
+      });
+    } else {
+      throw new Error(result.message);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Submission Failed',
+      text: error.message || 'An error occurred while submitting the form'
+    });
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('loading');
+    buttonText.textContent = 'Submit';
+  }
+}
+
+// Add this function to formFunctions.js
+function initScrollSpy() {
+  // Create scroll spy container if it doesn't exist
+  let nav = document.querySelector('.form-sections-nav');
+  if (!nav) {
+    nav = document.createElement('div');
+    nav.className = 'form-sections-nav';
+    document.querySelector('.container').appendChild(nav);
+  }
+  
+  updateScrollSpy();
+}
+
+// Update scroll spy styles - add to your CSS
+const styles = `
+.form-sections-nav {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.section-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.section-dot:hover {
+  background: #fff;
+  transform: scale(1.2);
+}
+
+.section-dot:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+`;
+
+// Add styles to document
+document.head.insertAdjacentHTML('beforeend', `<style>${styles}</style>`);
+
+// Initialize everything when DOM is ready
+document.addEventListener('DOMContentLoaded', initForm);
+
+function getEquipmentData() {
+  // Get all equipment sections including the initial one and duplicates
+  const sections = [
+    document.getElementById('inputs-container'),
+    ...document.querySelectorAll('#form-duplicates .equipment-section')
+  ];
+
+  // Map each section to equipment data
+  return sections.map(section => {
+    const select = section.querySelector('select[name="equipment-select"]');
+    const quantity = section.querySelector('input[name="quantity"]');
+    const startDateTime = section.querySelector('input[name="startDateTime"]');
+    const endTime = section.querySelector('input[name="endTime"]');
+
+    // Extract date and format time
+    const date = new Date(startDateTime.value);
+    const dateStr = date.toISOString().split('T')[0];
+    const startTimeStr = utils.formatTimeToHHMMSS(date.toTimeString().slice(0, 5));
+    const endTimeStr = utils.formatTimeToHHMMSS(endTime.value);
+
+    return {
+      category: select.value,
+      quantity: parseInt(quantity.value),
+      dateRequested: dateStr,
+      timeRequested: startTimeStr,
+      returnTime: endTimeStr
+    };
+  }).filter(data => data.category); // Filter out any empty selections
+}
+
+// Add this new function for datetime validation
+function validateDateTime(startInput, endInput) {
+  const startTime = startInput.value;
+  const endTime = endInput.value;
+  
+  // Validate start time operating hours
+  if (startTime && !validators.operatingHours(new Date(startTime).toTimeString())) {
+    validateField(startInput, false, 'Start time must be between 6 AM and 5 PM');
+    return;
+  }
+  
+  // Validate end time operating hours
+  if (endTime && !validators.operatingHours(endTime)) {
+    validateField(endInput, false, 'Return time must be between 6 AM and 5 PM');
+    return;
+  }
+  
+  // Validate overall datetime logic
+  const isValid = validators.datetime(startTime, endTime);
+  validateField(startInput, isValid, isValid ? '' : 'Invalid date/time selection (24h advance booking required and within operating hours 6 AM - 5 PM)');
+  validateField(endInput, isValid, isValid ? '' : 'Invalid return time');
+}
+
+// Add this new function for setting up datetime validation
+function setupDateTimeValidation() {
+  const validateTimeInputs = (container) => {
+    const startDateTime = container.querySelector('input[name="startDateTime"]');
+    const endTime = container.querySelector('input[name="endTime"]');
+    
+    if (startDateTime && endTime) {
+      endTime.addEventListener('input', () => {
+        if (startDateTime.value) {
+          validateDateTime(startDateTime, endTime);
+        }
+      });
+      
+      startDateTime.addEventListener('input', () => {
+        if (endTime.value) {
+          validateDateTime(startDateTime, endTime);
+        }
+      });
+      
+      // Add immediate validation for operating hours
+      startDateTime.addEventListener('change', () => {
+        if (startDateTime.value) {
+          const time = new Date(startDateTime.value);
+          if (!validators.operatingHours(time.toTimeString())) {
+            validateField(startDateTime, false, 'Start time must be between 6 AM and 5 PM');
+          }
+        }
+      });
+      
+      endTime.addEventListener('change', () => {
+        if (endTime.value) {
+          if (!validators.operatingHours(endTime.value)) {
+            validateField(endTime, false, 'Return time must be between 6 AM and 5 PM');
+          }
+        }
+      });
+    }
+  };
+
+  // Setup for initial form and observe new sections
+  validateTimeInputs(document.getElementById('inputs-container'));
+  
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.classList && node.classList.contains('equipment-section')) {
+          validateTimeInputs(node);
+        }
+      });
+    });
+  });
+
+  observer.observe(document.getElementById('form-duplicates'), {
+    childList: true
   });
 }
 
-// Remove sectionCount variable and modify add-more handler
-document.getElementById('add-more').addEventListener('click', function() {
-  const container = document.getElementById('inputs-container');
-  const clone = container.cloneNode(true);
-  
-  // Wrap in section container
-  const section = document.createElement('div');
-  section.className = 'equipment-section';
-  section.innerHTML = `
-    <div class="section-header">
-      <span class="section-title">Additional Equipment Request</span>
-    </div>
-  `;
-  section.appendChild(clone);
-  
-  const removeBtn = document.createElement('button');
-  removeBtn.textContent = 'Remove Equipment';
-  removeBtn.className = 'form-control remove-button';
-  removeBtn.style.backgroundColor = '#e74c3c';
-  removeBtn.style.color = 'white';
-  removeBtn.style.borderRadius = '8px';
-  removeBtn.style.marginTop = '10px';
-  
-  removeBtn.addEventListener('click', function() {
-    section.remove();
-    updateScrollSpy();
-  });
-  
-  section.appendChild(removeBtn);
-  document.getElementById('form-duplicates').appendChild(section);
-  updateScrollSpy();
-  
-  // Smooth scroll to new section
-  section.scrollIntoView({ behavior: 'smooth' });
-});
-
-// Initialize scroll spy
-document.addEventListener('DOMContentLoaded', function() {
-  const nav = document.createElement('div');
-  nav.className = 'form-sections-nav';
-  document.body.appendChild(nav);
-  updateScrollSpy();
-});
-
-document.addEventListener('DOMContentLoaded', function() {
-  // Intersection Observer for fade-in animation
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.style.opacity = '1';
-        entry.target.style.transform = 'translateY(0)';
-        observer.unobserve(entry.target);
+// Update the quantity input restrictions in HTML via JavaScript
+function setupQuantityValidation() {
+  const validateQuantity = (input) => {
+    input.setAttribute('min', '1');
+    input.setAttribute('max', '3'); // Update max attribute
+    
+    // Allow empty input while typing
+    input.addEventListener('input', function() {
+      if (this.value === '') return;
+      
+      const value = parseInt(this.value);
+      if (isNaN(value)) {
+        this.value = '';
       }
     });
-  }, {
-    threshold: 0.1,
-    rootMargin: '0px'
-  });
+    
+    // Validate on blur
+    input.addEventListener('blur', function() {
+      const value = parseInt(this.value);
+      
+      if (this.value === '' || isNaN(value) || value < 1) {
+        this.value = 1;
+        showToast('Quantity must be at least 1');
+      } else if (value > 3) {
+        this.value = 3;
+        showToast('Maximum quantity allowed is 3');
+      }
+      
+      validateField(this, validators.quantity(parseInt(this.value)), '');
+    });
+  };
 
-  // Observe section-3
-  const section3 = document.querySelector('.section-3');
-  if (section3) {
-    observer.observe(section3);
+  // Add toast notification function
+  const showToast = (message) => {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000,
+      timerProgressBar: true,
+      didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer);
+        toast.addEventListener('mouseleave', Swal.resumeTimer);
+      }
+    });
+
+    Toast.fire({
+      icon: 'warning',
+      title: message
+    });
+  };
+
+  // Setup for initial form
+  const quantityInput = document.querySelector('input[name="quantity"]');
+  if (quantityInput) {
+    validateQuantity(quantityInput);
   }
-});
 
-// validation.js
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('main-form');
-  const inputs = form.querySelectorAll('input, select');
-  
-  // Add animation classes to form elements
-  const animateFormElements = () => {
-    document.querySelectorAll('.form-group').forEach((element, index) => {
-      element.style.animation = `slideIn 0.5s ease forwards ${index * 0.1}s`;
-      element.style.opacity = '0';
+  // Setup observer for dynamically added sections
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.classList && node.classList.contains('equipment-section')) {
+          const newQuantityInput = node.querySelector('input[name="quantity"]');
+          if (newQuantityInput) {
+            validateQuantity(newQuantityInput);
+          }
+        }
+      });
     });
-  };
-
-  // Validate input fields
-  const validateField = (input) => {
-    const field = input.parentElement;
-    const value = input.value.trim();
-
-    if (input.type === 'email') {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/;
-      if (!emailRegex.test(value)) {
-        setError(field, 'Please enter a valid CEU email address');
-        return false;
-      }
-    }
-
-    if (input.required && value === '') {
-      setError(field, 'This field is required');
-      return false;
-    }
-
-    setSuccess(field);
-    return true;
-  };
-
-  // Set error state
-  const setError = (field, message) => {
-    field.classList.add('error');
-    const error = field.querySelector('.error-message') || document.createElement('div');
-    error.className = 'error-message';
-    error.innerText = message;
-    if (!field.querySelector('.error-message')) {
-      field.appendChild(error);
-    }
-  };
-
-  // Set success state
-  const setSuccess = (field) => {
-    field.classList.remove('error');
-    field.classList.add('success');
-    const error = field.querySelector('.error-message');
-    if (error) {
-      error.remove();
-    }
-  };
-
-  // Add event listeners
-  inputs.forEach(input => {
-    input.addEventListener('blur', () => validateField(input));
-    input.addEventListener('input', () => validateField(input));
   });
 
-  // Form submission
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    let isValid = true;
-
-    inputs.forEach(input => {
-      if (!validateField(input)) {
-        isValid = false;
-      }
-    });
-
-    if (isValid) {
-      const submitBtn = form.querySelector('.submit-button');
-      submitBtn.classList.add('loading');
-      
-      // Simulate form submission
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      submitBtn.classList.remove('loading');
-      showSuccessMessage();
-    }
+  observer.observe(document.getElementById('form-duplicates'), {
+    childList: true
   });
-
-  animateFormElements();
-});
-
+}
