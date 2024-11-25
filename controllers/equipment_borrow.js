@@ -6,6 +6,24 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
+const formatDateForEmail = (dateStr) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric'
+  });
+};
+
+const formatTimeForEmail = (timeStr) => {
+  const date = new Date(`1970-01-01T${timeStr}`);
+  return date.toLocaleTimeString('en-US', { 
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 // Set up Nodemailer with Gmail SMTP
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -45,9 +63,9 @@ const sendEmail = async (recipientEmail, otpCode, formData) => {
               <tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatDateForEmail(item.dateRequested)}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.timeRequested)}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.returnTime)}</td>
               </tr>
             `).join('')}
           </table>
@@ -354,9 +372,9 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
               <tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.dateRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.timeRequested}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.returnTime}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatDateForEmail(item.dateRequested)}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.timeRequested)}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.returnTime)}</td>
               </tr>
             `).join('')}
           </table>
