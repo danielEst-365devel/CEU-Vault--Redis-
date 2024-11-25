@@ -249,12 +249,30 @@ function validateField(element, isValid, message) {
 }
 
 function setupEquipmentHandling() {
-  document.getElementById('add-more').addEventListener('click', () => {
+  const addMoreBtn = document.getElementById('add-more');
+  
+  addMoreBtn.addEventListener('click', () => {
+    const currentCount = document.querySelectorAll('.equipment-section').length;
+    
+    if (currentCount >= 4) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Maximum Limit Reached',
+        text: 'Maximum of 4 additional equipment requests allowed',
+        confirmButtonColor: '#3085d6'
+      });
+      return;
+    }
+    
     const section = createEquipmentSection();
     document.getElementById('form-duplicates').appendChild(section);
     utils.setupDateTimeInput(section.querySelector('input[type="datetime-local"]'));
     updateScrollSpy();
     section.scrollIntoView({ behavior: 'smooth' });
+    
+    if (currentCount + 1 >= 4) {
+      addMoreBtn.style.display = 'none';
+    }
   });
 }
 
@@ -291,6 +309,12 @@ function createEquipmentSection() {
   removeBtn.onclick = () => {
     section.remove();
     updateScrollSpy();
+    
+    // Show "Add More" button if we're below the limit
+    const currentCount = document.querySelectorAll('.equipment-section').length;
+    if (currentCount < 4) {
+      document.getElementById('add-more').style.display = '';
+    }
   };
   section.appendChild(removeBtn);
 
@@ -322,28 +346,43 @@ function setupDateTimeRestrictions() {
 
 function updateScrollSpy() {
   const nav = document.querySelector('.form-sections-nav');
-  const sections = document.querySelectorAll('.equipment-section');
+  const originalForm = document.getElementById('inputs-container');
+  const duplicateSections = document.querySelectorAll('.equipment-section');
   
   nav.innerHTML = '';
   
-  if (sections.length === 0) {
-    nav.style.display = 'none';
-    return;
-  }
+  // Create dot for original form
+  const originalDot = document.createElement('div');
+  originalDot.className = 'section-dot';
+  originalDot.dataset.label = 'Original Request';
+  originalDot.onclick = () => originalForm.scrollIntoView({ behavior: 'smooth' });
+  nav.appendChild(originalDot);
   
-  nav.style.display = 'flex';
-  sections.forEach((section, index) => {
+  duplicateSections.forEach((section, index) => {
     const dot = document.createElement('div');
     dot.className = 'section-dot';
-    dot.dataset.label = `Equipment ${String.fromCharCode(65 + index)}`;
+    dot.dataset.label = `Additional Request ${index + 1}`;
     dot.onclick = () => section.scrollIntoView({ behavior: 'smooth' });
     nav.appendChild(dot);
   });
+  
+  nav.style.display = 'flex';
 }
 
 function handleSubmit(event) {
   event.preventDefault();
   
+  // Update validation for maximum equipment requests
+  const duplicateCount = document.querySelectorAll('.equipment-section').length;
+  if (duplicateCount > 4) { // Only count duplicates, not including original
+    Swal.fire({
+      icon: 'error',
+      title: 'Too Many Equipment Requests',
+      text: 'Maximum of 4 additional equipment requests allowed.'
+    });
+    return;
+  }
+
   // Check for any validation errors
   const hasErrors = document.querySelectorAll('.form-group.error').length > 0;
   if (hasErrors) {
