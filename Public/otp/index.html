@@ -13,38 +13,40 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
         .container {
             background-color: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 90%;
+            width: 95%;
             max-width: 800px;
         }
         h2 {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            font-size: clamp(1.5rem, 4vw, 2rem);
         }
         .otp-input {
-            width: 92%;
+            width: 100%;
+            box-sizing: border-box;
             padding: 10px;
-            font-size: 16px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
             border: 1px solid #ccc;
             border-radius: 5px;
             margin-bottom: 20px;
         }
         .btn {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             background-color: #28a745;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
             transition: background-color 0.3s;
         }
         .btn:hover {
@@ -67,15 +69,17 @@
             border: 1px solid #c3e6cb;
         }
         .details-table {
+            min-width: 600px; /* Ensures table doesn't get too squished */
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0 30px;
+            margin: 15px 0;
         }
         .details-table th,
         .details-table td {
             border: 1px solid #ddd;
-            padding: 12px;
+            padding: 8px;
             text-align: left;
+            font-size: clamp(0.8rem, 2vw, 1rem);
         }
         .details-table th {
             background-color: #f8f9fa;
@@ -85,10 +89,76 @@
             background-color: #f8f9fa;
         }
         .details-section {
-            margin-bottom: 30px;
-            padding: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
             background-color: #f8f9fa;
             border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        /* Media Queries */
+        @media screen and (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            .details-section {
+                padding: 10px;
+            }
+            h3 {
+                font-size: 1.2rem;
+            }
+            .error, .success {
+                padding: 8px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media screen and (max-width: 400px) {
+            .container {
+                padding: 10px;
+            }
+            .otp-input, .btn {
+                padding: 8px;
+            }
+        }
+        
+        .borrower-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            padding: 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+        }
+        
+        .info-value {
+            color: #333;
+            font-size: clamp(0.9rem, 1.5vw, 1rem);
+        }
+
+        @media screen and (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
     <!-- Add SweetAlert2 CDN -->
@@ -97,6 +167,38 @@
 <body>
     <div class="container">
         <h2>OTP Verification</h2>
+        
+        <!-- Add Borrower Information Section -->
+        <div class="borrower-info">
+            <h3 style="margin-top: 0;">Borrower Information</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Name:</div>
+                    <div class="info-value" id="borrowerName">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Department:</div>
+                    <div class="info-value" id="borrowerDepartment">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email:</div>
+                    <div class="info-value" id="borrowerEmail">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Nature of Service:</div>
+                    <div class="info-value" id="natureOfService">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Purpose:</div>
+                    <div class="info-value" id="purpose">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Venue:</div>
+                    <div class="info-value" id="venue">Loading...</div>
+                </div>
+            </div>
+        </div>
+
         <div class="details-section">
             <h3 style="margin-top: 0;">Equipment Request Details</h3>
             <table class="details-table" id="equipmentTable">
@@ -207,6 +309,21 @@
             const data = await response.json();
             
             if (data.successful && data.formData) {
+                // Populate borrower information
+                document.getElementById('borrowerName').textContent = 
+                    `${data.formData.firstName} ${data.formData.lastName}`;
+                document.getElementById('borrowerDepartment').textContent = 
+                    data.formData.departmentName;
+                document.getElementById('borrowerEmail').textContent = 
+                    data.formData.email;
+                document.getElementById('natureOfService').textContent = 
+                    data.formData.natureOfService;
+                document.getElementById('purpose').textContent = 
+                    data.formData.purpose;
+                document.getElementById('venue').textContent = 
+                    data.formData.venue;
+
+                // Existing equipment table population
                 const tbody = document.getElementById('equipmentTableBody');
                 tbody.innerHTML = data.formData.equipmentCategories.map(item => `
                     <tr>
@@ -223,7 +340,7 @@
             Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: 'Failed to load equipment details.'
+              text: 'Failed to load request details.'
             });
         }
       }
