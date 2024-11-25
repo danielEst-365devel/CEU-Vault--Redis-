@@ -166,13 +166,14 @@ function generateInvoiceTable(doc, details) {
       position,
       item.category,
       item.quantity,
-      item.dateRequested,
-      item.timeRequested,
-      item.returnTime
+      formatDateForEmail(item.dateRequested),
+      formatTimeForEmail(item.timeRequested),
+      formatTimeForEmail(item.returnTime)
     );
     generateHr(doc, position + 20);
   });
 }
+
 function generateFooter(doc) {
   doc
     .fontSize(10)
