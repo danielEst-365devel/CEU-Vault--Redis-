@@ -608,6 +608,7 @@ module.exports = {
   addEquipmentCategory: adminActions.addEquipmentCategory,
   resetEquipment: adminActions.resetEquipment,
   generateInventoryPDF: adminActions.generateInventoryPDF,
-  getActiveRequests: adminActions.getActiveRequests
+  getActiveRequests: adminActions.getActiveRequests,
+  getStatusCounts: adminActions.getStatusCounts
 
 };

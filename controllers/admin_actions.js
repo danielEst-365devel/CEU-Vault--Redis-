@@ -1205,6 +1205,36 @@ const generateInventoryPDF = async (req, res) => {
     }
 };
 
+const getStatusCounts = async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'approved') as approved_count,
+                COUNT(*) FILTER (WHERE status = 'ongoing') as ongoing_count,
+                COUNT(*) as total_count
+            FROM admin_log
+        `;
+        
+        const result = await db.query(query);
+        const counts = result.rows[0];
+        
+        return res.status(200).json({
+            successful: true,
+            counts: {
+                approved: parseInt(counts.approved_count),
+                ongoing: parseInt(counts.ongoing_count),
+                total: parseInt(counts.total_count)
+            }
+        });
+    } catch (error) {
+        console.error('Error getting status counts:', error);
+        return res.status(500).json({
+            successful: false,
+            message: 'Failed to retrieve status counts.'
+        });
+    }
+};
+
 module.exports = {
     updateRequestStatus,
     updateRequestStatusTwo,
@@ -1221,5 +1251,6 @@ module.exports = {
     deleteEquipmentCategory,
     addEquipmentCategory,
     resetEquipment,
-    generateInventoryPDF
+    generateInventoryPDF,
+    getStatusCounts
 };

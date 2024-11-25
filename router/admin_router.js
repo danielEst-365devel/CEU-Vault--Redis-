@@ -30,6 +30,7 @@ adminRouter.post('/equipment-categories', adminController.addEquipmentCategory);
 adminRouter.post('/reset-equipment', adminController.resetEquipment);
 adminRouter.post('/generate-inventory-pdf', adminController.generateInventoryPDF);
 adminRouter.get('/get-active-requests', adminController.getActiveRequests);
+adminRouter.get('/get-status-counts', adminController.getStatusCounts); 
 
 
 module.exports = adminRouter;
