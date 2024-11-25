@@ -18,6 +18,26 @@
   <link href="../assets/css/nucleo-svg.css" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="../assets/css/soft-ui-dashboard.css" rel="stylesheet" />
+  <style>
+    .pagination .page-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: #cb0c9f;
+        border-color: #cb0c9f;
+    }
+    
+    .pagination .page-link:focus {
+        box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.25);
+    }
+    
+    #rowCountDisplay {
+        font-size: 0.875rem;
+        color: #67748e;
+    }
+  </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -299,22 +319,33 @@
 
       </div>
 
-      <!-- Modal for View All -->
+      <!-- Replace the existing view all modal with this updated version -->
       <div class="modal fade" id="viewAllModal" tabindex="-1" aria-labelledby="viewAllModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title text-dark" id="viewAllModalLabel">Request Receipts</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-dark" id="viewAllModalLabel">Request Receipts</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group" id="allInvoiceList">
+                        <!-- All invoice items will be populated here -->
+                    </ul>
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <nav aria-label="Receipts pagination">
+                            <ul class="pagination" id="receiptsPagination">
+                                <!-- Pagination will be populated by JavaScript -->
+                            </ul>
+                        </nav>
+                        <div id="receiptsRowCountDisplay" class="text-sm text-secondary">
+                            <!-- Row count will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-              <ul class="list-group" id="allInvoiceList">
-                <!-- All invoice items will be populated here -->
-              </ul>
-            </div>
-          </div>
         </div>
       </div>
+      <!-- ...existing code... -->
 
       <!-- Add new modal for history table -->
       <div class="modal fade" id="viewAllHistoryModal" tabindex="-1" aria-labelledby="viewAllHistoryModalLabel" aria-hidden="true">
@@ -343,6 +374,16 @@
                     <!-- Data will be populated here by JavaScript -->
                   </tbody>
                 </table>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-4">
+                <nav aria-label="History pagination">
+                    <ul class="pagination" id="historyPagination">
+                        <!-- Pagination will be populated by JavaScript -->
+                    </ul>
+                </nav>
+                <div id="rowCountDisplay" class="text-sm text-secondary">
+                    <!-- Row count will be populated by JavaScript -->
+                </div>
               </div>
             </div>
           </div>
@@ -472,4 +513,4 @@
   <script type="text/javascript" src="./js/script.js"></script>
 </body>
 
-</html>  
+</html>

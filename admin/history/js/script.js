@@ -32,48 +32,158 @@ function formatTime(timeString) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+let currentPage = 1;
 let allHistoryData = []; // Store all history data
 
-async function fetchApprovedRequestsData() {
+// For the history page (cancelled and returned)
+async function fetchApprovedRequestsData(page = 1) {
     const tableBody = document.getElementById('approvedRequestsTableBody');
-    tableBody.innerHTML = `
-          <tr>
-            <td colspan="8" class="text-center">
-              <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </td>
-          </tr>
-        `;
-    try {
-        const response = await fetch('/admin/get-all-history');
-        console.log('Response Status:', response.status);
-        console.log('Response Headers:', response.headers);
+    const modalTableBody = document.getElementById('modalHistoryTableBody');
+    const currentTableBody = modalTableBody.closest('.modal').classList.contains('show') ? modalTableBody : tableBody;
 
+    currentTableBody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch(`/admin/get-all-history?page=${page}&limit=10`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Fetched Data:', data);
+        console.log('Fetched data:', data); // Debug log
 
         if (data.successful && data.history && data.history.length > 0) {
-            allHistoryData = data.history; // Store all data
-            displayApprovedRequestsTable(data.history.slice(0, 5), 'approvedRequestsTableBody'); // Display first 5 rows
+            allHistoryData = data.history;
+            // Display first 5 rows in main table
+            if (currentTableBody === tableBody) {
+                displayApprovedRequestsTable(data.history.slice(0, 5), 'approvedRequestsTableBody');
+            } else {
+                // Display all rows in modal
+                displayApprovedRequestsTable(data.history, 'modalHistoryTableBody');
+                updatePaginationControls(data.pagination);
+            }
         } else {
-            tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Waiting for approved requests...</td></tr>`;
+            currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No requests found...</td></tr>`;
         }
     } catch (error) {
         console.error('Error fetching approved requests data:', error);
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Waiting for approved requests...</td></tr>`;
+        currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data...</td></tr>`;
     }
+}
+
+// For the requests page (approved and ongoing)
+async function fetchActiveRequestsData(page = 1) {
+    const tableBody = document.getElementById('approvedRequestsTableBody');
+    const modalTableBody = document.getElementById('modalHistoryTableBody');
+    const currentTableBody = modalTableBody.closest('.modal').classList.contains('show') ? modalTableBody : tableBody;
+
+    currentTableBody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch(`/admin/get-active-requests?page=${page}&limit=10`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Fetched data:', data); // Debug log
+
+        if (data.successful && data.history && data.history.length > 0) {
+            allHistoryData = data.history;
+            // Display first 5 rows in main table
+            if (currentTableBody === tableBody) {
+                displayApprovedRequestsTable(data.history.slice(0, 5), 'approvedRequestsTableBody');
+            } else {
+                // Display all rows in modal
+                displayApprovedRequestsTable(data.history, 'modalHistoryTableBody');
+                updatePaginationControls(data.pagination);
+            }
+        } else {
+            currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No requests found...</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Error fetching approved requests data:', error);
+        currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data...</td></tr>`;
+    }
+}
+
+function updatePaginationControls(pagination) {
+    const paginationContainer = document.getElementById('historyPagination');
+    const { currentPage, totalPages, totalItems, itemsPerPage } = pagination;
+    const startItem = ((currentPage - 1) * itemsPerPage) + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+    let paginationHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage - 1}" aria-label="Previous">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+
+    // Add page numbers with increased gap spacing
+    for (let i = 1; i <= totalPages; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}" style="margin: 0 5px;">
+                <a class="page-link" href="#" data-page="${i}">${i}</a>
+            </li>
+        `;
+    }
+
+    paginationHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage + 1}" aria-label="Next">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+
+    paginationContainer.innerHTML = paginationHTML;
+
+    // Add row count display
+    const rowCountDisplay = document.getElementById('rowCountDisplay');
+    rowCountDisplay.innerHTML = `Showing requests ${startItem} to ${endItem} out of ${totalItems} requests`;
+
+    // Add event listeners to pagination buttons
+    paginationContainer.querySelectorAll('.page-link').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newPage = parseInt(e.target.closest('.page-link').dataset.page);
+            if (!isNaN(newPage) && newPage !== currentPage) {
+                fetchApprovedRequestsData(newPage);
+            }
+        });
+    });
 }
 
 // Add event listener for view all history button
 document.getElementById('viewAllHistoryBtn').addEventListener('click', () => {
-    displayApprovedRequestsTable(allHistoryData, 'modalHistoryTableBody');
     const modalElement = document.getElementById('viewAllHistoryModal');
     const modal = new bootstrap.Modal(modalElement);
+    modalElement.addEventListener('shown.bs.modal', function () {
+        document.getElementById('modalHistoryTableBody').classList.add('active');
+        fetchApprovedRequestsData(1);
+    });
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('modalHistoryTableBody').classList.remove('active');
+        fetchApprovedRequestsData(1); // Refresh main table
+    });
     modal.show();
 });
 
@@ -81,20 +191,16 @@ function displayApprovedRequestsTable(requests, containerId) {
     const tableBody = document.getElementById(containerId);
     tableBody.innerHTML = '';
 
-    // Filter requests
-    const filteredRequests = requests.filter(request =>
-        request.status === 'cancelled' || request.status === 'returned');
-
     // Sort by batch_id
-    filteredRequests.sort((a, b) =>
-        (a.batch_id || '').toString().localeCompare((b.batch_id || '').toString()));
+    requests.sort((a, b) =>
+        (b.batch_id || '').toString().localeCompare((a.batch_id || '').toString()));
 
     // Tracking variables for batch merging
     let currentBatchId = null;
     let rowspanCount = 0;
     let firstRowOfBatch = null;
 
-    filteredRequests.forEach((request, index) => {
+    requests.forEach((request, index) => {
         const row = document.createElement('tr');
 
         // Start with requisitioner cell
@@ -110,19 +216,16 @@ function displayApprovedRequestsTable(requests, containerId) {
 
         // Handle batch_id cell merging
         if (request.batch_id !== currentBatchId) {
-            // Set rowspan for previous batch if exists
             if (firstRowOfBatch && rowspanCount > 1) {
                 const batchCell = firstRowOfBatch.cells[1];
                 batchCell.rowSpan = rowspanCount;
                 batchCell.className = "merged-cell align-middle text-center align-items-center";
             }
 
-            // Start new batch
             currentBatchId = request.batch_id;
             rowspanCount = 1;
             firstRowOfBatch = row;
 
-            // Add batch_id cell only for first row of batch
             rowContent += `
               <td class="merged-cell align-middle text-center align-items-center">
                 <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
@@ -137,7 +240,6 @@ function displayApprovedRequestsTable(requests, containerId) {
                 ? 'badge badge-sm bg-gradient-secondary'
                 : 'badge badge-sm bg-gradient-success';
 
-        // Add remaining cells
         rowContent += `
             <td>
               <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
@@ -163,7 +265,6 @@ function displayApprovedRequestsTable(requests, containerId) {
         tableBody.appendChild(row);
     });
 
-    // Handle rowspan for last batch
     if (firstRowOfBatch && rowspanCount > 1) {
         const batchCell = firstRowOfBatch.cells[1];
         batchCell.rowSpan = rowspanCount;
@@ -197,7 +298,122 @@ document.head.appendChild(style);
 fetchApprovedRequestsData();
 
 
+async function fetchReceipts(page = 1) {
+    const invoiceList = document.getElementById('invoiceList');
+    const modalInvoiceList = document.getElementById('allInvoiceList');
+    const currentList = modalInvoiceList.closest('.modal').classList.contains('show') ? modalInvoiceList : invoiceList;
+    const errorMessage = document.getElementById('errorMessage');
+
+    currentList.innerHTML = `
+        <li class="list-group-item text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </li>
+    `;
+
+    try {
+        const response = await fetch(`/admin/get-receipts?page=${page}&limit=10`);
+        const data = await response.json();
+
+        if (data.successful && Array.isArray(data.requestHistory)) {
+            currentList.innerHTML = '';
+            data.requestHistory.forEach(item => {
+                const listItem = createInvoiceListItem(item);
+                currentList.appendChild(listItem);
+            });
+
+            if (currentList === modalInvoiceList) {
+                updateReceiptsPagination(data.pagination);
+            } else {
+                // Show only first 5 items in main view
+                Array.from(currentList.children)
+                    .slice(5)
+                    .forEach(item => item.remove());
+            }
+        } else {
+            throw new Error(data.message || 'Failed to fetch receipts');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        currentList.innerHTML = `
+            <li class="list-group-item text-center text-muted">
+                ${error.message || 'An unexpected error occurred.'}
+            </li>
+        `;
+        if (errorMessage) {
+            errorMessage.textContent = error.message || 'Failed to fetch invoices.';
+            errorMessage.style.display = 'block';
+        }
+    }
+}
+
+function updateReceiptsPagination(pagination) {
+    const paginationContainer = document.getElementById('receiptsPagination');
+    const { currentPage, totalPages, totalItems, itemsPerPage } = pagination;
+    const startItem = ((currentPage - 1) * itemsPerPage) + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+    let paginationHTML = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage - 1}" aria-label="Previous">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+
+    for (let i = 1; i <= totalPages; i++) {
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}" style="margin: 0 5px;">
+                <a class="page-link" href="#" data-page="${i}">${i}</a>
+            </li>
+        `;
+    }
+
+    paginationHTML += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" data-page="${currentPage + 1}" aria-label="Next">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+
+    paginationContainer.innerHTML = paginationHTML;
+
+    // Update row count display
+    const rowCountDisplay = document.getElementById('receiptsRowCountDisplay');
+    rowCountDisplay.innerHTML = `Showing receipts ${startItem} to ${endItem} out of ${totalItems} receipts`;
+
+    // Add event listeners
+    paginationContainer.querySelectorAll('.page-link').forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newPage = parseInt(e.target.closest('.page-link').dataset.page);
+            if (!isNaN(newPage) && newPage !== currentPage) {
+                fetchReceipts(newPage);
+            }
+        });
+    });
+}
+
+// Modified event listener for view all button
+document.getElementById('viewAllBtn').addEventListener('click', () => {
+    const modalElement = document.getElementById('viewAllModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modalElement.addEventListener('shown.bs.modal', function () {
+        document.getElementById('allInvoiceList').classList.add('active');
+        fetchReceipts(1);
+    });
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('allInvoiceList').classList.remove('active');
+        fetchReceipts(1); // Refresh main list
+    });
+    modal.show();
+});
+
+// Initial load
 document.addEventListener('DOMContentLoaded', () => {
+    fetchReceipts(1);
     const invoiceList = document.getElementById('invoiceList');
     const allInvoiceList = document.getElementById('allInvoiceList');
     const maxItems = 5;
@@ -257,80 +473,73 @@ document.addEventListener('DOMContentLoaded', () => {
           </li>
         `;
         });
-
-    // Function to create a list item
-    function createInvoiceListItem(item) {
-        const li = document.createElement('li');
-        li.className = 'list-group-item border-0 d-flex justify-content-between ps-0 mb-2 border-radius-lg';
-
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'd-flex flex-column';
-
-        // Name (First Name + Last Name)
-        const nameH6 = document.createElement('h6');
-        nameH6.className = 'mb-1 text-dark font-weight-bold text-sm';
-        nameH6.textContent = `${item.first_name} ${item.last_name}`;
-        infoDiv.appendChild(nameH6);
-
-        // Batch ID
-        const idSpan = document.createElement('span');
-        idSpan.className = 'text-xs';
-        idSpan.textContent = `Batch #${item.batch_id}`;
-        infoDiv.appendChild(idSpan);
-
-        // Email and PDF Buttons Column
-        const emailAndPdfDiv = document.createElement('div');
-        emailAndPdfDiv.className = 'd-flex align-items-center text-sm';
-
-        // Email
-        const emailSpan = document.createElement('span');
-        emailSpan.textContent = item.email;
-        emailAndPdfDiv.appendChild(emailSpan);
-
-        // Request Form PDF Button
-        const requestPdfButton = document.createElement('button');
-        requestPdfButton.className = 'btn btn-link text-dark text-sm mb-0 px-0 ms-4';
-        requestPdfButton.innerHTML = '<i class="fas fa-file-pdf text-lg me-1"></i> Request Form';
-        requestPdfButton.addEventListener('click', () => {
-            downloadPDF(item.form_receipt, `RequestForm-${item.batch_id}.pdf`);
-        });
-        emailAndPdfDiv.appendChild(requestPdfButton);
-
-        // Approved Receipt PDF Button (if available)
-        if (item.approved_receipt) {
-            const approvedPdfButton = document.createElement('button');
-            approvedPdfButton.className = 'btn btn-link text-danger text-sm mb-0 px-0 ms-4';
-            approvedPdfButton.innerHTML = '<i class="fas fa-file-pdf text-lg me-1"></i> Approved Form';
-            approvedPdfButton.addEventListener('click', () => {
-                downloadPDF(item.approved_receipt, `ApprovedForm-${item.batch_id}.pdf`);
-            });
-            emailAndPdfDiv.appendChild(approvedPdfButton);
-        }
-
-        li.appendChild(infoDiv);
-        li.appendChild(emailAndPdfDiv);
-
-        return li;
-    }
-
-    // Function to download PDF
-    function downloadPDF(base64Data, fileName) {
-        try {
-            const link = document.createElement('a');
-            link.href = `data:application/pdf;base64,${base64Data}`;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (error) {
-            console.error('Download failed:', error);
-        }
-    }
-
-    // Event listener for 'View All' button
-    document.getElementById('viewAllBtn').addEventListener('click', () => {
-        const modalElement = document.getElementById('viewAllModal');
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
-    });
 });
+
+// Function to create a list item
+function createInvoiceListItem(item) {
+    const li = document.createElement('li');
+    li.className = 'list-group-item border-0 d-flex justify-content-between ps-0 mb-2 border-radius-lg';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'd-flex flex-column';
+
+    // Name (First Name + Last Name)
+    const nameH6 = document.createElement('h6');
+    nameH6.className = 'mb-1 text-dark font-weight-bold text-sm';
+    nameH6.textContent = `${item.first_name} ${item.last_name}`;
+    infoDiv.appendChild(nameH6);
+
+    // Batch ID
+    const idSpan = document.createElement('span');
+    idSpan.className = 'text-xs';
+    idSpan.textContent = `Batch #${item.batch_id}`;
+    infoDiv.appendChild(idSpan);
+
+    // Email and PDF Buttons Column
+    const emailAndPdfDiv = document.createElement('div');
+    emailAndPdfDiv.className = 'd-flex align-items-center text-sm';
+
+    // Email
+    const emailSpan = document.createElement('span');
+    emailSpan.textContent = item.email;
+    emailAndPdfDiv.appendChild(emailSpan);
+
+    // Request Form PDF Button
+    const requestPdfButton = document.createElement('button');
+    requestPdfButton.className = 'btn btn-link text-dark text-sm mb-0 px-0 ms-4';
+    requestPdfButton.innerHTML = '<i class="fas fa-file-pdf text-lg me-1"></i> Request Form';
+    requestPdfButton.addEventListener('click', () => {
+        downloadPDF(item.form_receipt, `RequestForm-${item.batch_id}.pdf`);
+    });
+    emailAndPdfDiv.appendChild(requestPdfButton);
+
+    // Approved Receipt PDF Button (if available)
+    if (item.approved_receipt) {
+        const approvedPdfButton = document.createElement('button');
+        approvedPdfButton.className = 'btn btn-link text-danger text-sm mb-0 px-0 ms-4';
+        approvedPdfButton.innerHTML = '<i class="fas fa-file-pdf text-lg me-1"></i> Approved Form';
+        approvedPdfButton.addEventListener('click', () => {
+            downloadPDF(item.approved_receipt, `ApprovedForm-${item.batch_id}.pdf`);
+        });
+        emailAndPdfDiv.appendChild(approvedPdfButton);
+    }
+
+    li.appendChild(infoDiv);
+    li.appendChild(emailAndPdfDiv);
+
+    return li;
+}
+
+// Function to download PDF
+function downloadPDF(base64Data, fileName) {
+    try {
+        const link = document.createElement('a');
+        link.href = `data:application/pdf;base64,${base64Data}`;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (error) {
+        console.error('Download failed:', error);
+    }
+}

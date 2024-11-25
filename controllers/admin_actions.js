@@ -549,60 +549,112 @@ const getadminEquipment = async (req, res) => {
 };
 
 const getAllHistory = async (req, res) => {
-    // Query to get all history with category names
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Modified query to only get cancelled and returned requests
     const query = `
-      SELECT admin_log.*, equipment_categories.category_name 
-      FROM admin_log 
-      JOIN equipment_categories 
-      ON admin_log.equipment_category_id = equipment_categories.category_id
+        SELECT admin_log.*, equipment_categories.category_name 
+        FROM admin_log 
+        JOIN equipment_categories 
+        ON admin_log.equipment_category_id = equipment_categories.category_id
+        WHERE admin_log.status IN ('cancelled', 'returned')
+        ORDER BY admin_log.status_updated_at DESC
+        LIMIT $1 OFFSET $2
     `;
 
-    const countApprovedQuery = `
-      SELECT COUNT(*) AS approved_count 
-      FROM admin_log 
-      WHERE status = 'approved'
-    `;
-
-    const countOngoingQuery = `
-      SELECT COUNT(*) AS ongoing_count 
-      FROM admin_log 
-      WHERE status = 'ongoing'
-    `;
-
-    const countTotalQuery = `
-      SELECT COUNT(*) AS total_count 
-      FROM admin_log
+    const countQuery = `
+        SELECT 
+            COUNT(*) FILTER (WHERE status IN ('cancelled', 'returned')) AS total_count,
+            COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled_count,
+            COUNT(*) FILTER (WHERE status = 'returned') AS returned_count
+        FROM admin_log
     `;
 
     try {
-        console.log('Executing query:', query);
-        const historyResult = await db.query(query);
+        const [historyResult, countResult] = await Promise.all([
+            db.query(query, [limit, offset]),
+            db.query(countQuery)
+        ]);
+
         const rows = historyResult.rows;
-
-        console.log('Executing count query:', countApprovedQuery);
-        const approvedResult = await db.query(countApprovedQuery);
-        const approvedCount = approvedResult.rows[0].approved_count;
-
-        console.log('Executing count query:', countOngoingQuery);
-        const ongoingResult = await db.query(countOngoingQuery);
-        const ongoingCount = ongoingResult.rows[0].ongoing_count;
-
-        console.log('Executing count query:', countTotalQuery);
-        const totalResult = await db.query(countTotalQuery);
-        const totalCount = totalResult.rows[0].total_count;
+        const counts = countResult.rows[0];
+        const totalPages = Math.ceil(counts.total_count / limit);
 
         return res.status(200).json({
             successful: true,
             history: rows,
-            approvedCount: approvedCount,
-            ongoingCount: ongoingCount,
-            totalCount: totalCount
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalItems: parseInt(counts.total_count),
+                itemsPerPage: limit
+            },
+            cancelledCount: parseInt(counts.cancelled_count),
+            returnedCount: parseInt(counts.returned_count),
+            totalCount: parseInt(counts.total_count)
         });
     } catch (error) {
-        console.error('Error retrieving borrowing history:', error);
+        console.error('Error retrieving history:', error);
         return res.status(500).json({
             successful: false,
-            message: 'Failed to retrieve borrowing history.'
+            message: 'Failed to retrieve history.'
+        });
+    }
+};
+
+const getActiveRequests = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const query = `
+        SELECT admin_log.*, equipment_categories.category_name 
+        FROM admin_log 
+        JOIN equipment_categories 
+        ON admin_log.equipment_category_id = equipment_categories.category_id
+        WHERE admin_log.status IN ('approved', 'ongoing')
+        ORDER BY admin_log.status_updated_at DESC
+        LIMIT $1 OFFSET $2
+    `;
+
+    const countQuery = `
+        SELECT 
+            COUNT(*) FILTER (WHERE status IN ('approved', 'ongoing')) AS total_count,
+            COUNT(*) FILTER (WHERE status = 'approved') AS approved_count,
+            COUNT(*) FILTER (WHERE status = 'ongoing') AS ongoing_count
+        FROM admin_log
+    `;
+
+    try {
+        const [requestsResult, countResult] = await Promise.all([
+            db.query(query, [limit, offset]),
+            db.query(countQuery)
+        ]);
+
+        const rows = requestsResult.rows;
+        const counts = countResult.rows[0];
+        const totalPages = Math.ceil(counts.total_count / limit);
+
+        return res.status(200).json({
+            successful: true,
+            history: rows,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalItems: parseInt(counts.total_count),
+                itemsPerPage: limit
+            },
+            approvedCount: parseInt(counts.approved_count),
+            ongoingCount: parseInt(counts.ongoing_count),
+            totalCount: parseInt(counts.total_count)
+        });
+    } catch (error) {
+        console.error('Error retrieving active requests:', error);
+        return res.status(500).json({
+            successful: false,
+            message: 'Failed to retrieve active requests.'
         });
     }
 };
@@ -707,6 +759,10 @@ const verifyToken = (req, res) => {
 };
 
 const getReceipts = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
     const query = `
       WITH LatestAdminLog AS (
         SELECT 
@@ -734,14 +790,27 @@ const getReceipts = async (req, res) => {
         requisitioner_form_receipt,
         approved_requests_receipt
       FROM LatestAdminLog
-      WHERE rn = 1;
+      WHERE rn = 1
+      ORDER BY batch_id DESC
+      LIMIT $1 OFFSET $2;
+    `;
+
+    const countQuery = `
+      SELECT COUNT(DISTINCT batch_id) as total_count
+      FROM request_history;
     `;
 
     try {
-        console.log('Executing query:', query);
-        const { rows } = await db.query(query);
+        const [receiptsResult, countResult] = await Promise.all([
+            db.query(query, [limit, offset]),
+            db.query(countQuery)
+        ]);
 
-        // Convert BYTEA data (buffers) to Base64 strings
+        const rows = receiptsResult.rows;
+        const totalItems = parseInt(countResult.rows[0].total_count);
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Convert BYTEA data to Base64 strings
         const requestHistory = rows.map(row => ({
             batch_id: row.batch_id,
             first_name: row.first_name,
@@ -758,7 +827,13 @@ const getReceipts = async (req, res) => {
 
         return res.status(200).json({
             successful: true,
-            requestHistory: requestHistory
+            requestHistory: requestHistory,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalItems: totalItems,
+                itemsPerPage: limit
+            }
         });
     } catch (error) {
         console.error('Error retrieving request history:', error);
@@ -1073,6 +1148,7 @@ module.exports = {
     logout,
     getadminEquipment,
     getAllHistory,
+    getActiveRequests,
     getAllBorrowingRequests,
     authenticateToken,
     verifyToken,
