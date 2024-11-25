@@ -5,43 +5,79 @@ document.addEventListener('DOMContentLoaded', async function () {
     const currentMonthYear = document.getElementById('currentMonthYear');
     let currentDate = new Date();
     let fetchedEvents = {}; // Store fetched events
+    let isShowingActiveOnly = false; // New state variable
+    let activeEvents = {}; // Store active events separately
+
+    // Remove toggle creation code and add event listener to existing HTML toggle
+    document.getElementById('activeToggle').addEventListener('change', async function(e) {
+        isShowingActiveOnly = e.target.checked;
+        await fetchEvents();
+        renderCalendar();
+    });
 
     // Modify the fetchEvents function
     async function fetchEvents() {
         try {
-            const response = await fetch('/admin/get-all-history');
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
+            if (!isShowingActiveOnly) {
+                // Fetch both active and all history
+                const [allResponse, activeResponse] = await Promise.all([
+                    fetch('/admin/get-all-history'),
+                    fetch('/admin/get-active-requests')
+                ]);
 
-            if (data.successful && Array.isArray(data.history)) {
+                const [allData, activeData] = await Promise.all([
+                    allResponse.json(),
+                    activeResponse.json()
+                ]);
+
+                // Process all history
                 fetchedEvents = {};
-                data.history.forEach(event => {
-                    // Create date object and adjust for timezone
-                    const eventDate = new Date(event.requested);
-                    // Convert to local date string YYYY-MM-DD
-                    const dateKey = eventDate.toLocaleDateString('en-CA'); // Uses YYYY-MM-DD format
+                if (allData.successful && Array.isArray(allData.history)) {
+                    processEvents(allData.history, fetchedEvents);
+                }
 
-                    if (!fetchedEvents[dateKey]) {
-                        fetchedEvents[dateKey] = [];
-                    }
-                    fetchedEvents[dateKey].push({
-                        equipmentCategoryId: event.equipment_category_id,
-                        categoryName: event.category_name,
-                        requestId: event.request_id,
-                        firstName: event.first_name,
-                        lastName: event.last_name,
-                        department: event.department,
-                        natureOfService: event.nature_of_service,
-                        purpose: event.purpose,
-                        venue: event.venue,
-                        quantityRequested: event.quantity_requested,
-                        status: event.status
-                    });
-                });
+                // Store active events separately
+                activeEvents = {};
+                if (activeData.successful && Array.isArray(activeData.history)) {
+                    processEvents(activeData.history, activeEvents);
+                }
+            } else {
+                // Fetch only active requests
+                const response = await fetch('/admin/get-active-requests');
+                const data = await response.json();
+                fetchedEvents = {};
+                if (data.successful && Array.isArray(data.history)) {
+                    processEvents(data.history, fetchedEvents);
+                }
             }
         } catch (error) {
             console.error('Error fetching events:', error);
         }
+    }
+
+    // Helper function to process events
+    function processEvents(events, storage) {
+        events.forEach(event => {
+            const eventDate = new Date(event.requested);
+            const dateKey = eventDate.toLocaleDateString('en-CA');
+            
+            if (!storage[dateKey]) {
+                storage[dateKey] = [];
+            }
+            storage[dateKey].push({
+                equipmentCategoryId: event.equipment_category_id,
+                categoryName: event.category_name,
+                requestId: event.request_id,
+                firstName: event.first_name,
+                lastName: event.last_name,
+                department: event.department,
+                natureOfService: event.nature_of_service,
+                purpose: event.purpose,
+                venue: event.venue,
+                quantityRequested: event.quantity_requested,
+                status: event.status
+            });
+        });
     }
 
     // Modify the renderCalendar function
@@ -78,13 +114,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
             // Highlight the day based on event statuses
             if (fetchedEvents[dateKey] && fetchedEvents[dateKey].length > 0) {
-                const allCancelled = fetchedEvents[dateKey].every(event => 
-                    ['returned', 'cancelled'].includes(event.status.toLowerCase())
-                );
-                if (allCancelled) {
-                    dayDiv.classList.add('has-event', 'all-cancelled');
-                } else {
+                const events = fetchedEvents[dateKey];
+                const hasActiveEvents = isShowingActiveOnly || 
+                    (activeEvents[dateKey] && activeEvents[dateKey].length > 0);
+                
+                if (hasActiveEvents) {
                     dayDiv.classList.add('has-event', 'active-events');
+                } else {
+                    const allCancelled = events.every(event => 
+                        ['returned', 'cancelled'].includes(event.status.toLowerCase())
+                    );
+                    if (allCancelled) {
+                        dayDiv.classList.add('has-event', 'all-cancelled');
+                    } else {
+                        dayDiv.classList.add('has-event', 'active-events');
+                    }
                 }
                 dayDiv.style.cursor = 'pointer';
                 dayDiv.addEventListener('click', () => openModal(dateKey));
