@@ -487,7 +487,15 @@ const insertFormDataIntoDatabase = async (formData, pdfBase64) => {
 };
 
 const getEquipmentCategories = async (req, res) => {
-  const query = 'SELECT * FROM equipment_categories';
+  const query = `
+    SELECT 
+      category_id,
+      category_name,
+      quantity_available
+    FROM equipment_categories
+    ORDER BY category_name
+  `;
+  
   try {
     console.log('Executing query:', query);
     const { rows } = await db.query(query);

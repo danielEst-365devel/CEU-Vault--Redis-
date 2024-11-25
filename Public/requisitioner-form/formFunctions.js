@@ -34,6 +34,59 @@ const utils = {
   }
 };
 
+// Add this function after the existing utility functions
+async function populateEquipmentDropdowns() {
+  try {
+    const response = await fetch('/equipments/get-equipments');
+    const data = await response.json();
+    
+    if (data.successful) {
+      const equipmentSelects = document.querySelectorAll('select[name="equipment-select"]');
+      
+      // Sort equipment categories by ID
+      const sortedCategories = data.equipmentCategories.sort((a, b) => a.category_id - b.category_id);
+      
+      const options = sortedCategories.map(category => 
+        `<option value="${category.category_name}" 
+         ${category.quantity_available === 0 ? 'disabled' : ''}
+         data-quantity="${category.quantity_available}">
+           ${category.category_name} (${category.quantity_available} available)
+         </option>`
+      ).join('');
+      
+      equipmentSelects.forEach(select => {
+        select.innerHTML = `
+          <option value="" selected>Select an option</option>
+          ${options}
+        `;
+
+        // Update event listener to use quantity_available
+        select.addEventListener('change', function() {
+          const selectedOption = this.options[this.selectedIndex];
+          const availableQuantity = parseInt(selectedOption.dataset.quantity) || 0;
+          const quantityInput = this.closest('.row, #inputs-container').querySelector('input[name="quantity"]');
+          
+          if (quantityInput) {
+            // Set max to either available quantity or 3, whichever is smaller
+            const maxQuantity = Math.min(availableQuantity, 3);
+            quantityInput.max = maxQuantity;
+            
+            // If current value is higher than new max, adjust it
+            if (parseInt(quantityInput.value) > maxQuantity) {
+              quantityInput.value = maxQuantity;
+              showToast(`Maximum quantity available is ${maxQuantity}`);
+            }
+          }
+        });
+      });
+    } else {
+      console.error('Failed to fetch equipment categories');
+    }
+  } catch (error) {
+    console.error('Error fetching equipment categories:', error);
+  }
+}
+
 // Validation rules
 const validators = {
   names: value => /^[A-Za-z\s'-]{2,50}$/.test(value),
@@ -75,9 +128,10 @@ function initForm() {
   setupValidation();
   setupEquipmentHandling();
   setupDateTimeRestrictions();
-  setupDateTimeValidation(); // Add this line
-  setupQuantityValidation(); // Add this line
+  setupDateTimeValidation(); 
+  setupQuantityValidation(); 
   initScrollSpy();
+  populateEquipmentDropdowns();
   
   // Add form submit handler
   const form = document.getElementById('main-form');
@@ -140,7 +194,6 @@ function setupValidation() {
     }
   });
 
-  // Setup datetime validation for all equipment sections
   setupDateTimeValidation();
 }
 
@@ -174,21 +227,57 @@ function setupEquipmentHandling() {
 function createEquipmentSection() {
   const section = document.createElement('div');
   section.className = 'equipment-section';
-  const container = document.getElementById('inputs-container').cloneNode(true);
   
+  // Get the original container and its select element
+  const originalContainer = document.getElementById('inputs-container');
+  const originalSelect = originalContainer.querySelector('select[name="equipment-select"]');
+  
+  // Clone the container
+  const container = originalContainer.cloneNode(true);
+  
+  // Get the new select element
+  const newSelect = container.querySelector('select[name="equipment-select"]');
+  
+  // Copy options from original select to maintain the populated data
+  while (newSelect.firstChild) {
+    newSelect.removeChild(newSelect.firstChild);
+  }
+  originalSelect.childNodes.forEach(node => {
+    newSelect.appendChild(node.cloneNode(true));
+  });
+
+  // Add header and container to section
   section.innerHTML = '<div class="section-header"><span class="section-title">Additional Equipment Request</span></div>';
   section.appendChild(container);
 
+  // Add remove button
   const removeBtn = document.createElement('button');
   removeBtn.textContent = 'Remove Equipment';
   removeBtn.className = 'form-control remove-button';
   removeBtn.onclick = () => {
     section.remove();
-    updateScrollSpy(); // Update scroll spy when removing section
+    updateScrollSpy();
   };
   section.appendChild(removeBtn);
 
-  updateScrollSpy(); // Update scroll spy when adding section
+  // Add change event listener for the new select
+  newSelect.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const availableQuantity = parseInt(selectedOption.dataset.quantity) || 0;
+    const quantityInput = this.closest('.row, #inputs-container').querySelector('input[name="quantity"]');
+    
+    if (quantityInput) {
+      const maxQuantity = Math.min(availableQuantity, 3);
+      quantityInput.max = maxQuantity;
+      
+      if (parseInt(quantityInput.value) > maxQuantity) {
+        quantityInput.value = maxQuantity;
+        showToast(`Maximum quantity available is ${maxQuantity}`);
+      }
+    }
+  });
+
+  updateScrollSpy();
   return section;
 }
 
