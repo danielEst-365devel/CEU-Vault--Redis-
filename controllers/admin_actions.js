@@ -549,58 +549,108 @@ const getadminEquipment = async (req, res) => {
 };
 
 const getAllHistory = async (req, res) => {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
-    // Modified query to only get cancelled and returned requests
-    const query = `
-        SELECT admin_log.*, equipment_categories.category_name 
-        FROM admin_log 
-        JOIN equipment_categories 
-        ON admin_log.equipment_category_id = equipment_categories.category_id
-        WHERE admin_log.status IN ('cancelled', 'returned')
-        ORDER BY admin_log.status_updated_at DESC
-        LIMIT $1 OFFSET $2
-    `;
-
-    const countQuery = `
-        SELECT 
-            COUNT(*) FILTER (WHERE status IN ('cancelled', 'returned')) AS total_count,
-            COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled_count,
-            COUNT(*) FILTER (WHERE status = 'returned') AS returned_count
-        FROM admin_log
-    `;
-
+    const client = await db.connect();
+    
     try {
+        await client.query('BEGIN');
+        
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+        const search = req.query.search || '';
+        const searchMode = req.query.searchMode || 'general';
+        const dateFilter = req.query.dateFilter; // New date filter parameter
+
+        const queryParams = [];
+        let whereConditions = ["admin_log.status IN ('cancelled', 'returned')"];
+
+        // Add search conditions
+        if (search) {
+            if (searchMode === 'batch') {
+                whereConditions.push(`CAST(batch_id AS TEXT) ILIKE $${queryParams.length + 1}`);
+                queryParams.push(`%${search}%`);
+            } else {
+                whereConditions.push(`(
+                    LOWER(first_name) ILIKE $${queryParams.length + 1} OR
+                    LOWER(last_name) ILIKE $${queryParams.length + 1} OR
+                    LOWER(email) ILIKE $${queryParams.length + 1}
+                )`);
+                queryParams.push(`%${search.toLowerCase()}%`);
+            }
+        }
+
+        // Add date filter conditions
+        if (dateFilter) {
+            if (dateFilter.startsWith('month:')) {
+                const [year, month] = dateFilter.substring(6).split('-').map(Number);
+                whereConditions.push(`
+                    EXTRACT(YEAR FROM requested) = $${queryParams.length + 1} AND 
+                    EXTRACT(MONTH FROM requested) = $${queryParams.length + 2}
+                `);
+                queryParams.push(year, month);
+            } else {
+                whereConditions.push(`DATE(requested) = $${queryParams.length + 1}`);
+                queryParams.push(dateFilter);
+            }
+        }
+
+        const whereClause = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+
+        // Main query
+        const mainQuery = `
+            SELECT 
+                admin_log.*, 
+                equipment_categories.category_name 
+            FROM admin_log 
+            LEFT JOIN equipment_categories 
+                ON admin_log.equipment_category_id = equipment_categories.category_id
+            ${whereClause}
+            ORDER BY admin_log.status_updated_at DESC
+            LIMIT $${queryParams.length + 1} 
+            OFFSET $${queryParams.length + 2}
+        `;
+
+        // Count query
+        const countQuery = `
+            SELECT COUNT(*) as total_count
+            FROM admin_log 
+            ${whereClause}
+        `;
+
+        // Add limit and offset to main query params
+        const mainQueryParams = [...queryParams, limit, offset];
+        
         const [historyResult, countResult] = await Promise.all([
-            db.query(query, [limit, offset]),
-            db.query(countQuery)
+            client.query(mainQuery, mainQueryParams),
+            client.query(countQuery, queryParams)
         ]);
 
-        const rows = historyResult.rows;
-        const counts = countResult.rows[0];
-        const totalPages = Math.ceil(counts.total_count / limit);
+        await client.query('COMMIT');
+
+        const totalItems = parseInt(countResult.rows[0].total_count);
+        const totalPages = Math.ceil(totalItems / limit);
 
         return res.status(200).json({
             successful: true,
-            history: rows,
+            history: historyResult.rows,
             pagination: {
                 currentPage: page,
                 totalPages: totalPages,
-                totalItems: parseInt(counts.total_count),
+                totalItems: totalItems,
                 itemsPerPage: limit
-            },
-            cancelledCount: parseInt(counts.cancelled_count),
-            returnedCount: parseInt(counts.returned_count),
-            totalCount: parseInt(counts.total_count)
+            }
         });
+
     } catch (error) {
-        console.error('Error retrieving history:', error);
+        await client.query('ROLLBACK');
+        console.error('Database error in getAllHistory:', error);
         return res.status(500).json({
             successful: false,
-            message: 'Failed to retrieve history.'
+            message: 'Database error while retrieving history.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    } finally {
+        client.release();
     }
 };
 

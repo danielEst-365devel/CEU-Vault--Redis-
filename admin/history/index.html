@@ -38,6 +38,29 @@
         color: #67748e;
     }
   </style>
+
+    <style>
+    
+    .date-filter-container {
+      background: #f8f9fa;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+    }
+    
+    .form-select, .form-control {
+      border: 1px solid #dee2e6;
+      box-shadow: none;
+    }
+    
+    .form-select:focus, .form-control:focus {
+      border-color: #cb0c9f;
+      box-shadow: 0 0 0 0.2rem rgba(203, 12, 159, 0.25);
+    }
+    
+    .input-group {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+  </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -356,6 +379,41 @@
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+              <div class="row mb-4">
+                <!-- Search Column -->
+                <div class="col-md-6">
+                  <div class="input-group mb-2">
+                    <span class="input-group-text">
+                      <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" 
+                           id="historySearchInput" 
+                           class="form-control" 
+                           placeholder="Search by name or email..."
+                           aria-label="Search history">
+                  </div>
+                  <div class="form-check form-switch ms-2">
+                    <input class="form-check-input" type="checkbox" id="batchSearchToggle">
+                    <label class="form-check-label" for="batchSearchToggle">Search by Batch ID</label>
+                  </div>
+                </div>
+                
+                <!-- Date Filter Column -->
+                <div class="col-md-6">
+                  <div class="date-filter-container">
+                    <div class="d-flex align-items-center gap-2">
+                      <select class="form-select" id="dateFilterType" style="width: 140px;">
+                        <option value="none">No Date Filter</option>
+                        <option value="date">Specific Date</option>
+                        <option value="month">Month & Year</option>
+                      </select>
+                      <input type="date" id="dateFilter" class="form-control" style="display: none;">
+                      <input type="month" id="monthFilter" class="form-control" style="display: none;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="table-responsive">
                 <table class="table align-items-center justify-content-center mb-0">
                   <thead>

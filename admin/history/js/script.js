@@ -34,50 +34,166 @@ function formatTime(timeString) {
 
 let currentPage = 1;
 let allHistoryData = []; // Store all history data
+let currentSearch = '';
+let searchTimeout = null;
+let currentDateFilter = '';
 
-// For the history page (cancelled and returned)
-async function fetchApprovedRequestsData(page = 1) {
+// Modified fetchApprovedRequestsData function
+async function fetchApprovedRequestsData(page = 1, search = '', searchMode = 'general') {
     const tableBody = document.getElementById('approvedRequestsTableBody');
     const modalTableBody = document.getElementById('modalHistoryTableBody');
-    const currentTableBody = modalTableBody.closest('.modal').classList.contains('show') ? modalTableBody : tableBody;
-
-    currentTableBody.innerHTML = `
-        <tr>
-            <td colspan="8" class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </td>
-        </tr>
-    `;
+    const currentTableBody = modalTableBody.closest('.modal')?.classList.contains('show') ? modalTableBody : tableBody;
 
     try {
-        const response = await fetch(`/admin/get-all-history?page=${page}&limit=10`);
+        currentTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: '10'
+        });
+
+        if (search) {
+            params.append('search', search);
+            params.append('searchMode', searchMode);
+        }
+
+        if (currentDateFilter) {
+            params.append('dateFilter', currentDateFilter);
+        }
+
+        const url = `/admin/get-all-history?${params}`;
+        console.log('Fetching from:', url);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            credentials: 'include'
+        });
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Server response:', errorText);
+            throw new Error(`Server error: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('Fetched data:', data); // Debug log
+        console.log('Received data:', data);
 
-        if (data.successful && data.history && data.history.length > 0) {
-            allHistoryData = data.history;
-            // Display first 5 rows in main table
-            if (currentTableBody === tableBody) {
-                displayApprovedRequestsTable(data.history.slice(0, 5), 'approvedRequestsTableBody');
-            } else {
-                // Display all rows in modal
-                displayApprovedRequestsTable(data.history, 'modalHistoryTableBody');
+        if (!data.successful) {
+            throw new Error(data.message || 'Failed to retrieve data');
+        }
+
+        if (!Array.isArray(data.history)) {
+            throw new Error('Invalid data format received');
+        }
+
+        allHistoryData = data.history;
+        if (currentTableBody === tableBody) {
+            displayApprovedRequestsTable(data.history.slice(0, 5), 'approvedRequestsTableBody');
+        } else {
+            displayApprovedRequestsTable(data.history, 'modalHistoryTableBody');
+            if (data.pagination) {
                 updatePaginationControls(data.pagination);
             }
-        } else {
-            currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No requests found...</td></tr>`;
         }
     } catch (error) {
-        console.error('Error fetching approved requests data:', error);
-        currentTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Error loading data...</td></tr>`;
+        console.error('Error details:', error);
+        currentTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-danger">
+                    Failed to load data: ${error.message}
+                </td>
+            </tr>
+        `;
     }
 }
+
+// Add event listener for search input
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('historySearchInput');
+    const batchSearchToggle = document.getElementById('batchSearchToggle');
+    
+    if (searchInput && batchSearchToggle) {
+        let searchTimeout;
+
+        function updateSearchPlaceholder() {
+            searchInput.placeholder = batchSearchToggle.checked ? 
+                "Enter batch ID..." : 
+                "Search by name or email...";
+        }
+
+        function performSearch() {
+            const searchValue = searchInput.value.trim();
+            const searchMode = batchSearchToggle.checked ? 'batch' : 'general';
+            fetchApprovedRequestsData(1, searchValue, searchMode);
+        }
+
+        batchSearchToggle.addEventListener('change', () => {
+            updateSearchPlaceholder();
+            performSearch();
+        });
+
+        searchInput.addEventListener('input', () => {
+            if (searchTimeout) {
+                clearTimeout(searchTimeout);
+            }
+            searchTimeout = setTimeout(performSearch, 300);
+        });
+
+        // Initialize placeholder
+        updateSearchPlaceholder();
+    }
+
+    const dateFilterType = document.getElementById('dateFilterType');
+    const dateFilter = document.getElementById('dateFilter');
+    const monthFilter = document.getElementById('monthFilter');
+
+    dateFilterType.addEventListener('change', function() {
+        dateFilter.style.display = 'none';
+        monthFilter.style.display = 'none';
+        currentDateFilter = '';
+
+        switch(this.value) {
+            case 'date':
+                dateFilter.style.display = 'block';
+                break;
+            case 'month':
+                monthFilter.style.display = 'block';
+                break;
+        }
+        
+        performSearch();
+    });
+
+    dateFilter.addEventListener('change', function() {
+        if (this.value) {
+            currentDateFilter = this.value;
+        } else {
+            currentDateFilter = '';
+        }
+        performSearch();
+    });
+
+    monthFilter.addEventListener('change', function() {
+        if (this.value) {
+            currentDateFilter = 'month:' + this.value;
+        } else {
+            currentDateFilter = '';
+        }
+        performSearch();
+    });
+});
 
 // For the requests page (approved and ongoing)
 async function fetchActiveRequestsData(page = 1) {
@@ -166,7 +282,7 @@ function updatePaginationControls(pagination) {
             e.preventDefault();
             const newPage = parseInt(e.target.closest('.page-link').dataset.page);
             if (!isNaN(newPage) && newPage !== currentPage) {
-                fetchApprovedRequestsData(newPage);
+                fetchApprovedRequestsData(newPage, currentSearch);
             }
         });
     });
