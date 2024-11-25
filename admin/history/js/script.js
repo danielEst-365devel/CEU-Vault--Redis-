@@ -38,6 +38,10 @@ let currentSearch = '';
 let searchTimeout = null;
 let currentDateFilter = '';
 
+// Add these variables at the top with other state variables
+let currentReceiptSearch = '';
+let receiptSearchTimeout = null;
+
 // Modified fetchApprovedRequestsData function
 async function fetchApprovedRequestsData(page = 1, search = '', searchMode = 'general') {
     const tableBody = document.getElementById('approvedRequestsTableBody');
@@ -193,6 +197,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         performSearch();
     });
+
+    const receiptSearchInput = document.getElementById('receiptSearchInput');
+    const receiptBatchSearchToggle = document.getElementById('receiptBatchSearchToggle');
+    
+    if (receiptSearchInput && receiptBatchSearchToggle) {
+        function updateReceiptSearchPlaceholder() {
+            receiptSearchInput.placeholder = receiptBatchSearchToggle.checked ? 
+                "Enter batch ID..." : 
+                "Search by name or email...";
+        }
+
+        function performReceiptSearch() {
+            const searchValue = receiptSearchInput.value.trim();
+            const searchMode = receiptBatchSearchToggle.checked ? 'batch' : 'general';
+            currentReceiptSearch = searchValue;
+            fetchReceipts(1, searchValue, searchMode);
+        }
+
+        receiptBatchSearchToggle.addEventListener('change', () => {
+            updateReceiptSearchPlaceholder();
+            performReceiptSearch();
+        });
+
+        receiptSearchInput.addEventListener('input', () => {
+            if (receiptSearchTimeout) {
+                clearTimeout(receiptSearchTimeout);
+            }
+            receiptSearchTimeout = setTimeout(performReceiptSearch, 300);
+        });
+
+        updateReceiptSearchPlaceholder();
+    }
 });
 
 // For the requests page (approved and ongoing)
@@ -414,22 +450,32 @@ document.head.appendChild(style);
 fetchApprovedRequestsData();
 
 
-async function fetchReceipts(page = 1) {
+async function fetchReceipts(page = 1, search = '', searchMode = 'general') {
     const invoiceList = document.getElementById('invoiceList');
     const modalInvoiceList = document.getElementById('allInvoiceList');
     const currentList = modalInvoiceList.closest('.modal').classList.contains('show') ? modalInvoiceList : invoiceList;
     const errorMessage = document.getElementById('errorMessage');
 
-    currentList.innerHTML = `
-        <li class="list-group-item text-center">
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </li>
-    `;
-
     try {
-        const response = await fetch(`/admin/get-receipts?page=${page}&limit=10`);
+        currentList.innerHTML = `
+            <li class="list-group-item text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </li>
+        `;
+
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: '10'
+        });
+
+        if (search) {
+            params.append('search', search);
+            params.append('searchMode', searchMode);
+        }
+
+        const response = await fetch(`/admin/get-receipts?${params}`);
         const data = await response.json();
 
         if (data.successful && Array.isArray(data.requestHistory)) {
@@ -442,7 +488,6 @@ async function fetchReceipts(page = 1) {
             if (currentList === modalInvoiceList) {
                 updateReceiptsPagination(data.pagination);
             } else {
-                // Show only first 5 items in main view
                 Array.from(currentList.children)
                     .slice(5)
                     .forEach(item => item.remove());

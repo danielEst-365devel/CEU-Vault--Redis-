@@ -812,6 +812,27 @@ const getReceipts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    const searchMode = req.query.searchMode || 'general';
+
+    let whereClause = 'WHERE rn = 1';
+    const queryParams = [limit, offset];
+    let paramCount = 3;
+
+    if (search) {
+        if (searchMode === 'batch') {
+            whereClause += ` AND CAST(batch_id AS TEXT) ILIKE $${paramCount}`;
+            queryParams.push(`%${search}%`);
+        } else {
+            whereClause += ` AND (
+                LOWER(first_name) ILIKE $${paramCount} OR
+                LOWER(last_name) ILIKE $${paramCount} OR
+                LOWER(email) ILIKE $${paramCount}
+            )`;
+            queryParams.push(`%${search.toLowerCase()}%`);
+        }
+        paramCount++;
+    }
 
     const query = `
       WITH LatestAdminLog AS (
@@ -831,16 +852,8 @@ const getReceipts = async (req, res) => {
         JOIN admin_log al 
           ON rh.batch_id = al.batch_id
       )
-      SELECT 
-        batch_id, 
-        first_name, 
-        last_name, 
-        email, 
-        time_borrowed, 
-        requisitioner_form_receipt,
-        approved_requests_receipt
-      FROM LatestAdminLog
-      WHERE rn = 1
+      SELECT * FROM LatestAdminLog
+      ${whereClause}
       ORDER BY batch_id DESC
       LIMIT $1 OFFSET $2;
     `;
@@ -852,7 +865,7 @@ const getReceipts = async (req, res) => {
 
     try {
         const [receiptsResult, countResult] = await Promise.all([
-            db.query(query, [limit, offset]),
+            db.query(query, queryParams),
             db.query(countQuery)
         ]);
 
