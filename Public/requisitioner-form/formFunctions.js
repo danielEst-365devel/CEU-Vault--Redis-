@@ -1,3 +1,23 @@
+// Toast notification function
+const showToast = (message) => {
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 5000,          // Increased from 2000 to 5000 ms (5 seconds)
+    timerProgressBar: true,
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer);
+      toast.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+  });
+
+  Toast.fire({
+    icon: 'warning',
+    title: message
+  });
+};
+
 // Utility functions
 const utils = {
   getCurrentDateTime() {
@@ -16,17 +36,31 @@ const utils = {
     const minDateTime = this.getCurrentDateTime();
     input.setAttribute('min', minDateTime);
     
+    // Add max date constraint (4 digit year)
+    const maxDate = new Date(9999, 11, 31, 23, 59); // Max date: 9999-12-31 23:59
+    input.setAttribute('max', maxDate.toISOString().slice(0,16));
+    
     input.addEventListener('focus', () => {
       input.setAttribute('min', this.getCurrentDateTime());
     });
     
-    input.addEventListener('keydown', e => e.preventDefault());
-    
-    // Add validation on change
+    // Validate input to prevent invalid years and past dates
     input.addEventListener('input', () => {
       const startDateTime = input.value;
-      const endTimeInput = input.closest('.row, #inputs-container').querySelector('input[name="endTime"]');
+      if (startDateTime) {
+        const selectedDate = new Date(startDateTime);
+        const minDate = new Date();
+        minDate.setHours(minDate.getHours() + 24); // Add 24 hours
+
+        // Check for past dates or invalid years
+        if (selectedDate < minDate || selectedDate.getFullYear() > 9999) {
+          input.value = ''; // Clear invalid input
+          showToast('Please select a future date (24h advance) with a valid year');
+          return;
+        }
+      }
       
+      const endTimeInput = input.closest('.row, #inputs-container').querySelector('input[name="endTime"]');
       if (endTimeInput && endTimeInput.value) {
         validateDateTime(input, endTimeInput);
       }
@@ -493,22 +527,57 @@ function validateDateTime(startInput, endInput) {
   const startTime = startInput.value;
   const endTime = endInput.value;
   
-  // Validate start time operating hours
-  if (startTime && !validators.operatingHours(new Date(startTime).toTimeString())) {
-    validateField(startInput, false, 'Start time must be between 6 AM and 5 PM');
-    return;
+  // Clear previous validations
+  validateField(startInput, true, '');
+  validateField(endInput, true, '');
+  
+  // Real-time validation for start time
+  if (startTime) {
+    const selectedDate = new Date(startTime);
+    const minDate = new Date();
+    minDate.setHours(minDate.getHours() + 24);
+    
+    if (selectedDate < minDate) {
+      validateField(startInput, false, 'Booking must be at least 24 hours in advance');
+      return;
+    }
+    
+    // Validate operating hours
+    if (!validators.operatingHours(selectedDate.toTimeString())) {
+      validateField(startInput, false, 'Start time must be between 6 AM and 5 PM');
+      return;
+    }
   }
   
-  // Validate end time operating hours
-  if (endTime && !validators.operatingHours(endTime)) {
-    validateField(endInput, false, 'Return time must be between 6 AM and 5 PM');
-    return;
+  // Real-time validation for end time
+  if (endTime) {
+    if (!validators.operatingHours(endTime)) {
+      validateField(endInput, false, 'Return time must be between 6 AM and 5 PM');
+      return;
+    }
+    
+    // Validate end time is after start time
+    if (startTime) {
+      const startDate = new Date(startTime);
+      const [endHours, endMinutes] = endTime.split(':');
+      const endDate = new Date(startDate);
+      endDate.setHours(parseInt(endHours), parseInt(endMinutes), 0);
+      
+      if (endDate <= startDate) {
+        validateField(endInput, false, 'Return time must be after start time');
+        return;
+      }
+    }
   }
   
-  // Validate overall datetime logic
-  const isValid = validators.datetime(startTime, endTime);
-  validateField(startInput, isValid, isValid ? '' : 'Invalid date/time selection (24h advance booking required and within operating hours 6 AM - 5 PM)');
-  validateField(endInput, isValid, isValid ? '' : 'Invalid return time');
+  // If both times are set, do final validation
+  if (startTime && endTime) {
+    const isValid = validators.datetime(startTime, endTime);
+    if (!isValid) {
+      validateField(startInput, false, 'Invalid date/time selection');
+      validateField(endInput, false, 'Invalid return time');
+    }
+  }
 }
 
 // Add this new function for setting up datetime validation
@@ -518,39 +587,20 @@ function setupDateTimeValidation() {
     const endTime = container.querySelector('input[name="endTime"]');
     
     if (startDateTime && endTime) {
-      endTime.addEventListener('input', () => {
-        if (startDateTime.value) {
+      // Real-time validation for both inputs
+      ['input', 'change'].forEach(eventType => {
+        startDateTime.addEventListener(eventType, () => {
           validateDateTime(startDateTime, endTime);
-        }
-      });
-      
-      startDateTime.addEventListener('input', () => {
-        if (endTime.value) {
+        });
+        
+        endTime.addEventListener(eventType, () => {
           validateDateTime(startDateTime, endTime);
-        }
-      });
-      
-      // Add immediate validation for operating hours
-      startDateTime.addEventListener('change', () => {
-        if (startDateTime.value) {
-          const time = new Date(startDateTime.value);
-          if (!validators.operatingHours(time.toTimeString())) {
-            validateField(startDateTime, false, 'Start time must be between 6 AM and 5 PM');
-          }
-        }
-      });
-      
-      endTime.addEventListener('change', () => {
-        if (endTime.value) {
-          if (!validators.operatingHours(endTime.value)) {
-            validateField(endTime, false, 'Return time must be between 6 AM and 5 PM');
-          }
-        }
+        });
       });
     }
   };
 
-  // Setup for initial form and observe new sections
+  // Setup for initial form
   validateTimeInputs(document.getElementById('inputs-container'));
   
   const observer = new MutationObserver((mutations) => {
@@ -597,26 +647,6 @@ function setupQuantityValidation() {
       }
       
       validateField(this, validators.quantity(parseInt(this.value)), '');
-    });
-  };
-
-  // Add toast notification function
-  const showToast = (message) => {
-    const Toast = Swal.mixin({
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 2000,
-      timerProgressBar: true,
-      didOpen: (toast) => {
-        toast.addEventListener('mouseenter', Swal.stopTimer);
-        toast.addEventListener('mouseleave', Swal.resumeTimer);
-      }
-    });
-
-    Toast.fire({
-      icon: 'warning',
-      title: message
     });
   };
 
