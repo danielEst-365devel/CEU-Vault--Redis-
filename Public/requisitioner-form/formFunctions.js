@@ -248,64 +248,9 @@ function validateField(element, isValid, message) {
   }
 }
 
-function handleEquipmentSelection(select) {
-  const selectedValue = select.value;
-  if (!selectedValue) return;
-
-  // Get all equipment dropdowns except the current one
-  const allDropdowns = [...document.querySelectorAll('select[name="equipment-select"]')];
-  const otherDropdowns = allDropdowns.filter(dropdown => dropdown !== select);
-
-  // Check if the selected value exists in other dropdowns
-  const isDuplicate = otherDropdowns.some(dropdown => dropdown.value === selectedValue);
-
-  if (isDuplicate) {
-    const previousValue = select.getAttribute('data-previous-value') || '';
-    
-    Swal.fire({
-      title: 'Duplicate Equipment',
-      text: 'This equipment is already selected in another request. Do you want to proceed?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, proceed',
-      cancelButtonText: 'No, choose different'
-    }).then((result) => {
-      if (!result.isConfirmed) {
-        // Revert to previous selection
-        select.value = previousValue;
-      }
-      // Store new value as previous value if confirmed
-      select.setAttribute('data-previous-value', select.value);
-    });
-  } else {
-    // Store the non-duplicate selection as previous value
-    select.setAttribute('data-previous-value', selectedValue);
-  }
-}
-
 function setupEquipmentHandling() {
   const addMoreBtn = document.getElementById('add-more');
   
-  // Add change handler to original dropdown
-  const originalSelect = document.querySelector('select[name="equipment-select"]');
-  originalSelect.addEventListener('change', function() {
-    handleEquipmentSelection(this);
-    
-    const selectedOption = this.options[this.selectedIndex];
-    const availableQuantity = parseInt(selectedOption.dataset.quantity) || 0;
-    const quantityInput = this.closest('.row, #inputs-container').querySelector('input[name="quantity"]');
-    
-    if (quantityInput) {
-      const maxQuantity = Math.min(availableQuantity, 3);
-      quantityInput.max = maxQuantity;
-      
-      if (parseInt(quantityInput.value) > maxQuantity) {
-        quantityInput.value = maxQuantity;
-        showToast(`Maximum quantity available is ${maxQuantity}`);
-      }
-    }
-  });
-
   addMoreBtn.addEventListener('click', () => {
     const currentCount = document.querySelectorAll('.equipment-section').length;
     
@@ -327,6 +272,35 @@ function setupEquipmentHandling() {
     
     if (currentCount + 1 >= 4) {
       addMoreBtn.style.display = 'none';
+    }
+  });
+
+  // Add global event delegation for equipment selects
+  document.addEventListener('change', async function(e) {
+    if (e.target.matches('select[name="equipment-select"]')) {
+      const selectedValue = e.target.value;
+      if (!selectedValue) return;
+
+      const allSelects = document.querySelectorAll('select[name="equipment-select"]');
+      const duplicateSelects = Array.from(allSelects).filter(select => 
+        select !== e.target && select.value === selectedValue
+      );
+
+      if (duplicateSelects.length > 0) {
+        const result = await Swal.fire({
+          title: 'Duplicate Equipment',
+          text: 'You have already selected this equipment. Do you want to proceed with selecting it again?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Yes, proceed',
+          cancelButtonText: 'No, choose another'
+        });
+
+        if (!result.isConfirmed) {
+          e.target.value = ''; // Reset to default option
+          return;
+        }
+      }
     }
   });
 }
@@ -375,8 +349,6 @@ function createEquipmentSection() {
 
   // Add change event listener for the new select
   newSelect.addEventListener('change', function() {
-    handleEquipmentSelection(this);
-    
     const selectedOption = this.options[this.selectedIndex];
     const availableQuantity = parseInt(selectedOption.dataset.quantity) || 0;
     const quantityInput = this.closest('.row, #inputs-container').querySelector('input[name="quantity"]');
