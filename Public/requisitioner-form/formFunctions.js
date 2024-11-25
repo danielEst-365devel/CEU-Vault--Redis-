@@ -233,17 +233,24 @@ function setupValidation() {
 
 function validateField(element, isValid, message) {
   const group = element.closest('.form-group');
+  
+  // Store the validation state in a data attribute
+  element.dataset.isValid = isValid;
+  
+  // Update visual feedback
   group.classList.toggle('error', !isValid);
   group.classList.toggle('success', isValid);
   
-  const error = group.querySelector('.error-message') || document.createElement('div');
-  if (!isValid) {
-    error.className = 'error-message';
-    error.textContent = message;
-    if (!group.querySelector('.error-message')) {
+  // Handle error message
+  let error = group.querySelector('.error-message');
+  if (!isValid && message) {
+    if (!error) {
+      error = document.createElement('div');
+      error.className = 'error-message';
       group.appendChild(error);
     }
-  } else if (group.contains(error)) {
+    error.textContent = message;
+  } else if (error) {
     error.remove();
   }
 }
@@ -412,8 +419,16 @@ function handleSubmit(event) {
     return;
   }
 
-  // Check for any validation errors
-  const hasErrors = document.querySelectorAll('.form-group.error').length > 0;
+  // Check all validation states
+  const allInputs = event.target.querySelectorAll('input, select');
+  let hasErrors = false;
+  
+  allInputs.forEach(input => {
+    if (input.dataset.isValid === 'false') {
+      hasErrors = true;
+    }
+  });
+  
   if (hasErrors) {
     Swal.fire({
       icon: 'error',
@@ -700,6 +715,18 @@ function setupQuantityValidation() {
       if (isNaN(value)) {
         this.value = '';
       }
+      
+      // Validate quantity immediately on input
+      const isValid = validators.quantity(value);
+      validateField(this, isValid, isValid ? '' : 'Quantity must be between 1 and 3');
+      
+      // Revalidate associated datetime fields
+      const container = this.closest('.row, #inputs-container');
+      const startDateTime = container.querySelector('input[name="startDateTime"]');
+      const endTime = container.querySelector('input[name="endTime"]');
+      if (startDateTime && endTime) {
+        validateDateTime(startDateTime, endTime);
+      }
     });
     
     // Validate on blur
@@ -714,7 +741,17 @@ function setupQuantityValidation() {
         showToast('Maximum quantity allowed is 3');
       }
       
-      validateField(this, validators.quantity(parseInt(this.value)), '');
+      // Validate after correction
+      const isValid = validators.quantity(parseInt(this.value));
+      validateField(this, isValid, isValid ? '' : 'Quantity must be between 1 and 3');
+      
+      // Revalidate associated datetime fields
+      const container = this.closest('.row, #inputs-container');
+      const startDateTime = container.querySelector('input[name="startDateTime"]');
+      const endTime = container.querySelector('input[name="endTime"]');
+      if (startDateTime && endTime) {
+        validateDateTime(startDateTime, endTime);
+      }
     });
   };
 
