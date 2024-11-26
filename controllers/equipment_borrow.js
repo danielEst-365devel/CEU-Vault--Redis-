@@ -8,16 +8,16 @@ const path = require('path');
 
 const formatDateForEmail = (dateStr) => {
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
     year: 'numeric'
   });
 };
 
 const formatTimeForEmail = (timeStr) => {
   const date = new Date(`1970-01-01T${timeStr}`);
-  return date.toLocaleTimeString('en-US', { 
+  return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
@@ -28,12 +28,20 @@ const formatTimeForEmail = (timeStr) => {
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // Use SSL
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  }
+  },
+  // Add additional configuration
+  pool: true, // Use pooled connections
+  maxConnections: 5,
+  maxMessages: 100,
+  socketTimeout: 30000, // 30 seconds
+  logger: true,
+  debug: process.env.NODE_ENV === 'development'
 });
+
 
 const sendEmail = async (recipientEmail, otpCode, formData) => {
   try {
@@ -345,12 +353,22 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      // Add additional configuration
+      pool: true, // Use pooled connections
+      maxConnections: 5,
+      maxMessages: 100,
+      socketTimeout: 30000, // 30 seconds
+      logger: true,
+      debug: process.env.NODE_ENV === 'development'
     });
+
 
     const info = await transporter.sendMail({
       from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
@@ -514,7 +532,7 @@ const getEquipmentCategories = async (req, res) => {
     FROM equipment_categories
     ORDER BY category_name
   `;
-  
+
   try {
     console.log('Executing query:', query);
     const { rows } = await db.query(query);
@@ -533,34 +551,34 @@ const getEquipmentCategories = async (req, res) => {
 
 // Add this new function to get session data
 const getSessionData = async (req, res) => {
-    try {
-        const sessionID = req.sessionID;
-        const sessionData = await redisClient.get(sessionID);
-        
-        if (!sessionData) {
-            return res.status(404).json({
-                successful: false,
-                message: "Session data not found"
-            });
-        }
+  try {
+    const sessionID = req.sessionID;
+    const sessionData = await redisClient.get(sessionID);
 
-        const parsedData = JSON.parse(sessionData);
-        return res.status(200).json({
-            successful: true,
-            formData: parsedData.formData
-        });
-    } catch (error) {
-        console.error("Error retrieving session data:", error);
-        return res.status(500).json({
-            successful: false,
-            message: "Failed to retrieve session data"
-        });
+    if (!sessionData) {
+      return res.status(404).json({
+        successful: false,
+        message: "Session data not found"
+      });
     }
+
+    const parsedData = JSON.parse(sessionData);
+    return res.status(200).json({
+      successful: true,
+      formData: parsedData.formData
+    });
+  } catch (error) {
+    console.error("Error retrieving session data:", error);
+    return res.status(500).json({
+      successful: false,
+      message: "Failed to retrieve session data"
+    });
+  }
 };
 
 module.exports = {
-    submitForm,
-    verifyOTP,
-    getEquipmentCategories,
-    getSessionData // Add this to exports
+  submitForm,
+  verifyOTP,
+  getEquipmentCategories,
+  getSessionData // Add this to exports
 };

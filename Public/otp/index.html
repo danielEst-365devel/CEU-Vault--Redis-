@@ -242,9 +242,40 @@
         });
       }
 
+      // Prevent going back after OTP verification
+      function preventBack() {
+        window.history.forward();
+      }
+
+      // Check if OTP was already verified
+      function checkOTPStatus() {
+        if (sessionStorage.getItem('otpVerified') === 'true') {
+            const form = document.getElementById('otpForm');
+            const input = document.getElementById('otp-input');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            form.disabled = true;
+            input.disabled = true;
+            submitButton.disabled = true;
+            
+            Swal.fire({
+                icon: 'warning',
+                title: 'Already Verified',
+                text: 'This OTP has already been verified. Please start a new request.',
+                allowOutsideClick: false
+            }).then(() => {
+                window.location.href = '../requisitioner-form/';
+            });
+        }
+      }
+
       async function verifyOTP(event) {
         event.preventDefault();
         
+        if (sessionStorage.getItem('otpVerified') === 'true') {
+            return;
+        }
+
         // Disable the submit button
         const submitButton = document.querySelector('button[type="submit"]');
         submitButton.disabled = true;
@@ -274,6 +305,7 @@
           const data = await response.json();
 
           if (data.successful) {
+            sessionStorage.setItem('otpVerified', 'true');
             await Swal.fire({
               icon: 'success',
               title: 'Success!',
@@ -350,6 +382,13 @@
         if (otpForm) {
           otpForm.addEventListener('submit', verifyOTP);
         }
+        checkOTPStatus();
+        preventBack();
+        window.onpageshow = function(event) {
+            if (event.persisted) {
+                checkOTPStatus();
+            }
+        };
         populateEquipmentTable(); // Call this to populate the table when page loads
       });
     </script>

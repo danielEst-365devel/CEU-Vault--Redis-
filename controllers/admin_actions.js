@@ -28,17 +28,80 @@ const transporter = nodemailer.createTransport({
 
 // Common styles as constants
 const EMAIL_STYLES = {
-    container: `font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;`,
-    header: `color: #4CAF50; margin-bottom: 20px;`,
-    table: `width: 100%; border-collapse: collapse; margin-bottom: 20px;`,
-    tableHeader: `border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;`,
-    tableCell: `border: 1px solid #ddd; padding: 8px;`,
-    infoBox: `margin-top: 20px; padding: 20px; background-color: #f5f5f5; border-radius: 5px;`
+    container: `
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        text-align: left;
+        padding: 32px;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        max-width: 650px;
+        margin: auto;
+        background-color: #ffffff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    `,
+    header: `
+        color: #2E7D32;
+        margin-bottom: 24px;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+    `,
+    table: `
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 24px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    `,
+    tableHeader: `
+    border: 1px solid #ccc;
+    border-bottom: 2px solid #2E7D32;
+    padding: 16px;
+    background-color: #f5f5f5;
+    font-weight: 600;
+    text-align: center;
+    color: #424242;
+    `,
+    tableCell: `
+        border: 1px solid #ccc;
+        padding: 16px;
+        background-color: #ffffff;
+        transition: background-color 0.2s;
+        line-height: 1.4;
+        color: #333333;
+        text-align: center;
+        &:hover {
+            background-color: #f8f8f8;
+            border-color: #bbb;
+        }
+    `,
+    table: `
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 24px;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+        background-color: #ffffff;
+        border: 1px solid #ccc;
+    `,
+    infoBox: `
+        margin-top: 24px;
+        padding: 20px 24px;
+        background-color: #e8f5e9;
+        border-radius: 8px;
+        border-left: 4px solid #2E7D32;
+        color: #1B5E20;
+        line-height: 1.5;
+    `
 };
 
 // Email templates object
 const emailTemplates = {
-    // Template for approved/cancelled requests
     requestStatus: (details) => `
     <div style="${EMAIL_STYLES.container}">
       <h1 style="${EMAIL_STYLES.header}">CEU Vault</h1>
@@ -46,12 +109,22 @@ const emailTemplates = {
       
       ${emailTemplates.approvedRequestsTable(details.equipmentCategories)}
       ${details.cancelledDetails ? emailTemplates.cancelledRequestsTable(details.cancelledDetails.equipmentCategories) : ''}
+      
+      <div style="background-color: #f0f7ff; border-left: 4px solid #0066cc; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="font-size: 16px; color: #0066cc; font-weight: bold; margin: 0 0 8px 0;">Next Steps:</p>
+        <p style="font-size: 15px; color: #333; line-height: 1.5; margin: 0;">
+          Please proceed to the TLTS facility to collect your approved equipment. 
+          Bring a valid ID for verification purposes.
+        </p>
+      </div>
+
       ${emailTemplates.borrowerDetails(details)}
       
       <p style="font-size: 16px; color: #555; margin-top: 20px;">A PDF copy of your approved requests is attached to this email.</p>
       <p style="font-size: 14px; color: #777;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
     </div>
-  `,
+    `,
+
 
     // Reusable table component for approved requests
     approvedRequestsTable: (items) => `
@@ -523,7 +596,7 @@ const updateRequestStatusTwo = async (req, res) => {
 
         if (detailsResult.rows[0]) {
             const { quantity_requested, equipment_category_id } = detailsResult.rows[0];
-            
+
             if (status === 'ongoing') {
                 await client.query(
                     'UPDATE equipment_categories SET quantity_available = quantity_available - $1 WHERE category_id = $2',
@@ -539,7 +612,7 @@ const updateRequestStatusTwo = async (req, res) => {
 
         await client.query('COMMIT');
 
-        res.status(200).json({ 
+        res.status(200).json({
             message: 'Request status updated successfully',
             status: status,
             adminEmail: adminEmail
@@ -579,10 +652,10 @@ const getadminEquipment = async (req, res) => {
 
 const getAllHistory = async (req, res) => {
     const client = await db.connect();
-    
+
     try {
         await client.query('BEGIN');
-        
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
@@ -648,7 +721,7 @@ const getAllHistory = async (req, res) => {
 
         // Add limit and offset to main query params
         const mainQueryParams = [...queryParams, limit, offset];
-        
+
         const [historyResult, countResult] = await Promise.all([
             client.query(mainQuery, mainQueryParams),
             client.query(countQuery, queryParams)
@@ -1243,10 +1316,10 @@ const getStatusCounts = async (req, res) => {
                 COUNT(*) as total_count
             FROM admin_log
         `;
-        
+
         const result = await db.query(query);
         const counts = result.rows[0];
-        
+
         return res.status(200).json({
             successful: true,
             counts: {
@@ -1266,7 +1339,7 @@ const getStatusCounts = async (req, res) => {
 
 const updateRequestDetails = async (req, res) => {
     const { request_id, mcl_pass_no, remarks } = req.body;
-    
+
     if (!request_id || !mcl_pass_no) {
         return res.status(400).json({
             successful: false,
@@ -1275,7 +1348,7 @@ const updateRequestDetails = async (req, res) => {
     }
 
     const client = await db.connect();
-    
+
     try {
         await client.query('BEGIN');
 
@@ -1285,7 +1358,7 @@ const updateRequestDetails = async (req, res) => {
             WHERE request_id = $3
             RETURNING *
         `;
-        
+
         const result = await client.query(updateQuery, [mcl_pass_no, remarks, request_id]);
 
         if (result.rows.length === 0) {
