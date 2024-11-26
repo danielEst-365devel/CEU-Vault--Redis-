@@ -438,23 +438,36 @@ const updateRequestStatusTwo = async (req, res) => {
     try {
         await client.query('BEGIN');
 
+        // Get current request details including equipment info
+        const requestQuery = `
+            SELECT al.*, ec.quantity_available, ec.category_name
+            FROM admin_log al
+            JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id
+            WHERE al.request_id = $1
+        `;
+        const requestResult = await client.query(requestQuery, [request_id]);
+        const request = requestResult.rows[0];
+
+        if (!request) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Request not found' });
+        }
+
+        // Check stock availability when attempting to release equipment
+        if (status === 'ongoing') {
+            const newQuantityAvailable = request.quantity_available - request.quantity_requested;
+            if (newQuantityAvailable < 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    message: `Cannot release equipment: Insufficient stock. Available: ${request.quantity_available}, Requested: ${request.quantity_requested}`,
+                    category: request.category_name
+                });
+            }
+        }
+
         // Decode token to get admin information
         const decoded = jwt.verify(token, JWT_SECRET);
         const adminEmail = decoded.email;
-
-        // Check if the request exists and get current status
-        const checkRequestQuery = `
-            SELECT status, released_by, received_by
-            FROM admin_log 
-            WHERE request_id = $1
-        `;
-        const checkResult = await client.query(checkRequestQuery, [request_id]);
-        const existingRequest = checkResult.rows[0];
-
-        if (!existingRequest) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ message: 'Not Found: Request ID does not exist' });
-        }
 
         // Build the update query dynamically
         const updates = [];
@@ -469,11 +482,11 @@ const updateRequestStatusTwo = async (req, res) => {
         updates.push(`status_updated_at = NOW()`);
 
         // Add released_by or received_by based on status
-        if (status === 'ongoing' && !existingRequest.released_by) {
+        if (status === 'ongoing' && !request.released_by) {
             updates.push(`released_by = $${paramCounter}`);
             updateValues.push(adminEmail);
             paramCounter++;
-        } else if (status === 'returned' && !existingRequest.received_by) {
+        } else if (status === 'returned' && !request.received_by) {
             updates.push(`received_by = $${paramCounter}`);
             updateValues.push(adminEmail);
             paramCounter++;

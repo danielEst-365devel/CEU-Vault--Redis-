@@ -173,7 +173,17 @@ const releaseRequest = (requestId) => {
                         fetchApprovedRequestsData();
                     });
                 } else {
-                    throw new Error(data.message);
+                    // Handle insufficient stock error
+                    if (data.message && data.message.includes('Insufficient stock')) {
+                        Swal.fire({
+                            title: 'Cannot Release Equipment',
+                            html: `${data.message}<br><br>Category: ${data.category}`,
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        throw new Error(data.message);
+                    }
                 }
             })
             .catch(error => {
