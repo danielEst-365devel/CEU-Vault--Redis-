@@ -589,7 +589,6 @@ const confirmAdmin = async (req, res) => {
 };
 
 module.exports = {
-
   createAdmin,
   approveAdmin,
   confirmAdmin,

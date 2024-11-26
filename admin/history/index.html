@@ -61,6 +61,88 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
   </style>
+
+  <style>
+    /* Add hover effect for table rows */
+    #approvedRequestsTable tbody tr,
+    #modalHistoryTableBody tr {
+        transition: all 0.2s ease-in-out;
+    }
+
+    #approvedRequestsTable tbody tr:hover,
+    #modalHistoryTableBody tr:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        cursor: pointer;
+    }
+
+    /* Update detail panel styles */
+    .detail-panel {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: 400px;
+        height: 100vh;
+        background: white;
+        z-index: 1060;
+        transition: right 0.3s ease-in-out;
+        box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+    }
+
+    .detail-panel.show {
+        right: 0;
+    }
+
+    .detail-panel-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8f9fa;
+    }
+
+    /* Improve close button visibility */
+    .detail-panel-header .btn-close {
+        opacity: 1;
+        background-color: #e9ecef;
+        padding: 0.5rem;
+        border-radius: 50%;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .detail-panel-header .btn-close:hover {
+        background-color: #dee2e6;
+        transform: rotate(90deg);
+    }
+
+    .detail-panel-body {
+        padding: 1rem;
+        overflow-y: auto;
+        flex-grow: 1;
+    }
+
+    .detail-panel .card {
+        background: #f8f9fa;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .detail-panel .card:hover {
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .detail-panel .card-body {
+        padding: 1rem;
+    }
+  </style>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -388,7 +470,6 @@
             </div>
         </div>
       </div>
-      <!-- ...existing code... -->
 
       <!-- Add new modal for history table -->
       <div class="modal fade" id="viewAllHistoryModal" tabindex="-1" aria-labelledby="viewAllHistoryModalLabel" aria-hidden="true">
@@ -589,6 +670,112 @@
   <!-- Control Center for Soft Dashboard: parallax effects, scripts for the example pages etc -->
   <script src="../assets/js/soft-ui-dashboard.min.js?v=1.0.7"></script>
   <script type="text/javascript" src="./js/script.js"></script>
+
+  <!-- Add this before closing body tag -->
+<div id="requestDetailPanel" class="detail-panel">
+  <div class="detail-panel-content">
+    <div class="detail-panel-header">
+      <h5 class="mb-0">Request Details</h5>
+      <button type="button" class="btn-close" onclick="closeRequestDetails()" aria-label="Close"></button>
+    </div>
+    <div class="detail-panel-body">
+      <div class="card shadow-none border mb-3">
+        <div class="card-body">
+          <h6 class="text-sm mb-2">Requisitioner Information</h6>
+          <p class="text-sm mb-1"><strong>Name:</strong> <span id="detail-name"></span></p>
+          <p class="text-sm mb-1"><strong>Email:</strong> <span id="detail-email"></span></p>
+          <p class="text-sm mb-0"><strong>Department:</strong> <span id="detail-department"></span></p>
+        </div>
+      </div>
+
+      <div class="card shadow-none border mb-3">
+        <div class="card-body">
+          <h6 class="text-sm mb-2">Request Information</h6>
+          <p class="text-sm mb-1"><strong>Batch ID:</strong> <span id="detail-batch-id"></span></p>
+          <p class="text-sm mb-1"><strong>Status:</strong> <span id="detail-status"></span></p>
+          <p class="text-sm mb-1"><strong>MCL Pass No:</strong> <span id="detail-mcl-pass"></span></p>
+          <p class="text-sm mb-0"><strong>Approved By:</strong> <span id="detail-approved-by"></span></p>
+        </div>
+      </div>
+
+      <div class="card shadow-none border mb-3">
+        <div class="card-body">
+          <h6 class="text-sm mb-2">Equipment Details</h6>
+          <p class="text-sm mb-1"><strong>Category:</strong> <span id="detail-category"></span></p>
+          <p class="text-sm mb-0"><strong>Quantity:</strong> <span id="detail-quantity"></span></p>
+        </div>
+      </div>
+
+      <div class="card shadow-none border mb-3">
+        <div class="card-body">
+          <h6 class="text-sm mb-2">Time Information</h6>
+          <p class="text-sm mb-1"><strong>Date Requested:</strong> <span id="detail-date"></span></p>
+          <p class="text-sm mb-1"><strong>Time Requested:</strong> <span id="detail-time-requested"></span></p>
+          <p class="text-sm mb-0"><strong>Return Time:</strong> <span id="detail-return-time"></span></p>
+        </div>
+      </div>
+
+      <div class="card shadow-none border">
+        <div class="card-body">
+          <h6 class="text-sm mb-2">Additional Information</h6>
+          <p class="text-sm mb-1"><strong>Nature of Service:</strong> <span id="detail-nature"></span></p>
+          <p class="text-sm mb-1"><strong>Purpose:</strong> <span id="detail-purpose"></span></p>
+          <p class="text-sm mb-1"><strong>Venue:</strong> <span id="detail-venue"></span></p>
+          <p class="text-sm mb-1"><strong>Released By:</strong> <span id="detail-released-by"></span></p>
+          <p class="text-sm mb-1"><strong>Received By:</strong> <span id="detail-received-by"></span></p>
+          <p class="text-sm mb-0"><strong>Remarks:</strong> <span id="detail-remarks"></span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add these styles to your existing styles section -->
+<style>
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: white;
+  z-index: 1060;
+  transition: right 0.3s ease-in-out;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+}
+
+.detail-panel.show {
+  right: 0;
+}
+
+.detail-panel-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-panel-header {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-panel-body {
+  padding: 1rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.detail-panel .card {
+  background: #f8f9fa;
+}
+
+.detail-panel .card-body {
+  padding: 1rem;
+}
+</style>
 </body>
 
 </html>

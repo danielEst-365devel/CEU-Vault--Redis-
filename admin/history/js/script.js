@@ -343,17 +343,19 @@ function displayApprovedRequestsTable(requests, containerId) {
     const tableBody = document.getElementById(containerId);
     tableBody.innerHTML = '';
 
-    // Sort by batch_id
     requests.sort((a, b) =>
         (b.batch_id || '').toString().localeCompare((a.batch_id || '').toString()));
 
-    // Tracking variables for batch merging
     let currentBatchId = null;
     let rowspanCount = 0;
     let firstRowOfBatch = null;
 
     requests.forEach((request, index) => {
         const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.dataset.requestData = JSON.stringify(request);
+        
+        row.addEventListener('click', () => showRequestDetails(request));
 
         // Start with requisitioner cell
         let rowContent = `
@@ -422,6 +424,35 @@ function displayApprovedRequestsTable(requests, containerId) {
         batchCell.rowSpan = rowspanCount;
         batchCell.className = "merged-cell align-middle text-center align-items-center";
     }
+}
+
+function showRequestDetails(request) {
+    // Update panel content with request details
+    document.getElementById('detail-name').textContent = `${request.first_name} ${request.last_name}`;
+    document.getElementById('detail-email').textContent = request.email;
+    document.getElementById('detail-department').textContent = request.department || 'N/A';
+    document.getElementById('detail-batch-id').textContent = request.batch_id;
+    document.getElementById('detail-status').textContent = request.status;
+    document.getElementById('detail-mcl-pass').textContent = request.mcl_pass_no || 'N/A';
+    document.getElementById('detail-approved-by').textContent = request.request_approved_by || 'N/A';
+    document.getElementById('detail-category').textContent = request.category_name;
+    document.getElementById('detail-quantity').textContent = request.quantity_requested;
+    document.getElementById('detail-date').textContent = formatDate(request.requested);
+    document.getElementById('detail-time-requested').textContent = formatTime(request.time_requested);
+    document.getElementById('detail-return-time').textContent = formatTime(request.return_time);
+    document.getElementById('detail-nature').textContent = request.nature_of_service || 'N/A';
+    document.getElementById('detail-purpose').textContent = request.purpose || 'N/A';
+    document.getElementById('detail-venue').textContent = request.venue || 'N/A';
+    document.getElementById('detail-released-by').textContent = request.released_by || 'N/A';
+    document.getElementById('detail-received-by').textContent = request.received_by || 'N/A';
+    document.getElementById('detail-remarks').textContent = request.remarks || 'N/A';
+
+    // Show the panel
+    document.getElementById('requestDetailPanel').classList.add('show');
+}
+
+function closeRequestDetails() {
+    document.getElementById('requestDetailPanel').classList.remove('show');
 }
 
 // Add CSS for merged cells if not already present
