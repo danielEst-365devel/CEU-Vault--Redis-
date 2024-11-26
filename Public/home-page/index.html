@@ -33,12 +33,36 @@
         }
 
         .quote-box {
-            background: #f8f9fa;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-left: 5px solid #ff69b4;
             border-radius: 12px;
-            padding: 2rem;
-            margin: 2rem auto;
-            max-width: 800px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 2.5rem;
+            margin: 3rem auto;
+            max-width: 900px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quote-box::before {
+            content: '"';
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            font-size: 120px;
+            color: rgba(255, 105, 180, 0.1);
+            font-family: Georgia, serif;
+        }
+
+        .quote-box blockquote {
+            font-size: 1.25rem;
+            line-height: 1.8;
+            color: #2c3e50;
+            font-style: italic;
+            margin: 0;
+            padding: 0 0 0 1rem;
+            position: relative;
+            z-index: 1;
         }
 
         .guidelines-grid {
@@ -231,10 +255,71 @@
                 height: 40px;
             }
         }
+
+        /* Text Highlight Effect */
+        .highlight-text {
+            background: linear-gradient(120deg, rgba(255, 105, 180, 0.2) 0%, rgba(255, 105, 180, 0.2) 100%);
+            background-repeat: no-repeat;
+            background-size: 0% 40%;
+            background-position: 0 90%;
+            transition: background-size 0.5s ease;
+        }
+
+        .highlight-text.visible {
+            background-size: 100% 40%;
+        }
+
+        /* Loading Animation */
+        .page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .loader-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #ff69b4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
+    <div class="page-loader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <p>Loading CEU VAULT...</p>
+        </div>
+    </div>
+
     <div class="navbar-no-shadow">
         <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
             role="banner" class="navbar-no-shadow-container w-nav">
@@ -290,9 +375,9 @@
                     <header class="guidelines-header" data-aos="fade-down">
                         <h2 class="title">GUIDELINES ON THE USE OF MULTIMEDIA EQUIPMENT AND FACILITIES</h2>
                         <div class="quote-box" data-aos="fade-up" data-aos-delay="200">
-                            <i class="bi bi-quote"></i>
-                            <blockquote>Ensure responsible and efficient use of multimedia equipment and facilities by
-                                adhering to the established guidelines.</blockquote>
+                            <blockquote>
+                                <span class="highlight-text">Ensure responsible and efficient use of multimedia equipment and facilities</span> by adhering to the established guidelines. Together, we maintain the quality and longevity of our resources.
+                            </blockquote>
                         </div>
                     </header>
 
@@ -471,6 +556,27 @@
                     top: 0,
                     behavior: 'smooth'
                 });
+            });
+
+            // Hide loader after page loads
+            const loader = document.querySelector('.page-loader');
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    loader.classList.add('loader-hidden');
+                }, 500);
+            });
+
+            // Text highlight effect
+            const observerHighlight = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            document.querySelectorAll('.highlight-text').forEach(text => {
+                observerHighlight.observe(text);
             });
         });
     </script>
