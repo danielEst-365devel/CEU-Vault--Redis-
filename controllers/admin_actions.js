@@ -433,17 +433,21 @@ const updateRequestStatusTwo = async (req, res) => {
         return res.status(400).json({ message: 'Bad Request: Invalid status value' });
     }
 
-    const client = await db.connect(); // Acquire a client from the pool
+    const client = await db.connect();
 
     try {
-        await client.query('BEGIN'); // Start transaction
+        await client.query('BEGIN');
 
-        // Check if the request_id exists in the admin_log table and retrieve status
+        // Decode token to get admin information
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const adminEmail = decoded.email;
+
+        // Check if the request exists and get current status
         const checkRequestQuery = `
-        SELECT status 
-        FROM admin_log 
-        WHERE request_id = $1
-      `;
+            SELECT status, released_by, received_by
+            FROM admin_log 
+            WHERE request_id = $1
+        `;
         const checkResult = await client.query(checkRequestQuery, [request_id]);
         const existingRequest = checkResult.rows[0];
 
@@ -452,76 +456,80 @@ const updateRequestStatusTwo = async (req, res) => {
             return res.status(404).json({ message: 'Not Found: Request ID does not exist' });
         }
 
-        const currentStatus = existingRequest.status;
+        // Build the update query dynamically
+        const updates = [];
+        const updateValues = [];
+        let paramCounter = 1;
 
-        // Prevent repeated status updates
-        if (currentStatus === status) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: `Bad Request: Status is already ${status}` });
+        // Always add status and status_updated_at
+        updates.push(`status = $${paramCounter}`);
+        updateValues.push(status);
+        paramCounter++;
+
+        updates.push(`status_updated_at = NOW()`);
+
+        // Add released_by or received_by based on status
+        if (status === 'ongoing' && !existingRequest.released_by) {
+            updates.push(`released_by = $${paramCounter}`);
+            updateValues.push(adminEmail);
+            paramCounter++;
+        } else if (status === 'returned' && !existingRequest.received_by) {
+            updates.push(`received_by = $${paramCounter}`);
+            updateValues.push(adminEmail);
+            paramCounter++;
+            updates.push(`time_returned = NOW()::TIME`);
         }
 
-        // Prevent changing status if it's already cancelled
-        if (currentStatus === 'cancelled') {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: 'Bad Request: Cannot change status from cancelled' });
-        }
+        // Add the request_id as the last parameter
+        updates.push(`WHERE request_id = $${paramCounter}`);
+        updateValues.push(request_id);
 
-        // Retrieve quantity_requested and equipment_category_id from the admin_log table
-        const getRequestDetailsQuery = `
-        SELECT quantity_requested, equipment_category_id 
-        FROM admin_log 
-        WHERE request_id = $1
-      `;
-        const detailsResult = await client.query(getRequestDetailsQuery, [request_id]);
-        const requestDetails = detailsResult.rows[0];
-
-        if (!requestDetails) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ message: 'Not Found: Request details not found' });
-        }
-
-        const { quantity_requested, equipment_category_id } = requestDetails;
-
-        // Update quantity_available based on status
-        let updateQuantityQuery;
-        let updateQuantityValues;
-
-        if (status === 'ongoing') {
-            updateQuantityQuery = `
-          UPDATE equipment_categories 
-          SET quantity_available = quantity_available - $1 
-          WHERE category_id = $2
+        // Construct the final update query
+        const updateQuery = `
+            UPDATE admin_log 
+            SET ${updates.slice(0, -1).join(', ')}
+            ${updates[updates.length - 1]}
         `;
-            updateQuantityValues = [quantity_requested, equipment_category_id];
-        } else if (status === 'returned') {
-            updateQuantityQuery = `
-          UPDATE equipment_categories 
-          SET quantity_available = quantity_available + $1 
-          WHERE category_id = $2
-        `;
-            updateQuantityValues = [quantity_requested, equipment_category_id];
+
+        // Execute the update query
+        await client.query(updateQuery, updateValues);
+
+        // Handle equipment quantity updates
+        const detailsResult = await client.query(
+            'SELECT quantity_requested, equipment_category_id FROM admin_log WHERE request_id = $1',
+            [request_id]
+        );
+
+        if (detailsResult.rows[0]) {
+            const { quantity_requested, equipment_category_id } = detailsResult.rows[0];
+            
+            if (status === 'ongoing') {
+                await client.query(
+                    'UPDATE equipment_categories SET quantity_available = quantity_available - $1 WHERE category_id = $2',
+                    [quantity_requested, equipment_category_id]
+                );
+            } else if (status === 'returned' || status === 'cancelled') {
+                await client.query(
+                    'UPDATE equipment_categories SET quantity_available = quantity_available + $1 WHERE category_id = $2',
+                    [quantity_requested, equipment_category_id]
+                );
+            }
         }
 
-        if (updateQuantityQuery) {
-            await client.query(updateQuantityQuery, updateQuantityValues);
-        }
+        await client.query('COMMIT');
 
-        // Update the status and status_updated_at of the request in the admin_log table
-        const updateStatusQuery = `
-        UPDATE admin_log 
-        SET status = $1, status_updated_at = NOW() 
-        WHERE request_id = $2
-      `;
-        await client.query(updateStatusQuery, [status, request_id]);
+        res.status(200).json({ 
+            message: 'Request status updated successfully',
+            status: status,
+            adminEmail: adminEmail
+        });
 
-        await client.query('COMMIT'); // Commit transaction
-        res.status(200).json({ message: 'Request status updated successfully' });
     } catch (error) {
-        await client.query('ROLLBACK'); // Rollback transaction on error
+        await client.query('ROLLBACK');
         console.error('Error updating request status:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     } finally {
-        client.release(); // Release the client back to the pool
+        client.release();
     }
 };
 
