@@ -131,73 +131,95 @@ function rejectRequest(requestId) {
 const releaseRequest = (requestId) => {
     if (isProcessing) return;
 
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "You're about to release this request to the requisitioner.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, release it!',
-        cancelButtonText: 'No, wait'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            isProcessing = true;
+    // First check if MCL Pass exists
+    fetch(`/admin/get-active-requests`)
+        .then(response => response.json())
+        .then(data => {
+            const request = data.history.find(r => r.request_id === requestId);
+            
+            if (!request.mcl_pass_no) {
+                Swal.fire({
+                    title: 'MCL Pass Required',
+                    text: 'Please assign an MCL Pass Number before releasing equipment',
+                    icon: 'warning',
+                    showCancelButton: false,
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Assign MCL Pass'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        showRequestDetails(request);
+                    }
+                });
+                return;
+            }
 
+            // Continue with existing release confirmation
             Swal.fire({
-                title: 'Processing...',
-                html: 'Please wait while we release the request.',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch(`/admin/release`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ request_id: requestId, status: 'ongoing' }),
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                isProcessing = false;
-                if (data.message === 'Request status updated successfully') {
+                title: 'Are you sure?',
+                text: "You're about to release this request to the requisitioner.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, release it!',
+                cancelButtonText: 'No, wait'
+            }).then((result) => {
+                if (result.isConfirmed) {
                     Swal.fire({
-                        title: 'Released!',
-                        text: `Request ${requestId} has been released to the requisitioner.`,
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        fetchApprovedRequestsData();
+                        title: 'Processing...',
+                        html: 'Please wait while we release the request.',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
                     });
-                } else {
-                    // Handle insufficient stock error
-                    if (data.message && data.message.includes('Insufficient stock')) {
+
+                    fetch(`/admin/release`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ request_id: requestId, status: 'ongoing' }),
+                        credentials: 'include'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        isProcessing = false;
+                        if (data.message === 'Request status updated successfully') {
+                            Swal.fire({
+                                title: 'Released!',
+                                text: `Request ${requestId} has been released to the requisitioner.`,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then(() => {
+                                fetchApprovedRequestsData();
+                            });
+                        } else {
+                            // Handle insufficient stock error
+                            if (data.message && data.message.includes('Insufficient stock')) {
+                                Swal.fire({
+                                    title: 'Cannot Release Equipment',
+                                    html: `${data.message}<br><br>Category: ${data.category}`,
+                                    icon: 'error',
+                                    confirmButtonText: 'OK'
+                                });
+                            } else {
+                                throw new Error(data.message);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        isProcessing = false;
                         Swal.fire({
-                            title: 'Cannot Release Equipment',
-                            html: `${data.message}<br><br>Category: ${data.category}`,
+                            title: 'Error!',
+                            text: 'An error occurred while releasing the request.',
                             icon: 'error',
                             confirmButtonText: 'OK'
                         });
-                    } else {
-                        throw new Error(data.message);
-                    }
+                        console.error(`Error releasing request: ${error.message}`);
+                    });
                 }
-            })
-            .catch(error => {
-                isProcessing = false;
-                Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while releasing the request.',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-                console.error(`Error releasing request: ${error.message}`);
             });
-        }
-    });
+        });
 };
 
 const cancelRequest = (requestId) => {
@@ -262,67 +284,89 @@ const cancelRequest = (requestId) => {
     });
 };
 
-function returnRequest(requestId) {
+const returnRequest = (requestId) => {
     if (isProcessing) return;
 
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "You're about to mark this request as returned.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, return it!',
-        cancelButtonText: 'No, wait'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            isProcessing = true;
-
-            Swal.fire({
-                title: 'Processing...',
-                html: 'Please wait while we process the return.',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch(`/admin/release`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ request_id: requestId, status: 'returned' }),
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                isProcessing = false;
-                if (data.message === 'Request status updated successfully') {
-                    Swal.fire({
-                        title: 'Returned!',
-                        text: `Request ${requestId} has been marked as returned.`,
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        fetchApprovedRequestsData();
-                    });
-                } else {
-                    throw new Error(data.message);
-                }
-            })
-            .catch(error => {
-                isProcessing = false;
+    // First check if MCL Pass exists
+    fetch(`/admin/get-active-requests`)
+        .then(response => response.json())
+        .then(data => {
+            const request = data.history.find(r => r.request_id === requestId);
+            
+            if (!request.mcl_pass_no) {
                 Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while processing the return.',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
+                    title: 'MCL Pass Required',
+                    text: 'Please assign an MCL Pass Number before returning equipment',
+                    icon: 'warning',
+                    showCancelButton: false,
+                    confirmButtonColor: '#3085d6',
+                    confirmButtonText: 'Assign MCL Pass'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        showRequestDetails(request);
+                    }
                 });
-                console.error(`Error returning request: ${error.message}`);
+                return;
+            }
+
+            // Continue with existing return confirmation
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "You're about to mark this request as returned.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, return it!',
+                cancelButtonText: 'No, wait'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Processing...',
+                        html: 'Please wait while we process the return.',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    fetch(`/admin/release`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ request_id: requestId, status: 'returned' }),
+                        credentials: 'include'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        isProcessing = false;
+                        if (data.message === 'Request status updated successfully') {
+                            Swal.fire({
+                                title: 'Returned!',
+                                text: `Request ${requestId} has been marked as returned.`,
+                                icon: 'success',
+                                confirmButtonText: 'OK'
+                            }).then(() => {
+                                fetchApprovedRequestsData();
+                            });
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        isProcessing = false;
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred while processing the return.',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                        console.error(`Error returning request: ${error.message}`);
+                    });
+                }
             });
-        }
-    });
-}
+        });
+};
 
 // Updated showToast function in requests.js
 function showToast(message, type) {

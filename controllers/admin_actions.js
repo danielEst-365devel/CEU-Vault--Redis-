@@ -453,6 +453,14 @@ const updateRequestStatusTwo = async (req, res) => {
             return res.status(404).json({ message: 'Request not found' });
         }
 
+        // Check if MCL Pass exists before allowing release or return
+        if ((status === 'ongoing' || status === 'returned') && !request.mcl_pass_no) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                message: 'MCL Pass Number is required before releasing or returning equipment'
+            });
+        }
+
         // Check stock availability when attempting to release equipment
         if (status === 'ongoing') {
             const newQuantityAvailable = request.quantity_available - request.quantity_requested;
@@ -1256,6 +1264,54 @@ const getStatusCounts = async (req, res) => {
     }
 };
 
+const updateRequestDetails = async (req, res) => {
+    const { request_id, mcl_pass_no, remarks } = req.body;
+    
+    if (!request_id || !mcl_pass_no) {
+        return res.status(400).json({
+            successful: false,
+            message: 'Missing required fields'
+        });
+    }
+
+    const client = await db.connect();
+    
+    try {
+        await client.query('BEGIN');
+
+        const updateQuery = `
+            UPDATE admin_log 
+            SET mcl_pass_no = $1, remarks = $2
+            WHERE request_id = $3
+            RETURNING *
+        `;
+        
+        const result = await client.query(updateQuery, [mcl_pass_no, remarks, request_id]);
+
+        if (result.rows.length === 0) {
+            throw new Error('Request not found');
+        }
+
+        await client.query('COMMIT');
+
+        res.status(200).json({
+            successful: true,
+            message: 'Request details updated successfully',
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error updating request details:', error);
+        res.status(500).json({
+            successful: false,
+            message: 'Failed to update request details'
+        });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     updateRequestStatus,
     updateRequestStatusTwo,
@@ -1273,5 +1329,6 @@ module.exports = {
     addEquipmentCategory,
     resetEquipment,
     generateInventoryPDF,
-    getStatusCounts
+    getStatusCounts,
+    updateRequestDetails
 };

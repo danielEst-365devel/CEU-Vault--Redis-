@@ -505,6 +505,43 @@
         </div>
       </div>
 
+      <!-- Add this modal -->
+      <div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-labelledby="requestDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="requestDetailsModalLabel">Request Details</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <form id="requestDetailsForm">
+                <input type="hidden" id="modalRequestId">
+                <div class="mb-3">
+                  <label for="mclPassNo" class="form-label">MCL Pass Number</label>
+                  <input type="text" 
+                         class="form-control" 
+                         id="mclPassNo" 
+                         required 
+                         maxlength="2" 
+                         pattern="[0-9]{1,2}"
+                         oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 2)"
+                         onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
+                  <small class="form-text text-muted">Enter a 2-digit number (00-99)</small>
+                </div>
+                <div class="mb-3">
+                  <label for="remarks" class="form-label">Remarks</label>
+                  <textarea class="form-control" id="remarks" rows="3"></textarea>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-primary" onclick="saveRequestDetails()">Save changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <script>
         // Formatting functions
         function formatDate(isoString) {
@@ -573,6 +610,9 @@
 
           filteredRequests.forEach((request, index) => {
             const row = document.createElement('tr');
+            // Remove the row click handler and cursor style
+            // row.style.cursor = 'pointer';
+            // row.onclick = () => showRequestDetails(request);
 
             // Create row content without batch_id cell
             let rowContent = `
@@ -613,11 +653,17 @@
             if (request.status === 'ongoing') {
               actionButtons = `
           <a id="returnButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-warning text-xs" data-toggle="tooltip" data-original-title="Return" onclick="returnRequest(${request.request_id})">Return</a>
+          <a href="javascript:;" class="text-secondary font-weight-bold text-xs ms-1" data-toggle="tooltip" data-original-title="Edit" onclick="showRequestDetails(${JSON.stringify(request).replace(/"/g, '&quot;')})">
+            <i class="fas fa-edit"></i>
+          </a>
         `;
             } else if (request.status === 'approved') {
               actionButtons = `
           <a id="releaseButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-info text-xs mb-1" data-toggle="tooltip" data-original-title="Release" onclick="releaseRequest(${request.request_id})">Release</a>
           <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="cancelRequest(${request.request_id})">Cancel</a>
+          <a href="javascript:;" class="text-secondary font-weight-bold text-xs ms-1" data-toggle="tooltip" data-original-title="Edit" onclick="showRequestDetails(${JSON.stringify(request).replace(/"/g, '&quot;')})">
+            <i class="fas fa-edit"></i>
+          </a>
         `;
             }
 
@@ -689,6 +735,76 @@
             batchCell.className = "merged-cell align-middle text-center align-items-center";
           }
         }
+
+        // Update the showRequestDetails function to accept a stringified object
+        function showRequestDetails(requestStr) {
+          // Stop event propagation
+          event.stopPropagation();
+          
+          // Parse the request object if it's a string
+          const request = typeof requestStr === 'string' ? JSON.parse(requestStr) : requestStr;
+          
+          const modal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
+          document.getElementById('modalRequestId').value = request.request_id;
+          document.getElementById('mclPassNo').value = request.mcl_pass_no || '';
+          document.getElementById('remarks').value = request.remarks || '';
+          modal.show();
+        }
+
+        async function saveRequestDetails() {
+          const requestId = document.getElementById('modalRequestId').value;
+          const mclPassNo = document.getElementById('mclPassNo').value;
+          const remarks = document.getElementById('remarks').value;
+
+          // Validate MCL Pass Number
+          if (!mclPassNo || !/^[0-9]{1,2}$/.test(mclPassNo)) {
+            Swal.fire({
+              title: 'Error',
+              text: 'MCL Pass Number must be a 2-digit number (00-99)',
+              icon: 'error'
+            });
+            return;
+          }
+
+          // Pad single digit with leading zero
+          const formattedMclPassNo = mclPassNo.padStart(2, '0');
+
+          try {
+            const response = await fetch('/admin/update-request-details', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                request_id: requestId,
+                mcl_pass_no: formattedMclPassNo,
+                remarks: remarks
+              }),
+              credentials: 'include'
+            });
+
+            if (!response.ok) throw new Error('Failed to update request details');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('requestDetailsModal'));
+            modal.hide();
+
+            Swal.fire({
+              title: 'Success',
+              text: 'Request details updated successfully',
+              icon: 'success'
+            }).then(() => {
+              fetchApprovedRequestsData();
+            });
+          } catch (error) {
+            console.error('Error updating request details:', error);
+            Swal.fire({
+              title: 'Error',
+              text: 'Failed to update request details',
+              icon: 'error'
+            });
+          }
+        }
+
         // Call the function to fetch and display data
         fetchApprovedRequestsData();
       </script>
