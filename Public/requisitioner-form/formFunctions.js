@@ -573,7 +573,29 @@ const styles = `
 document.head.insertAdjacentHTML('beforeend', `<style>${styles}</style>`);
 
 // Initialize everything when DOM is ready
-document.addEventListener('DOMContentLoaded', initForm);
+document.addEventListener('DOMContentLoaded', function() {
+  initForm();
+  
+  // Back to Top button functionality
+  const backToTopButton = document.getElementById('back-to-top');
+  
+  // Show button when scrolling down
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 300) {
+      backToTopButton.classList.add('visible');
+    } else {
+      backToTopButton.classList.remove('visible');
+    }
+  });
+  
+  // Scroll to top when clicked
+  backToTopButton.addEventListener('click', () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  });
+});
 
 function getEquipmentData() {
   // Get all equipment sections including the initial one and duplicates
