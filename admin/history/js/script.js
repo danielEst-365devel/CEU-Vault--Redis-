@@ -343,8 +343,8 @@ function displayApprovedRequestsTable(requests, containerId) {
     const tableBody = document.getElementById(containerId);
     tableBody.innerHTML = '';
 
-    requests.sort((a, b) =>
-        (b.batch_id || '').toString().localeCompare((a.batch_id || '').toString()));
+    // Sort requests by batch_id in descending order
+    requests.sort((a, b) => b.batch_id - a.batch_id);
 
     let currentBatchId = null;
     let rowspanCount = 0;
@@ -426,29 +426,62 @@ function displayApprovedRequestsTable(requests, containerId) {
     }
 }
 
-function showRequestDetails(request) {
-    // Update panel content with request details
-    document.getElementById('detail-name').textContent = `${request.first_name} ${request.last_name}`;
-    document.getElementById('detail-email').textContent = request.email;
-    document.getElementById('detail-department').textContent = request.department || 'N/A';
-    document.getElementById('detail-batch-id').textContent = request.batch_id;
-    document.getElementById('detail-status').textContent = request.status;
-    document.getElementById('detail-mcl-pass').textContent = request.mcl_pass_no || 'N/A';
-    document.getElementById('detail-approved-by').textContent = request.request_approved_by || 'N/A';
-    document.getElementById('detail-category').textContent = request.category_name;
-    document.getElementById('detail-quantity').textContent = request.quantity_requested;
-    document.getElementById('detail-date').textContent = formatDate(request.requested);
-    document.getElementById('detail-time-requested').textContent = formatTime(request.time_requested);
-    document.getElementById('detail-return-time').textContent = formatTime(request.return_time);
-    document.getElementById('detail-nature').textContent = request.nature_of_service || 'N/A';
-    document.getElementById('detail-purpose').textContent = request.purpose || 'N/A';
-    document.getElementById('detail-venue').textContent = request.venue || 'N/A';
-    document.getElementById('detail-released-by').textContent = request.released_by || 'N/A';
-    document.getElementById('detail-received-by').textContent = request.received_by || 'N/A';
-    document.getElementById('detail-remarks').textContent = request.remarks || 'N/A';
+async function showRequestDetails(request) {
+    // Fetch receipts for the batch_id
+    try {
+        const response = await fetch(`/admin/get-receipts?search=${request.batch_id}&searchMode=batch`);
+        const data = await response.json();
+        
+        const receipt = data.requestHistory?.find(r => r.batch_id === request.batch_id);
+        
+        // Show/hide form buttons based on availability
+        const requestFormBtn = document.getElementById('requestFormBtn');
+        const approvedFormBtn = document.getElementById('approvedFormBtn');
+        
+        if (receipt) {
+            requestFormBtn.classList.remove('d-none');
+            requestFormBtn.onclick = () => downloadPDF(receipt.form_receipt, `RequestForm-${request.batch_id}.pdf`);
+            
+            if (receipt.approved_receipt) {
+                approvedFormBtn.classList.remove('d-none');
+                approvedFormBtn.onclick = () => downloadPDF(receipt.approved_receipt, `ApprovedForm-${request.batch_id}.pdf`);
+            } else {
+                approvedFormBtn.classList.add('d-none');
+            }
+        } else {
+            requestFormBtn.classList.add('d-none');
+            approvedFormBtn.classList.add('d-none');
+        }
 
-    // Show the panel
-    document.getElementById('requestDetailPanel').classList.add('show');
+        // Fetch all related requests with the same batch_id
+        const relatedRequests = allHistoryData.filter(r => r.batch_id === request.batch_id);
+        
+        // Update the existing detail fields
+        document.getElementById('detail-name').textContent = `${request.first_name} ${request.last_name}`;
+        document.getElementById('detail-email').textContent = request.email;
+        document.getElementById('detail-department').textContent = request.department || 'N/A';
+        document.getElementById('detail-batch-id').textContent = request.batch_id;
+        document.getElementById('detail-status').textContent = request.status;
+        document.getElementById('detail-mcl-pass').textContent = request.mcl_pass_no || 'N/A';
+        document.getElementById('detail-approved-by').textContent = request.request_approved_by || 'N/A';
+        document.getElementById('detail-category').textContent = request.category_name;
+        document.getElementById('detail-quantity').textContent = request.quantity_requested;
+        document.getElementById('detail-date').textContent = formatDate(request.requested);
+        document.getElementById('detail-time-requested').textContent = formatTime(request.time_requested);
+        document.getElementById('detail-return-time').textContent = formatTime(request.return_time);
+        document.getElementById('detail-nature').textContent = request.nature_of_service || 'N/A';
+        document.getElementById('detail-purpose').textContent = request.purpose || 'N/A';
+        document.getElementById('detail-venue').textContent = request.venue || 'N/A';
+        document.getElementById('detail-released-by').textContent = request.released_by || 'N/A';
+        document.getElementById('detail-received-by').textContent = request.received_by || 'N/A';
+        document.getElementById('detail-remarks').textContent = request.remarks || 'N/A';
+
+        // Show the panel
+        document.getElementById('requestDetailPanel').classList.add('show');
+        
+    } catch (error) {
+        console.error('Error fetching receipt data:', error);
+    }
 }
 
 function closeRequestDetails() {
@@ -510,6 +543,9 @@ async function fetchReceipts(page = 1, search = '', searchMode = 'general') {
         const data = await response.json();
 
         if (data.successful && Array.isArray(data.requestHistory)) {
+            // Sort requestHistory by batch_id in descending order
+            data.requestHistory.sort((a, b) => b.batch_id - a.batch_id);
+            
             currentList.innerHTML = '';
             data.requestHistory.forEach(item => {
                 const listItem = createInvoiceListItem(item);
@@ -722,9 +758,13 @@ function createInvoiceListItem(item) {
     return li;
 }
 
-// Function to download PDF
+// Update the downloadPDF function to handle errors better
 function downloadPDF(base64Data, fileName) {
     try {
+        if (!base64Data) {
+            throw new Error('No PDF data available');
+        }
+
         const link = document.createElement('a');
         link.href = `data:application/pdf;base64,${base64Data}`;
         link.download = fileName;
@@ -733,5 +773,6 @@ function downloadPDF(base64Data, fileName) {
         document.body.removeChild(link);
     } catch (error) {
         console.error('Download failed:', error);
+        alert('Failed to download PDF. Please try again later.');
     }
 }
