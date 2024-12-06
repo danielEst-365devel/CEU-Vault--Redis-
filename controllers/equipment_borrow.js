@@ -218,6 +218,10 @@ function generateHr(doc, y) {
     .stroke();
 }
 
+const MAX_OTP_ATTEMPTS = 4;
+const OTP_EXPIRY_MINUTES = 10;
+const VERIFY_STATUS_EXPIRY = 3600; // 1 hour in seconds
+
 const submitForm = async (req, res, next) => {
   const { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories } = req.body;
 
@@ -250,6 +254,9 @@ const submitForm = async (req, res, next) => {
 
     // Store OTP and form data in session
     req.session.otp = otpCode;
+    req.session.otpTimestamp = Date.now(); // Add timestamp
+    req.session.otpAttempts = 0; // Initialize attempts
+    req.session.otpLocked = false; // Initialize lock status
     req.session.formData = { firstName, lastName, departmentName, email, natureOfService, purpose, venue, equipmentCategories };
 
     // Generate PDF invoice and convert to base64
@@ -264,6 +271,9 @@ const submitForm = async (req, res, next) => {
       pdfBase64: pdfBase64
     };
     await redisClient.set(sessionID, JSON.stringify(sessionData));
+
+    // Reset verification status in Redis for new submissions
+    await redisClient.del(`verified:${sessionID}`);
 
     // Send OTP email with form data
     await sendEmail(email, otpCode, req.session.formData);
@@ -294,56 +304,140 @@ const generateOTP = (length = 6) => {
 // OTP verification and form submission
 const verifyOTP = async (req, res) => {
   const { otp } = req.body;
+  const sessionID = req.sessionID;
 
   try {
+    // Check if session exists
+    if (!req.session) {
+      return res.status(400).json({
+        successful: false,
+        message: "Session expired. Please start a new request."
+      });
+    }
+
+    // Initialize OTP attempts if not exists
+    if (typeof req.session.otpAttempts === 'undefined') {
+      req.session.otpAttempts = 0;
+    }
+
+    // Check if OTP is locked
+    if (req.session.otpLocked) {
+      return res.status(403).json({
+        successful: false,
+        message: "This OTP has been locked due to too many failed attempts. Please start a new request.",
+        shouldRedirect: true // Add this flag
+      });
+    }
+
+    // Check OTP expiry
+    const otpTimestamp = req.session.otpTimestamp;
+    if (!otpTimestamp || Date.now() - otpTimestamp > OTP_EXPIRY_MINUTES * 60 * 1000) {
+      return res.status(400).json({
+        successful: false,
+        message: `OTP has expired. Please request a new one. OTP is valid for ${OTP_EXPIRY_MINUTES} minutes.`
+      });
+    }
+
     // Retrieve OTP and form data from session
     const storedOTP = req.session.otp;
     const formData = req.session.formData;
     const pdfBase64 = req.session.pdfBase64; // Assuming pdfBase64 is stored in the session
 
+    // Check if already verified
+    const isVerified = await redisClient.get(`verified:${sessionID}`);
+    if (isVerified) {
+      return res.status(400).json({
+        successful: false,
+        message: "This OTP has already been verified. Please submit a new request.",
+        alreadyVerified: true
+      });
+    }
+
     if (otp !== storedOTP) {
-      console.log('Session ID:', req.sessionID);
-      console.log('Session Data:', req.session);
+      req.session.otpAttempts++;
+
+      // Calculate remaining attempts
+      const remainingAttempts = MAX_OTP_ATTEMPTS - req.session.otpAttempts;
+
+      // Check if should lock
+      if (req.session.otpAttempts >= MAX_OTP_ATTEMPTS) {
+        req.session.otpLocked = true;
+        
+        // Send notification email about locked OTP
+        await sendOTPLockedEmail(formData.email);
+
+        return res.status(403).json({
+          successful: false,
+          message: "OTP has been locked due to too many failed attempts. Please start a new request.",
+          locked: true
+        });
+      }
+
       return res.status(400).json({
         successful: false,
-        message: "Invalid OTP. Please try again."
+        message: `Invalid OTP. You have ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining.`,
+        remainingAttempts
       });
     }
 
-    if (!formData || !pdfBase64) {
-      return res.status(400).json({
-        successful: false,
-        message: "Form data or PDF not found. Please resubmit the form."
-      });
+    // OTP is valid - proceed with form submission
+    try {
+      const result = await insertFormDataIntoDatabase(formData, pdfBase64);
+
+      if (result.successful) {
+        await sendApprovalEmail(formData.email, formData, pdfBase64);
+
+        // Set verification status in Redis with expiry
+        await redisClient.set(`verified:${sessionID}`, 'true', {
+          EX: VERIFY_STATUS_EXPIRY
+        });
+
+        // Clear sensitive session data
+        delete req.session.otp;
+        delete req.session.otpAttempts;
+        delete req.session.otpLocked;
+        delete req.session.otpTimestamp;
+        delete req.session.pdfBase64;
+
+        return res.status(200).json({
+          successful: true,
+          message: "OTP verified and form data inserted successfully. Approval email sent to requisitioner."
+        });
+      }
+
+      throw new Error("Database insertion failed");
+    } catch (error) {
+      console.error("Error processing verified OTP:", error);
+      throw error;
     }
 
-    // Insert form data into the database
-    const result = await insertFormDataIntoDatabase(formData, pdfBase64);
-
-    if (result.successful) {
-      // Insert the form receipt into the request history
-      //await insertInvoiceIntoRequestHistory(pdfBase64);
-
-      // Send an approval email to the requisitioner with the PDF attachment
-      await sendApprovalEmail(formData.email, formData, pdfBase64);
-
-      // Respond with success
-      return res.status(200).json({
-        successful: true,
-        message: "OTP verified and form data inserted successfully. Approval email sent to requisitioner."
-      });
-    } else {
-      return res.status(500).json({
-        successful: false,
-        message: "Failed to insert form data into the database. Please try again."
-      });
-    }
   } catch (error) {
-    console.error("Error verifying OTP or inserting form data:", error);
+    console.error("Error verifying OTP:", error);
     return res.status(500).json({
       successful: false,
-      message: "Failed to verify OTP or insert form data. Please try again."
+      message: "An unexpected error occurred. Please try again or contact support."
     });
+  }
+};
+
+// Add new helper function for OTP locked notification
+const sendOTPLockedEmail = async (email) => {
+  try {
+    await transporter.sendMail({
+      from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'OTP Locked - Too Many Failed Attempts',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto;">
+          <h2 style="color: #dc3545;">OTP Locked</h2>
+          <p>Your OTP has been locked due to too many failed verification attempts.</p>
+          <p>For security reasons, you will need to submit a new equipment request to receive a new OTP.</p>
+          <p>If you did not attempt to verify this OTP, please contact support immediately.</p>
+        </div>
+      `
+    });
+  } catch (error) {
+    console.error('Error sending OTP locked email:', error);
   }
 };
 
@@ -576,9 +670,29 @@ const getSessionData = async (req, res) => {
   }
 };
 
+// Add new function to check verification status
+const checkVerificationStatus = async (req, res) => {
+  try {
+    const sessionID = req.sessionID;
+    const isVerified = await redisClient.get(`verified:${sessionID}`);
+    
+    return res.status(200).json({
+      successful: true,
+      isVerified: Boolean(isVerified)
+    });
+  } catch (error) {
+    console.error("Error checking verification status:", error);
+    return res.status(500).json({
+      successful: false,
+      message: "Failed to check verification status"
+    });
+  }
+};
+
 module.exports = {
   submitForm,
   verifyOTP,
   getEquipmentCategories,
-  getSessionData // Add this to exports
+  getSessionData, // Add this to exports
+  checkVerificationStatus
 };

@@ -247,9 +247,16 @@
         window.history.forward();
       }
 
-      // Check if OTP was already verified
-      function checkOTPStatus() {
-        if (sessionStorage.getItem('otpVerified') === 'true') {
+      // Modify the checkOTPStatus function in your script section
+
+      async function checkOTPStatus() {
+        try {
+          const response = await fetch('/equipments/check-verification', {
+            credentials: 'include'
+          });
+          const data = await response.json();
+          
+          if (data.successful && data.isVerified) {
             const form = document.getElementById('otpForm');
             const input = document.getElementById('otp-input');
             const submitButton = document.querySelector('button[type="submit"]');
@@ -258,23 +265,29 @@
             input.disabled = true;
             submitButton.disabled = true;
             
-            Swal.fire({
-                icon: 'warning',
-                title: 'Already Verified',
-                text: 'This OTP has already been verified. Please start a new request.',
-                allowOutsideClick: false
-            }).then(() => {
-                window.location.href = '../requisitioner-form/';
+            await Swal.fire({
+              icon: 'warning',
+              title: 'Already Verified',
+              text: 'This OTP has already been verified. Please start a new request.',
+              allowOutsideClick: false
             });
+            
+            window.location.href = '../requisitioner-form/';
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error('Error checking OTP status:', error);
+          return false;
         }
       }
 
+      // Modify the verifyOTP function to handle already verified status
       async function verifyOTP(event) {
         event.preventDefault();
         
-        if (sessionStorage.getItem('otpVerified') === 'true') {
-            return;
-        }
+        const isVerified = await checkOTPStatus();
+        if (isVerified) return;
 
         // Disable the submit button
         const submitButton = document.querySelector('button[type="submit"]');
@@ -304,6 +317,17 @@
           
           const data = await response.json();
 
+          if (data.alreadyVerified) {
+            await Swal.fire({
+              icon: 'warning',
+              title: 'Already Verified',
+              text: data.message,
+              allowOutsideClick: false
+            });
+            window.location.href = '../requisitioner-form/';
+            return;
+          }
+
           if (data.successful) {
             sessionStorage.setItem('otpVerified', 'true');
             await Swal.fire({
@@ -316,11 +340,28 @@
             window.location.href = '../requisitioner-form/';
           } else {
             submitButton.disabled = false; // Re-enable button on error
-            await Swal.fire({
-              icon: 'error',
-              title: 'Verification Failed',
-              text: data.message
-            });
+            
+            // Check if we should redirect due to lockout
+            if (data.shouldRedirect) {
+              await Swal.fire({
+                icon: 'error',
+                title: 'OTP Locked',
+                text: data.message,
+                timer: 3000, // Show for 3 seconds
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                didClose: () => {
+                  window.location.href = '../requisitioner-form/';
+                }
+              });
+            } else {
+              // Handle other error cases as before
+              await Swal.fire({
+                icon: 'error',
+                title: 'Verification Failed',
+                text: data.message
+              });
+            }
           }
         } catch (error) {
           console.error('Error:', error);
