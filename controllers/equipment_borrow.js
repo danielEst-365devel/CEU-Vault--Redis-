@@ -219,7 +219,7 @@ function generateHr(doc, y) {
 }
 
 const MAX_OTP_ATTEMPTS = 4;
-const OTP_EXPIRY_MINUTES = 10;
+const OTP_EXPIRY_MINUTES = 15;
 const VERIFY_STATUS_EXPIRY = 3600; // 1 hour in seconds
 
 const submitForm = async (req, res, next) => {

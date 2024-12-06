@@ -86,8 +86,16 @@
 
         <div class="form-group">
           <label id="department-label" for="department-name">Department Name</label>
-          <input type="text" name="department-name" id="department-name" class="form-control"
-            placeholder="School / College / Department / Office." required="">
+          <select name="department-name" id="department-name" class="form-control" required>
+            <option value="" disabled selected>Select your department</option>
+            <option value="CAMT">College of Accountancy, Management, and Technology</option>
+            <option value="COED">College of Education, Liberal Arts and Science</option>
+            <option value="CHM">College of Hospitality Management</option>
+            <option value="DENT">Dentistry Department</option>
+            <option value="NURSING">Nursing Department</option>
+            <option value="OPTO">Optometry Department</option>
+            <option value="PHARMA">Pharmacy and Medical Technology Department</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -96,7 +104,6 @@
             placeholder="e.g. johndoe@ceu.edu.ph or @mls.ceu.edu.ph"
             pattern="^[a-zA-Z0-9._%+\-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$" required="" autocomplete="email">
         </div>
-
 
         <div class="form-group">
           <p>Nature of Service/s Requested:</p>
