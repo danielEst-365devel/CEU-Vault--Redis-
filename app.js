@@ -26,8 +26,8 @@ app.use(session({
     cookie: {
         secure: true, // Ensure the cookie is only used over HTTPS
         httpOnly: true,
-        maxAge: 120000,
-        sameSite: 'None' // Add SameSite=None attribute
+        maxAge: 900000, // 15 minutes in milliseconds
+        sameSite: 'None' 
     }
 }));
 

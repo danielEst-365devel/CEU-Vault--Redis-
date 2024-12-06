@@ -20,10 +20,10 @@ const credentials = { key: privateKey, cert: certificate };
 // Create HTTPS server
 const server = HTTPS.createServer(credentials, app);
 
-
-
 server.listen(port, () => {
-    console.log(`Server is all up in port ${port}`);
+    setTimeout(() => {
+        console.log('\x1b[36m%s\x1b[0m', `Server is running at https://localhost:${port}`);
+    }, 1500);
 });
 
 server.on('error', (err) => {
