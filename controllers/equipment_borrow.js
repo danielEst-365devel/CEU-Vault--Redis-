@@ -233,10 +233,10 @@ const submitForm = async (req, res, next) => {
   }
 
   // Validate email format
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9.]*@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/.test(email)) {
     return res.status(400).json({
       successful: false,
-      message: "Invalid email format."
+      message: "Invalid email format. Only letters, numbers, and dots are allowed before the @ symbol."
     });
   }
 

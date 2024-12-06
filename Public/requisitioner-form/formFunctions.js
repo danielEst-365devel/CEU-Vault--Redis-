@@ -125,7 +125,17 @@ async function populateEquipmentDropdowns() {
 const validators = {
   names: value => /^[A-Za-z\s'-]{2,50}$/.test(value),
   department: value => /^[A-Za-z0-9\s\/.()-]{3,100}$/.test(value),
-  email: value => /^[a-zA-Z0-9._%+-]+@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/.test(value),
+  email: {
+    pattern: /^[a-zA-Z0-9][a-zA-Z0-9.]*@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/,
+    validate: (value) => {
+      if (!value) return { isValid: false, message: 'Email is required' };
+      if (value.includes('+')) return { isValid: false, message: 'Email cannot contain + symbol' };
+      if (!/^[a-zA-Z0-9]/.test(value)) return { isValid: false, message: 'Email must start with a letter or number' };
+      if (!/^[a-zA-Z0-9.]*@/.test(value)) return { isValid: false, message: 'Email can only contain letters, numbers, and dots before @' };
+      if (!/@(mls\.ceu\.edu\.ph|ceu\.edu\.ph)$/.test(value)) return { isValid: false, message: 'Email must end with @mls.ceu.edu.ph or @ceu.edu.ph' };
+      return { isValid: true, message: '' };
+    }
+  },
   operatingHours: (timeString) => {
     if (!timeString) return false;
     const [hours] = timeString.split(':').map(Number);
@@ -215,16 +225,27 @@ function setupTermsPopup() {
 
 function setupValidation() {
   const validationRules = {
-    'first-name': { validator: validators.names, message: 'Please enter a valid first name' },
-    'last-name': { validator: validators.names, message: 'Please enter a valid last name' },
-    'department-name': { validator: validators.department, message: 'Please enter a valid department name' },
-    'email': { validator: validators.email, message: 'Please enter a valid CEU email address' }
+    'first-name': { validator: value => ({ isValid: validators.names(value), message: 'Please enter a valid first name' }) },
+    'last-name': { validator: value => ({ isValid: validators.names(value), message: 'Please enter a valid last name' }) },
+    'department-name': { validator: value => ({ isValid: validators.department(value), message: 'Please enter a valid department name' }) },
+    'email': { validator: validators.email.validate }
   };
 
-  Object.entries(validationRules).forEach(([id, {validator, message}]) => {
+  Object.entries(validationRules).forEach(([id, {validator}]) => {
     const element = document.getElementById(id);
     if (element) {
-      element.addEventListener('input', () => validateField(element, validator(element.value), message));
+      element.addEventListener('input', () => {
+        const result = validator(element.value);
+        validateField(element, result.isValid, result.message);
+      });
+      
+      // Add blur event for email to show final validation
+      if (id === 'email') {
+        element.addEventListener('blur', () => {
+          const result = validator(element.value);
+          validateField(element, result.isValid, result.message);
+        });
+      }
     }
   });
 
@@ -233,25 +254,30 @@ function setupValidation() {
 
 function validateField(element, isValid, message) {
   const group = element.closest('.form-group');
-  
-  // Store the validation state in a data attribute
   element.dataset.isValid = isValid;
   
-  // Update visual feedback
-  group.classList.toggle('error', !isValid);
-  group.classList.toggle('success', isValid);
+  // Remove all previous validation classes and messages
+  group.classList.remove('error', 'success');
+  const existingMessages = group.querySelectorAll('.error-message, .success-message');
+  existingMessages.forEach(msg => msg.remove());
   
-  // Handle error message
-  let error = group.querySelector('.error-message');
+  // Add new validation class
+  group.classList.add(isValid ? 'success' : 'error');
+  
+  // Add error message if invalid
   if (!isValid && message) {
-    if (!error) {
-      error = document.createElement('div');
-      error.className = 'error-message';
-      group.appendChild(error);
-    }
-    error.textContent = message;
-  } else if (error) {
-    error.remove();
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    group.appendChild(errorDiv);
+  }
+  
+  // Add success message only for valid email
+  if (isValid && element.type === 'email' && element.value) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.textContent = 'Valid email format';
+    group.appendChild(successDiv);
   }
 }
 
