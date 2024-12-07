@@ -486,6 +486,233 @@ const updateRequestStatus = async (req, res) => {
     }
 };
 
+const updateBatchRequestStatus = async (req, res) => {
+    const { request_ids, status } = req.body;
+    const token = req.cookies.token;
+
+    // Validate input
+    if (!Array.isArray(request_ids) || request_ids.length === 0) {
+        return res.status(400).json({ message: 'Invalid request: request_ids must be a non-empty array' });
+    }
+
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const validStatuses = ['approved', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const adminId = decoded.id;
+        const requestApprovedBy = decoded.email;
+        const statusUpdatedAt = new Date();
+        const approvedAt = status === 'approved' ? new Date() : null;
+
+        // Get all request details in a single query
+        const requestQuery = `
+            SELECT r.*, ec.category_name, ec.quantity_available 
+            FROM requests r 
+            LEFT JOIN equipment_categories ec ON r.equipment_category_id = ec.category_id 
+            WHERE r.request_id = ANY($1)
+        `;
+        const { rows: requestDetails } = await client.query(requestQuery, [request_ids]);
+
+        if (requestDetails.length !== request_ids.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: 'Some requests not found' });
+        }
+
+        // Check for returned requests
+        const hasReturnedRequests = requestDetails.some(req => req.status === 'returned');
+        if (hasReturnedRequests) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: 'Cannot change status of returned requests' });
+        }
+
+        // Update all requests in a single query
+        const updateQuery = `
+            UPDATE requests 
+            SET admin_id = $1, 
+                status = $2, 
+                status_updated_at = $3
+                ${status === 'approved' ? ', approved_at = $4' : ''}
+            WHERE request_id = ANY($${status === 'approved' ? '5' : '4'})
+        `;
+
+        const updateValues = [
+            adminId,
+            status,
+            statusUpdatedAt,
+            ...(status === 'approved' ? [approvedAt] : []),
+            request_ids
+        ];
+
+        await client.query(updateQuery, updateValues);
+
+        // Insert into admin_log for all requests
+        const insertAdminLogQuery = `
+            INSERT INTO admin_log (
+                request_id, email, first_name, last_name, department, 
+                nature_of_service, purpose, venue, equipment_category_id, 
+                quantity_requested, requested, time_requested, return_time, 
+                time_borrowed, approved_at, status, status_updated_at, 
+                admin_id, batch_id, request_approved_by
+            )
+            SELECT 
+                r.request_id, r.email, r.first_name, r.last_name, r.department,
+                r.nature_of_service, r.purpose, r.venue, r.equipment_category_id,
+                r.quantity_requested, r.requested, r.time_requested, r.return_time,
+                r.time_borrowed::TIME, $1, $2, $3, $4, r.batch_id, $5
+            FROM requests r
+            WHERE r.request_id = ANY($6)
+        `;
+
+        await client.query(insertAdminLogQuery, [
+            approvedAt,
+            status,
+            statusUpdatedAt,
+            adminId,
+            requestApprovedBy,
+            request_ids
+        ]);
+
+        // Delete processed requests
+        await client.query('DELETE FROM requests WHERE request_id = ANY($1)', [request_ids]);
+
+        // Process batch notifications
+        const batchIds = [...new Set(requestDetails.map(req => req.batch_id))];
+        for (const batchId of batchIds) {
+            const batchRequests = requestDetails.filter(req => req.batch_id === batchId);
+            const requesterEmail = batchRequests[0].email;
+
+            // Check if all requests in this batch are processed
+            const remainingRequestsQuery = 'SELECT status FROM requests WHERE batch_id = $1';
+            const { rows: remainingRequests } = await client.query(remainingRequestsQuery, [batchId]);
+
+            if (remainingRequests.length === 0) {
+                // All requests in batch are processed - generate PDF and send email
+                const approvedRequestsQuery = `
+                    SELECT al.*, ec.category_name 
+                    FROM admin_log al 
+                    LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
+                    WHERE al.batch_id = $1 AND al.status = 'approved'
+                `;
+                const cancelledRequestsQuery = `
+                    SELECT al.*, ec.category_name 
+                    FROM admin_log al 
+                    LEFT JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id 
+                    WHERE al.batch_id = $1 AND al.status = 'cancelled'
+                `;
+
+                const [approvedResults, cancelledResults] = await Promise.all([
+                    client.query(approvedRequestsQuery, [batchId]),
+                    client.query(cancelledRequestsQuery, [batchId])
+                ]);
+
+                const approvedRequests = approvedResults.rows;
+                const cancelledRequests = cancelledResults.rows;
+
+                // Helper functions (reused from original function)
+                const formatTimeTo12Hour = (time) => {
+                    if (!time) return null;
+                    const [hours, minutes] = time.split(':').map(Number);
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    const formattedHours = hours % 12 || 12;
+                    const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+                    return `${formattedHours}:${formattedMinutes} ${ampm}`;
+                };
+
+                const formatDisplayDate = (date) => {
+                    if (!date) return null;
+                    const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+                    return new Date(date).toLocaleDateString('en-US', options);
+                };
+
+                const details = {
+                    firstName: batchRequests[0].first_name,
+                    lastName: batchRequests[0].last_name,
+                    departmentName: batchRequests[0].department,
+                    email: requesterEmail,
+                    natureOfService: batchRequests[0].nature_of_service,
+                    purpose: batchRequests[0].purpose,
+                    venue: batchRequests[0].venue,
+                    equipmentCategories: approvedRequests.map(req => ({
+                        category: req.category_name,
+                        quantity: req.quantity_requested,
+                        dateRequested: formatDisplayDate(req.requested),
+                        timeRequested: formatTimeTo12Hour(req.time_requested),
+                        returnTime: formatTimeTo12Hour(req.return_time)
+                    })),
+                    cancelledDetails: cancelledRequests.length > 0 ? {
+                        equipmentCategories: cancelledRequests.map(req => ({
+                            category: req.category_name,
+                            quantity: req.quantity_requested,
+                            dateRequested: formatDisplayDate(req.requested),
+                            timeRequested: formatTimeTo12Hour(req.time_requested),
+                            returnTime: formatTimeTo12Hour(req.return_time)
+                        }))
+                    } : null
+                };
+
+                const pdfData = await adminPdfGenerator.createInvoice(details);
+                const pdfBuffer = Buffer.from(pdfData, 'base64');
+
+                // Store binary buffer in database
+                await client.query(`
+                    UPDATE request_history 
+                    SET approved_requests_receipt = $1 
+                    WHERE batch_id = $2
+                `, [pdfBuffer, batchId]);
+
+                const htmlContent = emailTemplates.requestStatus(details);
+
+                try {
+                    await transporter.sendMail({
+                        from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+                        to: requesterEmail,
+                        subject: `All Requests Approved`,
+                        text: `All your requests tied to Request Batch ID ${batchId} have been processed.`,
+                        html: htmlContent,
+                        attachments: [
+                            {
+                                filename: 'ApprovedRequestsReceipt.pdf',
+                                content: pdfData,
+                                encoding: 'base64'
+                            }
+                        ]
+                    });
+                } catch (emailError) {
+                    await client.query('ROLLBACK');
+                    console.error('Error sending email:', emailError);
+                    return res.status(500).json({
+                        message: 'Failed to send email. Transaction rolled back.',
+                        batchId: batchId
+                    });
+                }
+            }
+        }
+
+        await client.query('COMMIT');
+        res.status(200).json({
+            message: 'Batch request status updated successfully',
+            processed: request_ids.length
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error updating batch request status:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    } finally {
+        client.release();
+    }
+};
+
 const updateRequestStatusTwo = async (req, res) => {
     const { request_id, status } = req.body;
     const token = req.cookies.token;
@@ -1403,5 +1630,6 @@ module.exports = {
     resetEquipment,
     generateInventoryPDF,
     getStatusCounts,
-    updateRequestDetails
+    updateRequestDetails,
+    updateBatchRequestStatus
 };

@@ -32,5 +32,5 @@ adminRouter.post('/generate-inventory-pdf', adminController.generateInventoryPDF
 adminRouter.get('/get-active-requests', adminController.getActiveRequests);
 adminRouter.get('/get-status-counts', adminController.getStatusCounts); 
 adminRouter.post('/update-request-details', adminController.updateRequestDetails); 
-
+adminRouter.post('/update-batch-status', adminController.updateBatchRequestStatus); 
 module.exports = adminRouter;

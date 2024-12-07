@@ -609,6 +609,7 @@ module.exports = {
   generateInventoryPDF: adminActions.generateInventoryPDF,
   getActiveRequests: adminActions.getActiveRequests,
   getStatusCounts: adminActions.getStatusCounts,
-  updateRequestDetails: adminActions.updateRequestDetails
+  updateRequestDetails: adminActions.updateRequestDetails,
+  updateBatchRequestStatus: adminActions.updateBatchRequestStatus
 
 };
