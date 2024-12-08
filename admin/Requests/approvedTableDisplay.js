@@ -1,3 +1,239 @@
+const TIME_STATUS_STYLES = {
+  OVERDUE: {
+    backgroundColor: 'rgba(220, 53, 69, 0.1)',  // Red
+    cursor: 'pointer'
+  },
+  DUE_30: {
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',  // Yellow
+    cursor: 'pointer'
+  },
+  DUE_60: {
+    backgroundColor: 'rgba(23, 162, 184, 0.1)', // Light Blue
+    cursor: 'pointer'
+  }
+};
+
+// Add this helper function at the top
+function isOverdue(request) {
+  // Parse the date and time
+  const requestDate = new Date(request.requested);
+  const returnTime = request.return_time.split(':');
+  const returnDate = new Date(requestDate);
+  returnDate.setHours(returnTime[0], returnTime[1], 0);
+
+  // Get current date/time
+  const now = new Date();
+
+  return now > returnDate;
+}
+
+function getRowStyle(request) {
+  // Convert backend minutes into more usable format
+  const returnDate = new Date(request.requested);
+  const returnTime = request.return_time.split(':');
+  returnDate.setHours(returnTime[0], returnTime[1], 0);
+  
+  const now = new Date();
+  const diffMinutes = (returnDate - now) / (1000 * 60);
+
+  if (isOverdue(request)) {
+    return TIME_STATUS_STYLES.OVERDUE;
+  } else if (diffMinutes <= 30) {
+    return TIME_STATUS_STYLES.DUE_30;
+  } else if (diffMinutes <= 60) {
+    return TIME_STATUS_STYLES.DUE_60;
+  }
+  return {};
+}
+
+function showPenaltyDetails(request) {
+  // Calculate time-related values
+  const returnDate = new Date(request.requested);
+  const returnTime = request.return_time.split(':');
+  returnDate.setHours(returnTime[0], returnTime[1], 0);
+  
+  const now = new Date();
+  const diffMinutes = Math.abs(now - returnDate) / (1000 * 60);
+  const isLate = isOverdue(request);
+  
+  const completedHours = Math.floor(diffMinutes / 60);
+  const remainingMinutes = Math.floor(diffMinutes % 60);
+  const penalty = isLate ? completedHours * 100 : 0;
+
+  const customStyles = `
+    <style>
+      .status-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      }
+
+      .status-header {
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+
+      .status-title {
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        margin: 0;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      .info-item {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      .info-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+      }
+
+      .info-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #344767;
+      }
+
+      .penalty-section {
+        margin-top: 1.5rem;
+        text-align: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      .penalty-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+      }
+
+      .penalty-amount {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #dc3545;
+        margin: 0.5rem 0;
+      }
+
+      .penalty-note {
+        font-size: 0.75rem;
+        color: #6c757d;
+      }
+
+      .close-btn {
+        background: #344767;
+        color: white;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 500;
+        margin-top: 1rem;
+      }
+
+      .close-btn:hover {
+        background: #273553;
+      }
+    </style>
+  `;
+
+  // Status specific styles
+  let statusColor = isLate ? '#dc3545' : 
+                   diffMinutes <= 30 ? '#ffc107' : 
+                   diffMinutes <= 60 ? '#17a2b8' : '#28a745';
+
+  let statusText = isLate ? 'OVERDUE' :
+                  diffMinutes <= 30 ? 'DUE VERY SOON' :
+                  diffMinutes <= 60 ? 'DUE SOON' : 'ON TIME';
+
+  Swal.fire({
+    title: 'Request Status',
+    html: `
+      ${customStyles}
+      <div class="status-card">
+        <div class="status-header" style="background: ${statusColor}20; color: ${statusColor}">
+          <h3 class="status-title">${statusText}</h3>
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Equipment</div>
+            <div class="info-value">${request.category_name}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Requisitioner</div>
+            <div class="info-value">${request.first_name} ${request.last_name}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Return Time</div>
+            <div class="info-value">${formatTime(request.return_time)}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Time ${isLate ? 'Overdue' : 'Remaining'}</div>
+            <div class="info-value" style="color: ${statusColor}">
+              ${completedHours}h ${remainingMinutes}m
+            </div>
+          </div>
+        </div>
+
+        ${isLate ? `
+          <div class="penalty-section">
+            <div class="penalty-label">Current Penalty</div>
+            <div class="penalty-amount" id="penaltyCounter">₱0</div>
+            <div class="penalty-note">Based on ₱100/hour rate</div>
+          </div>
+        ` : ''}
+      </div>
+    `,
+    showConfirmButton: true,
+    confirmButtonText: 'Close',
+    customClass: {
+      confirmButton: 'close-btn'
+    },
+    buttonsStyling: false,
+    didOpen: () => {
+      if (isLate && penalty > 0) {
+        const counter = document.getElementById('penaltyCounter');
+        let startTime = null;
+        const duration = 6000; // 6 seconds
+        const startValue = 0;
+        const endValue = penalty;
+        
+        function animate(currentTime) {
+          if (!startTime) startTime = currentTime;
+          const elapsedTime = currentTime - startTime;
+          const progress = Math.min(elapsedTime / duration, 1);
+          
+          // Easing function for smoother animation
+          const easeOut = t => 1 - Math.pow(1 - t, 3);
+          const easedProgress = easeOut(progress);
+          
+          const currentValue = Math.round(startValue + (endValue - startValue) * easedProgress);
+          counter.textContent = `₱${currentValue.toLocaleString()}`;
+          
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        }
+        
+        requestAnimationFrame(animate);
+      }
+    }
+  });
+}
+
 async function fetchApprovedRequestsData() {
     const tableBody = document.getElementById('approvedRequestsTableBody');
     // Add loading spinner
@@ -176,7 +412,7 @@ async function fetchApprovedRequestsData() {
   
         // Add input event listeners
         mcl1.addEventListener('input', (e) => {
-          if (e.target.value) {
+          if ( e.target.value) {
             mcl2.focus();
           }
         });
@@ -515,6 +751,24 @@ async function fetchApprovedRequestsData() {
   
     filteredRequests.forEach((request, index) => {
       const row = document.createElement('tr');
+      
+      // Apply time status styling
+      const rowStyle = getRowStyle(request);
+      Object.assign(row.style, rowStyle);
+      
+      // Add click handler for rows with time status, but exclude buttons
+      if (isOverdue(request) || 
+          (request.status === 'ongoing' && Object.keys(getRowStyle(request)).length > 0)) {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (event) => {
+          // Check if the click was on a button
+          const isButton = event.target.closest('a[id^="releaseButton"], a[id^="returnButton"], a[id^="cancelButton"]');
+          if (!isButton) {
+            showPenaltyDetails(request);
+          }
+        });
+      }
+  
       // Remove the row click handler and cursor style
       // row.style.cursor = 'pointer';
       // row.onclick = () => showRequestDetails(request);
@@ -645,23 +899,26 @@ async function fetchApprovedRequestsData() {
       const cancelButton = document.getElementById(`cancelButton-${index}`);
   
       if (releaseButton) {
-        releaseButton.addEventListener('click', function () {
+        releaseButton.addEventListener('click', function(e) {
+          e.stopPropagation(); // Prevent row click
           console.log(`Release button clicked for request ${request.request_id}`);
-          fetchApprovedRequestsData();
+          processReleaseRequest(request.request_id);
         });
       }
   
       if (returnButton) {
-        returnButton.addEventListener('click', function () {
+        returnButton.addEventListener('click', function(e) {
+          e.stopPropagation(); // Prevent row click
           console.log(`Return button clicked for request ${request.request_id}`);
-          fetchApprovedRequestsData();
+          processReturnRequest(request.request_id, request.mcl_pass_no || 'Not assigned');
         });
       }
   
       if (cancelButton) {
-        cancelButton.addEventListener('click', function () {
+        cancelButton.addEventListener('click', function(e) {
+          e.stopPropagation(); // Prevent row click
           console.log(`Cancel button clicked for request ${request.request_id}`);
-          fetchApprovedRequestsData();
+          cancelRequest(request.request_id);
         });
       }
     });
@@ -730,3 +987,16 @@ async function fetchApprovedRequestsData() {
   
   // Call the function to fetch and display data
   fetchApprovedRequestsData();
+
+function formatDuration(overdueMinutes, minutesUntilOverdue) {
+  if (overdueMinutes > 0) {
+    const hours = Math.floor(overdueMinutes / 60);
+    const minutes = Math.floor(overdueMinutes % 60);
+    return `${hours}h ${minutes}m overdue`;
+  } else if (minutesUntilOverdue) {
+    const hours = Math.floor(minutesUntilOverdue / 60);
+    const minutes = Math.floor(minutesUntilOverdue % 60);
+    return `${hours}h ${minutes}m remaining`;
+  }
+  return '';
+}

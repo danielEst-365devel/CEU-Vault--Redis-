@@ -222,21 +222,24 @@
               <h6>Pending Requests</h6>
             </div>
             <!-- Add this right after the card-header div in the Pending Requests section -->
-            <div id="batchActions" class="p-3 bg-light border-bottom" style="display: none; justify-content: space-between; align-items: center;">
-                <div>
-                    <span id="selectionCount" class="text-sm text-secondary">0 selected</span>
-                </div>
-                <div>
-                    <button id="batchApproveBtn" class="btn btn-sm btn-success" onclick="processBatchRequests('approved')" disabled>
-                        Approve
-                    </button>
-                    <button id="batchCancelBtn" class="btn btn-sm btn-danger" onclick="processBatchRequests('cancelled')" disabled>
-                        Cancel
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleSelectionMode()">
-                        Cancel
-                    </button>
-                </div>
+            <div id="batchActions" class="p-3 bg-light border-bottom"
+              style="display: none; justify-content: space-between; align-items: center;">
+              <div>
+                <span id="selectionCount" class="text-sm text-secondary">0 selected</span>
+              </div>
+              <div>
+                <button id="batchApproveBtn" class="btn btn-sm btn-success" onclick="processBatchRequests('approved')"
+                  disabled>
+                  Approve
+                </button>
+                <button id="batchCancelBtn" class="btn btn-sm btn-danger" onclick="processBatchRequests('cancelled')"
+                  disabled>
+                  Cancel
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleSelectionMode()">
+                  Cancel
+                </button>
+              </div>
             </div>
 
             <div class="card-body px-0 pt-0 pb-2">
@@ -456,7 +459,6 @@
   <script src="requests.js"></script>
   <script src="tableDisplay.js"></script>
   <script src="approvedTableDisplay.js"></script>
-
 </body>
 
 </html>

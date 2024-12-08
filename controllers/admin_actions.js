@@ -374,7 +374,7 @@ const updateRequestStatus = async (req, res) => {
 
         const allRequestsQuery = 'SELECT status FROM requests WHERE batch_id = $1';
         const allRequestsResult = await client.query(allRequestsQuery, [batchId]);
-        const allRequests = allRequestsResult.rows;
+        const allRequests = allRequests.rows;
 
         const allApproved = allRequests.every(req => req.status === 'approved');
 
@@ -985,19 +985,78 @@ const getAllHistory = async (req, res) => {
 
 const getActiveRequests = async (req, res) => {
     const query = `
-        SELECT admin_log.*, equipment_categories.category_name 
-        FROM admin_log 
-        JOIN equipment_categories 
-        ON admin_log.equipment_category_id = equipment_categories.category_id
-        WHERE admin_log.status IN ('approved', 'ongoing')
-        ORDER BY admin_log.batch_id ASC
+        WITH PenaltyCalculation AS (
+            SELECT 
+                admin_log.*,
+                equipment_categories.category_name,
+                CASE
+                    WHEN status = 'ongoing' AND (
+                        requested < CURRENT_DATE OR 
+                        (requested = CURRENT_DATE AND CURRENT_TIME > return_time::TIME)
+                    ) THEN
+                        FLOOR(  -- Changed from CEIL to FLOOR to only count completed hours
+                            EXTRACT(EPOCH FROM (
+                                CURRENT_TIMESTAMP - 
+                                (requested::DATE + return_time::TIME)
+                            )) / 3600
+                        ) * 100
+                    ELSE 0
+                END as penalty_amount,
+                CASE
+                    WHEN status = 'ongoing' AND (
+                        requested::DATE < CURRENT_DATE OR 
+                        (requested::DATE = CURRENT_DATE AND CURRENT_TIME > return_time::TIME)
+                    ) THEN
+                        EXTRACT(EPOCH FROM (
+                            CURRENT_TIMESTAMP - 
+                            (requested::DATE + return_time::TIME)
+                        )) / 60
+                    ELSE NULL
+                END as overdue_minutes,
+                CASE
+                    WHEN status IN ('approved', 'ongoing') AND (
+                        requested::DATE > CURRENT_DATE OR 
+                        (requested::DATE = CURRENT_DATE AND return_time::TIME > CURRENT_TIME)
+                    ) THEN
+                        EXTRACT(EPOCH FROM (
+                            (requested::DATE + return_time::TIME) - 
+                            CURRENT_TIMESTAMP
+                        )) / 60
+                    ELSE NULL
+                END as minutes_until_overdue
+            FROM admin_log 
+            JOIN equipment_categories 
+            ON admin_log.equipment_category_id = equipment_categories.category_id
+            WHERE admin_log.status IN ('approved', 'ongoing')
+        )
+        SELECT 
+            *,
+            CASE
+                WHEN penalty_amount > 0 THEN true
+                ELSE false
+            END as has_penalty
+        FROM PenaltyCalculation
+        ORDER BY 
+            CASE 
+                WHEN overdue_minutes IS NOT NULL THEN 1
+                WHEN minutes_until_overdue IS NOT NULL THEN 2
+                ELSE 3
+            END,
+            overdue_minutes DESC,
+            minutes_until_overdue ASC
     `;
 
     const countQuery = `
         SELECT 
             COUNT(*) FILTER (WHERE status = 'approved') AS approved_count,
             COUNT(*) FILTER (WHERE status = 'ongoing') AS ongoing_count,
-            COUNT(*) FILTER (WHERE status IN ('approved', 'ongoing')) AS total_count
+            COUNT(*) FILTER (WHERE status IN ('approved', 'ongoing')) AS total_count,
+            COUNT(*) FILTER (
+                WHERE status = 'ongoing' AND (
+                    (requested < CURRENT_DATE) OR 
+                    (requested = CURRENT_DATE AND CURRENT_TIME > return_time)
+                )
+            ) AS overdue_count
         FROM admin_log
     `;
 
@@ -1007,7 +1066,16 @@ const getActiveRequests = async (req, res) => {
             db.query(countQuery)
         ]);
 
-        const rows = requestsResult.rows;
+        const rows = requestsResult.rows.map(row => ({
+            ...row,
+            penalty_amount: parseInt(row.penalty_amount) || 0,
+            formatted_penalty: row.penalty_amount ? 
+                `₱${parseInt(row.penalty_amount).toLocaleString()}` : 
+                '₱0',
+            time_status: getTimeStatus(row.overdue_minutes, row.minutes_until_overdue),
+            formatted_duration: formatDuration(row.overdue_minutes, row.minutes_until_overdue)
+        }));
+
         const counts = countResult.rows[0];
 
         return res.status(200).json({
@@ -1015,7 +1083,8 @@ const getActiveRequests = async (req, res) => {
             history: rows,
             approvedCount: parseInt(counts.approved_count),
             ongoingCount: parseInt(counts.ongoing_count),
-            totalCount: parseInt(counts.total_count)
+            totalCount: parseInt(counts.total_count),
+            overdueCount: parseInt(counts.overdue_count)
         });
     } catch (error) {
         console.error('Error retrieving active requests:', error);
@@ -1023,6 +1092,43 @@ const getActiveRequests = async (req, res) => {
             successful: false,
             message: 'Failed to retrieve active requests.'
         });
+    }
+};
+
+// Helper function to determine time status
+const getTimeStatus = (overdueMinutes, minutesUntilOverdue) => {
+    if (overdueMinutes !== null && overdueMinutes > 0) {
+        return 'overdue';
+    } else if (minutesUntilOverdue !== null && minutesUntilOverdue > 0) {
+        return 'upcoming';
+    } else {
+        return 'on_time';
+    }
+};
+
+// Helper function to format duration
+const formatDuration = (overdueMinutes, minutesUntilOverdue) => {
+    const formatTime = (minutes) => {
+        if (minutes === null) return '';
+        
+        const days = Math.floor(minutes / (24 * 60));
+        const hours = Math.floor((minutes % (24 * 60)) / 60);
+        const mins = Math.floor(minutes % 60);
+        
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (mins > 0) parts.push(`${mins}m`);
+        
+        return parts.join(' ') || '0m';
+    };
+
+    if (overdueMinutes !== null && overdueMinutes > 0) {
+        return `Overdue by ${formatTime(overdueMinutes)}`;
+    } else if (minutesUntilOverdue !== null && minutesUntilOverdue > 0) {
+        return `Due in ${formatTime(minutesUntilOverdue)}`;
+    } else {
+        return 'On time';
     }
 };
 
