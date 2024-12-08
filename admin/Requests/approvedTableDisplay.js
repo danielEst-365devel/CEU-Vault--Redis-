@@ -70,10 +70,14 @@ function showPenaltyDetails(request) {
       }
 
       .status-header {
-        padding: 0.75rem;
-        border-radius: 8px;
+        padding: 1.5rem;
+        border-radius: 12px;
         margin-bottom: 1.5rem;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
       }
 
       .status-title {
@@ -146,6 +150,61 @@ function showPenaltyDetails(request) {
       .close-btn:hover {
         background: #273553;
       }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+
+      .pulse-circle {
+        position: relative;
+        width: 12px;
+        height: 12px;
+      }
+
+      .pulse-dot {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: currentColor;
+        border-radius: 50%;
+      }
+
+      .pulse-ring {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        50% {
+          transform: scale(2);
+          opacity: 0;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 0;
+        }
+      }
+
+      .status-text {
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
     </style>
   `;
 
@@ -163,8 +222,14 @@ function showPenaltyDetails(request) {
     html: `
       ${customStyles}
       <div class="status-card">
-        <div class="status-header" style="background: ${statusColor}20; color: ${statusColor}">
-          <h3 class="status-title">${statusText}</h3>
+        <div class="status-header" style="background: ${statusColor}15">
+          <div class="status-indicator" style="color: ${statusColor}">
+            <div class="pulse-circle">
+              <div class="pulse-dot"></div>
+              <div class="pulse-ring" style="background: ${statusColor}"></div>
+            </div>
+            <div class="status-text">${statusText}</div>
+          </div>
         </div>
         
         <div class="info-grid">
