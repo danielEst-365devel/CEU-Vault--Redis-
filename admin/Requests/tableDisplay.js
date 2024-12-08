@@ -791,7 +791,7 @@ function enterSelectionMode() {
   // Updated toast notification with more complete instructions
   Swal.fire({
     toast: true,
-    position: 'top-end',
+    position: 'bottom-start',
     icon: 'info',
     title: 'Batch Selection Mode',
     html: `
@@ -805,7 +805,7 @@ function enterSelectionMode() {
       </div>
     `,
     showConfirmButton: false,
-    timer: 4000,
+    timer: 5000,
     timerProgressBar: true
   });
 
