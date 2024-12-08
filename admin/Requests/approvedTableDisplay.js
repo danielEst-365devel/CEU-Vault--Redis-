@@ -372,7 +372,7 @@ async function fetchApprovedRequestsData() {
       </style>
     `;
   
-    const { value: remarks } = await Swal.fire({
+    const { isConfirmed } = await Swal.fire({
       title: 'Return Equipment',
       html: `
         ${customStyles}
@@ -439,12 +439,18 @@ async function fetchApprovedRequestsData() {
           
           remarksArea.style.height = `${newHeight}px`;
         });
+      },
+      preConfirm: () => {
+        const remarksValue = document.getElementById('remarks').value;
+        return remarksValue; // Return the actual remarks value
       }
     });
   
-    if (remarks !== undefined) { // Check if modal wasn't dismissed
+    if (isConfirmed) {
       try {
-        // Update remarks
+        const remarksValue = document.getElementById('remarks').value;
+        
+        // Update remarks with the actual value
         const updateResponse = await fetch('/admin/update-request-details', {
           method: 'POST',
           headers: {
@@ -452,7 +458,7 @@ async function fetchApprovedRequestsData() {
           },
           body: JSON.stringify({
             request_id: requestId,
-            remarks: remarks
+            remarks: remarksValue // Use the captured remarks value
           }),
           credentials: 'include'
         });
