@@ -984,47 +984,35 @@ const getAllHistory = async (req, res) => {
 };
 
 const getActiveRequests = async (req, res) => {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-
     const query = `
         SELECT admin_log.*, equipment_categories.category_name 
         FROM admin_log 
         JOIN equipment_categories 
         ON admin_log.equipment_category_id = equipment_categories.category_id
         WHERE admin_log.status IN ('approved', 'ongoing')
-        ORDER BY admin_log.status_updated_at DESC
-        LIMIT $1 OFFSET $2
+        ORDER BY admin_log.batch_id ASC
     `;
 
     const countQuery = `
         SELECT 
-            COUNT(*) FILTER (WHERE status IN ('approved', 'ongoing')) AS total_count,
             COUNT(*) FILTER (WHERE status = 'approved') AS approved_count,
-            COUNT(*) FILTER (WHERE status = 'ongoing') AS ongoing_count
+            COUNT(*) FILTER (WHERE status = 'ongoing') AS ongoing_count,
+            COUNT(*) FILTER (WHERE status IN ('approved', 'ongoing')) AS total_count
         FROM admin_log
     `;
 
     try {
         const [requestsResult, countResult] = await Promise.all([
-            db.query(query, [limit, offset]),
+            db.query(query),
             db.query(countQuery)
         ]);
 
         const rows = requestsResult.rows;
         const counts = countResult.rows[0];
-        const totalPages = Math.ceil(counts.total_count / limit);
 
         return res.status(200).json({
             successful: true,
             history: rows,
-            pagination: {
-                currentPage: page,
-                totalPages: totalPages,
-                totalItems: parseInt(counts.total_count),
-                itemsPerPage: limit
-            },
             approvedCount: parseInt(counts.approved_count),
             ongoingCount: parseInt(counts.ongoing_count),
             totalCount: parseInt(counts.total_count)
@@ -1634,6 +1622,7 @@ const updateRequestDetails = async (req, res) => {
         client.release();
     }
 };
+
 
 module.exports = {
     updateRequestStatus,
