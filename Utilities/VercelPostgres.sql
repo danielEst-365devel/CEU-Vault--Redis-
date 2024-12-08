@@ -95,7 +95,10 @@ CREATE TABLE admin_log (
 INSERT INTO admins (email, name, password_hash, created_at) 
 VALUES ('magbitang@ceu.edu.ph', 'Michael Lino Magbitang', 
         '$2a$10$YXCyvSxs5h9UBXxJSWG15.FnNIauoNYBPJYmR2qPL53wUx./.k2cO', 
-        '2024-10-21 02:32:53');
+        '2024-10-21 02:32:53'),
+        ('claravall2130888@mls.ceu.edu.ph', 'Jannah Claravall', 
+        '$2a$10$XanfHdFhcn6faS3M/k42eeT2q5DUgN8R8FANTDVOB85sNMoOoDW9m', 
+        '2024-11-26 02:32:53');
 
 -- Insert equipment categories
 INSERT INTO equipment_categories (category_name, quantity_available) VALUES

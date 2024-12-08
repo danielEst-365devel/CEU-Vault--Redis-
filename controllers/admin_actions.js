@@ -1567,10 +1567,10 @@ const getStatusCounts = async (req, res) => {
 const updateRequestDetails = async (req, res) => {
     const { request_id, mcl_pass_no, remarks } = req.body;
 
-    if (!request_id || !mcl_pass_no) {
+    if (!request_id) {
         return res.status(400).json({
             successful: false,
-            message: 'Missing required fields'
+            message: 'Request ID is required'
         });
     }
 
@@ -1579,14 +1579,37 @@ const updateRequestDetails = async (req, res) => {
     try {
         await client.query('BEGIN');
 
+        // Build update query dynamically based on provided fields
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (mcl_pass_no !== undefined) {
+            updates.push(`mcl_pass_no = $${paramCount}`);
+            values.push(mcl_pass_no);
+            paramCount++;
+        }
+
+        if (remarks !== undefined) {
+            updates.push(`remarks = $${paramCount}`);
+            values.push(remarks);
+            paramCount++;
+        }
+
+        if (updates.length === 0) {
+            throw new Error('No fields to update');
+        }
+
+        values.push(request_id); // Add request_id as the last parameter
+
         const updateQuery = `
             UPDATE admin_log 
-            SET mcl_pass_no = $1, remarks = $2
-            WHERE request_id = $3
+            SET ${updates.join(', ')}
+            WHERE request_id = $${paramCount}
             RETURNING *
         `;
 
-        const result = await client.query(updateQuery, [mcl_pass_no, remarks, request_id]);
+        const result = await client.query(updateQuery, values);
 
         if (result.rows.length === 0) {
             throw new Error('Request not found');

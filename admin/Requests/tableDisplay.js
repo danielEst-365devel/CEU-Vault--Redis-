@@ -1,15 +1,23 @@
-// Formatting functions
+// Consolidated formatting functions
 function formatDate(isoString) {
-  const options = { year: 'numeric', month: 'long', day: 'numeric' };
+  const options = { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
   const date = new Date(isoString);
   return date.toLocaleDateString(undefined, options);
 }
 
 function formatTime(timeString) {
-  const [hour, minute, second] = timeString.split(':');
+  const [hour, minute] = timeString.split(':');
   const date = new Date();
-  date.setHours(parseInt(hour), parseInt(minute, parseInt(second)));
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  date.setHours(parseInt(hour), parseInt(minute));
+  return date.toLocaleTimeString([], { 
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true 
+  });
 }
 
 async function fetchBorrowingRequestsData() {
@@ -699,8 +707,6 @@ tr.batch-highlight:last-child td {
     to { opacity: 1; transform: translateY(0); }
 }
 
-// ...rest of existing code...
-
 .selection-count {
     font-size: 0.875rem;
     font-weight: 600;
@@ -716,270 +722,6 @@ document.head.appendChild(style);
 // Call the function to fetch and display data
 fetchBorrowingRequestsData();
 
-// Formatting functions
-function formatDate(isoString) {
-  const options = { year: 'numeric', month: 'long', day: 'numeric' };
-  const date = new Date(isoString);
-  return date.toLocaleDateString(undefined, options);
-}
-
-function formatTime(timeString) {
-  const [hour, minute, second] = timeString.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hour), parseInt(minute, parseInt(second)));
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-async function fetchApprovedRequestsData() {
-  const tableBody = document.getElementById('approvedRequestsTableBody');
-  // Add loading spinner
-  tableBody.innerHTML = `
-            <tr>
-              <td colspan="9" class="text-center">
-                <div class="spinner-border" role="status">
-                  <span class="visually-hidden">Loading...</span>
-                </div>
-              </td>
-            </tr>
-          `;
-
-  try {
-    const response = await fetch('/admin/get-active-requests');
-    console.log('Response Status:', response.status);
-    console.log('Response Headers:', response.headers);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('Fetched Data:', data); // Log the fetched data
-
-    if (data.successful && data.history && data.history.length > 0) {
-      displayApprovedRequestsTable(data.history, 'approvedRequestsTableBody');
-    } else {
-      document.getElementById('approvedRequestsTableBody').innerHTML = `<p class="text-center text-muted">Waiting for approved requests...</p>`;
-    }
-  } catch (error) {
-    console.error('Error fetching approved requests data:', error);
-    document.getElementById('approvedRequestsTableBody').innerHTML = `<p class="text-center text-muted">Waiting for approved requests...</p>`;
-  }
-}
-
-function displayApprovedRequestsTable(requests, containerId) {
-  const tableBody = document.getElementById(containerId);
-  tableBody.innerHTML = '';
-
-  // Filter out requests with statuses of "cancelled" and "returned"
-  const filteredRequests = requests.filter(request => request.status !== 'cancelled' && request.status !== 'returned');
-
-  // Sort requests by batch_id
-  filteredRequests.sort((a, b) => (a.batch_id || '').toString().localeCompare((b.batch_id || '').toString()));
-
-  // Group requests by batch_id
-  let currentBatchId = null;
-  let rowspanCount = 0;
-  let firstRowOfBatch = null;
-
-  filteredRequests.forEach((request, index) => {
-    const row = document.createElement('tr');
-    // Remove the row click handler and cursor style
-    // row.style.cursor = 'pointer';
-    // row.onclick = () => showRequestDetails(request);
-
-    // Create row content without batch_id cell
-    let rowContent = `
-        <td>
-          <div class="d-flex px-2 py-1">
-            <div class="d-flex flex-column justify-content-center">
-              <h6 class="mb-0 text-sm">${request.first_name} ${request.last_name}</h6>
-              <p class="text-xs text-secondary mb-0">${request.email}</p>
-            </div>
-          </div>
-        </td>`;
-
-    // Handle batch_id cell
-    if (request.batch_id !== currentBatchId) {
-      // Set rowspan for previous batch if exists
-      if (firstRowOfBatch && rowspanCount > 1) {
-        const batchCell = firstRowOfBatch.cells[1];
-        batchCell.rowSpan = rowspanCount;
-        batchCell.className = "merged-cell align-middle text-center align-items-center";
-      }
-
-      // Start new batch
-      currentBatchId = request.batch_id;
-      rowspanCount = 1;
-      firstRowOfBatch = row;
-
-      // Add batch_id cell only for first row of new batch
-      rowContent += `
-          <td class="merged-cell align-middle text-center align-items-center">
-            <p class="text-xs font-weight-bold mb-0">${request.batch_id}</p>
-          </td>`;
-    } else {
-      rowspanCount++;
-    }
-
-    // Determine action buttons based on status
-    let actionButtons = '';
-    if (request.status === 'ongoing') {
-      actionButtons = `
-          <a id="returnButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-warning text-xs" data-toggle="tooltip" data-original-title="Return" onclick="returnRequest(${request.request_id})">Return</a>
-          <a href="javascript:;" class="text-secondary font-weight-bold text-xs ms-1" data-toggle="tooltip" data-original-title="Edit" onclick="showRequestDetails(${JSON.stringify(request).replace(/"/g, '&quot;')})">
-            <i class="fas fa-edit"></i>
-          </a>
-        `;
-    } else if (request.status === 'approved') {
-      actionButtons = `
-          <a id="releaseButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-info text-xs mb-1" data-toggle="tooltip" data-original-title="Release" onclick="releaseRequest(${request.request_id})">Release</a>
-          <a id="cancelButton-${index}" href="javascript:;" class="badge badge-sm bg-gradient-danger text-xs" data-toggle="tooltip" data-original-title="Cancel" onclick="cancelRequest(${request.request_id})">Cancel</a>
-          <a href="javascript:;" class="text-secondary font-weight-bold text-xs ms-1" data-toggle="tooltip" data-original-title="Edit" onclick="showRequestDetails(${JSON.stringify(request).replace(/"/g, '&quot;')})">
-            <i class="fas fa-edit"></i>
-          </a>
-        `;
-    }
-
-    const statusClass = request.status === 'approved'
-      ? 'badge badge-sm bg-gradient-success'
-      : request.status === 'ongoing'
-        ? 'badge badge-sm bg-gradient-info'
-        : 'badge badge-sm bg-gradient-info';
-
-    // Add remaining cells
-    rowContent += `
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${request.equipment_category_id}</p>
-          <p class="text-xs text-secondary mb-0">${request.category_name}</p>
-        </td>
-        <td class="align-middle align-items-center text-center">
-          <p class="text-xs font-weight-bold mb-0">${request.quantity_requested}</p>
-        </td>
-        <td class="align-middle text-center text-sm">
-          <span class="${statusClass}">${request.status}</span>
-        </td>
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${formatDate(request.requested)}</p>
-        </td>
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${formatTime(request.time_requested)}</p>
-        </td>
-        <td>
-          <p class="text-xs font-weight-bold mb-0">${formatTime(request.return_time)}</p>
-        </td>
-        <td class="align-middle">
-          ${actionButtons}
-        </td>`;
-
-    row.innerHTML = rowContent;
-    tableBody.appendChild(row);
-
-    // Add event listeners
-    const releaseButton = document.getElementById(`releaseButton-${index}`);
-    const returnButton = document.getElementById(`returnButton-${index}`);
-    const cancelButton = document.getElementById(`cancelButton-${index}`);
-
-    if (releaseButton) {
-      releaseButton.addEventListener('click', function () {
-        console.log(`Release button clicked for request ${request.request_id}`);
-        fetchApprovedRequestsData();
-      });
-    }
-
-    if (returnButton) {
-      returnButton.addEventListener('click', function () {
-        console.log(`Return button clicked for request ${request.request_id}`);
-        fetchApprovedRequestsData();
-      });
-    }
-
-    if (cancelButton) {
-      cancelButton.addEventListener('click', function () {
-        console.log(`Cancel button clicked for request ${request.request_id}`);
-        fetchApprovedRequestsData();
-      });
-    }
-  });
-
-  // Handle rowspan for last batch
-  if (firstRowOfBatch && rowspanCount > 1) {
-    const batchCell = firstRowOfBatch.cells[1];
-    batchCell.rowSpan = rowspanCount;
-    batchCell.className = "merged-cell align-middle text-center align-items-center";
-  }
-}
-
-// Update the showRequestDetails function to accept a stringified object
-function showRequestDetails(requestStr) {
-  // Stop event propagation
-  event.stopPropagation();
-
-  // Parse the request object if it's a string
-  const request = typeof requestStr === 'string' ? JSON.parse(requestStr) : requestStr;
-
-  const modal = new bootstrap.Modal(document.getElementById('requestDetailsModal'));
-  document.getElementById('modalRequestId').value = request.request_id;
-  document.getElementById('mclPassNo').value = request.mcl_pass_no || '';
-  document.getElementById('remarks').value = request.remarks || '';
-  modal.show();
-}
-
-async function saveRequestDetails() {
-  const requestId = document.getElementById('modalRequestId').value;
-  const mclPassNo = document.getElementById('mclPassNo').value;
-  const remarks = document.getElementById('remarks').value;
-
-  // Validate MCL Pass Number
-  if (!mclPassNo || !/^[0-9]{1,2}$/.test(mclPassNo)) {
-    Swal.fire({
-      title: 'Error',
-      text: 'MCL Pass Number must be a 2-digit number (00-99)',
-      icon: 'error'
-    });
-    return;
-  }
-
-  // Pad single digit with leading zero
-  const formattedMclPassNo = mclPassNo.padStart(2, '0');
-
-  try {
-    const response = await fetch('/admin/update-request-details', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        request_id: requestId,
-        mcl_pass_no: formattedMclPassNo,
-        remarks: remarks
-      }),
-      credentials: 'include'
-    });
-
-    if (!response.ok) throw new Error('Failed to update request details');
-
-    const modal = bootstrap.Modal.getInstance(document.getElementById('requestDetailsModal'));
-    modal.hide();
-
-    Swal.fire({
-      title: 'Success',
-      text: 'Request details updated successfully',
-      icon: 'success'
-    }).then(() => {
-      fetchApprovedRequestsData();
-    });
-  } catch (error) {
-    console.error('Error updating request details:', error);
-    Swal.fire({
-      title: 'Error',
-      text: 'Failed to update request details',
-      icon: 'error'
-    });
-  }
-}
-
-// Call the function to fetch and display data
-fetchApprovedRequestsData();
 
 // Add these variables at the top of the file
 let selectedRequests = new Set();

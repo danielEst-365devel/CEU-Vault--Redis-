@@ -316,39 +316,6 @@
         </div>
       </div>
 
-      <!-- Add this modal -->
-      <div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-labelledby="requestDetailsModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="requestDetailsModalLabel">Request Details</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <form id="requestDetailsForm">
-                <input type="hidden" id="modalRequestId">
-                <div class="mb-3">
-                  <label for="mclPassNo" class="form-label">MCL Pass Number</label>
-                  <input type="text" class="form-control" id="mclPassNo" required maxlength="2" pattern="[0-9]{1,2}"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 2)"
-                    onkeypress="return (event.charCode >= 48 && event.charCode <= 57)">
-                  <small class="form-text text-muted">Enter a 2-digit number (00-99)</small>
-                </div>
-                <div class="mb-3">
-                  <label for="remarks" class="form-label">Remarks</label>
-                  <textarea class="form-control" id="remarks" rows="3"></textarea>
-                </div>
-              </form>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-              <button type="button" class="btn btn-primary" onclick="saveRequestDetails()">Save changes</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
 
 
       <footer class="footer pt-3  ">
@@ -487,8 +454,8 @@
   </div>
 
   <script src="requests.js"></script>
-
   <script src="tableDisplay.js"></script>
+  <script src="approvedTableDisplay.js"></script>
 
 </body>
 
