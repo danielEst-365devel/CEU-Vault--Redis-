@@ -532,6 +532,18 @@ async function fetchApprovedRequestsData() {
     });
   
     if (formValues) {
+      // Show processing alert
+      Swal.fire({
+        title: 'Processing Request',
+        html: 'Please wait while we process the MCL pass assignment...',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+    
       try {
         // First update MCL Pass
         const updateResponse = await fetch('/admin/update-request-details', {
@@ -546,9 +558,9 @@ async function fetchApprovedRequestsData() {
           }),
           credentials: 'include'
         });
-  
+    
         if (!updateResponse.ok) throw new Error('Failed to update MCL Pass');
-  
+    
         // Then process the release
         const releaseResponse = await fetch('/admin/release', {
           method: 'POST',
@@ -561,9 +573,10 @@ async function fetchApprovedRequestsData() {
           }),
           credentials: 'include'
         });
-  
+    
         if (!releaseResponse.ok) throw new Error('Failed to release equipment');
-  
+    
+        // Close loading alert and show success
         Swal.fire({
           title: 'Success',
           text: 'Equipment released successfully',
@@ -572,6 +585,7 @@ async function fetchApprovedRequestsData() {
           fetchApprovedRequestsData();
         });
       } catch (error) {
+        // Close loading alert and show error
         console.error('Error processing release:', error);
         Swal.fire({
           title: 'Error',
@@ -678,85 +692,93 @@ async function fetchApprovedRequestsData() {
       </style>
     `;
   
-    const { isConfirmed } = await Swal.fire({
-      title: 'Return Equipment',
-      html: `
-        ${customStyles}
-        <div class="mb-4 fade-in">
-          <div class="d-flex align-items-center justify-content-center mb-4">
-            <div class="mcl-pass-display">
-              <div class="text-xs text-uppercase mb-1" style="color: #2E7D32; font-weight: 600; letter-spacing: 0.5px;">
-                MCL Pass
-              </div>
-              <div class="text-lg font-weight-bold" style="color: #2E7D32; font-size: 20px;">
-                ${currentMclPass}
+    try {
+      // Get remarks first before showing processing alert
+      const { value: remarksValue, isConfirmed } = await Swal.fire({
+        title: 'Return Equipment',
+        html: `
+          ${customStyles}
+          <div class="mb-4 fade-in">
+            <div class="d-flex align-items-center justify-content-center mb-4">
+              <div class="mcl-pass-display">
+                <div class="text-xs text-uppercase mb-1" style="color: #2E7D32; font-weight: 600; letter-spacing: 0.5px;">
+                  MCL Pass
+                </div>
+                <div class="text-lg font-weight-bold" style="color: #2E7D32; font-size: 20px;">
+                  ${currentMclPass}
+                </div>
               </div>
             </div>
+            <div class="form-group">
+              <label for="remarks" class="form-label text-start d-block mb-2" 
+                     style="font-size: 0.875rem; color: #344767; font-weight: 600;">
+                Remarks
+              </label>
+              <textarea 
+                id="remarks" 
+                class="form-control remarks-textarea" 
+                rows="3"
+                style="
+                  padding: 0.75rem;
+                  border-radius: 0.5rem;
+                  font-size: 0.875rem;
+                  line-height: 1.4;
+                  resize: vertical;
+                "
+                placeholder="Enter any remarks about the returned equipment..."
+              ></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="remarks" class="form-label text-start d-block mb-2" 
-                   style="font-size: 0.875rem; color: #344767; font-weight: 600;">
-              Remarks
-            </label>
-            <textarea 
-              id="remarks" 
-              class="form-control remarks-textarea" 
-              rows="3"
-              style="
-                padding: 0.75rem;
-                border-radius: 0.5rem;
-                font-size: 0.875rem;
-                line-height: 1.4;
-                resize: vertical;
-              "
-              placeholder="Enter any remarks about the returned equipment..."
-            ></textarea>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: '<i class="fas fa-undo-alt me-1"></i>Return',
-      cancelButtonText: '<i class="fas fa-times me-1"></i>Cancel',
-      customClass: {
-        confirmButton: 'custom-btn btn-return',
-        cancelButton: 'custom-btn btn-cancel',
-        popup: 'fade-in',
-        actions: 'button-container'
-      },
-      buttonsStyling: false,
-      showClass: {
-        popup: 'fade-in'
-      },
-      didOpen: () => {
-        // Focus on remarks textarea when modal opens
-        const remarksArea = document.getElementById('remarks');
-        remarksArea.focus();
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-undo-alt me-1"></i>Return',
+        cancelButtonText: '<i class="fas fa-times me-1"></i>Cancel',
+        customClass: {
+          confirmButton: 'custom-btn btn-return',
+          cancelButton: 'custom-btn btn-cancel',
+          popup: 'fade-in',
+          actions: 'button-container'
+        },
+        buttonsStyling: false,
+        showClass: {
+          popup: 'fade-in'
+        },
+        didOpen: () => {
+          const remarksArea = document.getElementById('remarks');
+          remarksArea.focus();
+          
+          remarksArea.addEventListener('input', () => {
+            const length = remarksArea.value.length;
+            const maxHeight = 200;
+            const minHeight = 100;
+            const heightPerChar = 0.5;
+            
+            const newHeight = Math.min(maxHeight, 
+                                     Math.max(minHeight, 
+                                            minHeight + (length * heightPerChar)));
+            
+            remarksArea.style.height = `${newHeight}px`;
+          });
+        },
+        preConfirm: () => {
+          return document.getElementById('remarks').value;
+        }
+      });
   
-        // Add smooth transition when typing
-        remarksArea.addEventListener('input', () => {
-          const length = remarksArea.value.length;
-          const maxHeight = 200; // maximum height in pixels
-          const minHeight = 100; // minimum height in pixels
-          const heightPerChar = 0.5; // pixels per character
-          
-          const newHeight = Math.min(maxHeight, 
-                                   Math.max(minHeight, 
-                                          minHeight + (length * heightPerChar)));
-          
-          remarksArea.style.height = `${newHeight}px`;
+      if (isConfirmed) {
+        // Show processing alert
+        Swal.fire({
+          title: 'Processing Return',
+          html: 'Please wait while we process the equipment return...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
         });
-      },
-      preConfirm: () => {
-        const remarksValue = document.getElementById('remarks').value;
-        return remarksValue; // Return the actual remarks value
-      }
-    });
   
-    if (isConfirmed) {
-      try {
-        const remarksValue = document.getElementById('remarks').value;
-        
-        // Update remarks with the actual value
+        // Update remarks
         const updateResponse = await fetch('/admin/update-request-details', {
           method: 'POST',
           headers: {
@@ -786,6 +808,7 @@ async function fetchApprovedRequestsData() {
   
         if (!returnResponse.ok) throw new Error('Failed to return equipment');
   
+        // Show success message
         Swal.fire({
           title: 'Success',
           text: 'Equipment returned successfully',
@@ -793,14 +816,14 @@ async function fetchApprovedRequestsData() {
         }).then(() => {
           fetchApprovedRequestsData();
         });
-      } catch (error) {
-        console.error('Error processing return:', error);
-        Swal.fire({
-          title: 'Error',
-          text: 'Failed to process return',
-          icon: 'error'
-        });
       }
+    } catch (error) {
+      console.error('Error processing return:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to process return',
+        icon: 'error'
+      });
     }
   }
   
