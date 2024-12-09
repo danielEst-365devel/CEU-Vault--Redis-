@@ -42,6 +42,79 @@ const transporter = nodemailer.createTransport({
   debug: process.env.NODE_ENV === 'development'
 });
 
+// Add EMAIL_STYLES constant
+const EMAIL_STYLES = {
+  container: `
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      text-align: left;
+      padding: 32px;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      max-width: 650px;
+      margin: auto;
+      background-color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  `,
+  header: `
+      color: #2E7D32;
+      margin-bottom: 24px;
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+  `,
+  table: `
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 24px 0;
+      font-size: 14px;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  `,
+  tableHeader: `
+      background-color: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      padding: 16px;
+      text-align: left;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e2e8f0;
+  `,
+  tableCell: `
+      padding: 16px;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+      background-color: #ffffff;
+      transition: background-color 0.2s;
+  `,
+  tableCellLast: `
+      padding: 16px;
+      color: #1e293b;
+      background-color: #ffffff;
+  `,
+  tableRowEven: `
+      background-color: #f8fafc;
+  `,
+  otpContainer: `
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 20px 0;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+  `,
+  otpCode: `
+      font-size: 32px;
+      font-weight: bold;
+      color: #1e293b;
+      letter-spacing: 4px;
+      margin: 16px 0;
+  `
+};
 
 const sendEmail = async (recipientEmail, otpCode, formData) => {
   try {
@@ -51,33 +124,39 @@ const sendEmail = async (recipientEmail, otpCode, formData) => {
       subject: 'Your OTP Code and Equipment Borrowing Details',
       text: `Your OTP Code is ${otpCode}`,
       html: `
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
-          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">Your OTP Code is:</p>
-          <p style="font-size: 32px; font-weight: bold; color: #000; margin: 20px 0;">${otpCode}</p>
-          <p style="font-size: 16px; color: #555; margin-bottom: 20px;">Please use this code to complete your verification process.</p>
-          <p style="font-size: 14px; color: #777;">If you did not request this code, please ignore this email.</p>
-          <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
-          <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
-            </tr>
-            ${formData.equipmentCategories.map(item => `
-              <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatDateForEmail(item.dateRequested)}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.timeRequested)}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.returnTime)}</td>
-              </tr>
-            `).join('')}
-          </table>
-          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+        <div style="${EMAIL_STYLES.container}">
+          <h1 style="${EMAIL_STYLES.header}">CEU Vault</h1>
+          
+          <div style="${EMAIL_STYLES.otpContainer}">
+              <p style="font-size: 18px; color: #475569; margin-bottom: 10px;">Your OTP Code is:</p>
+              <p style="${EMAIL_STYLES.otpCode}">${otpCode}</p>
+              <p style="font-size: 14px; color: #64748b;">Please use this code to complete your verification process.</p>
+          </div>
+
+          <div style="margin-top: 32px;">
+              <h2 style="${EMAIL_STYLES.header}">Equipment Borrowing Details</h2>
+              <table style="${EMAIL_STYLES.table}">
+                  <tr>
+                      <th style="${EMAIL_STYLES.tableHeader}">Category</th>
+                      <th style="${EMAIL_STYLES.tableHeader}">Quantity</th>
+                      <th style="${EMAIL_STYLES.tableHeader}">Date Requested</th>
+                      <th style="${EMAIL_STYLES.tableHeader}">Time Requested</th>
+                      <th style="${EMAIL_STYLES.tableHeader}">Return Time</th>
+                  </tr>
+                  ${formData.equipmentCategories.map((item, index, array) => `
+                      <tr style="${index % 2 === 1 ? EMAIL_STYLES.tableRowEven : ''}">
+                          <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.category}</td>
+                          <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.quantity}</td>
+                          <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatDateForEmail(item.dateRequested)}</td>
+                          <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatTimeForEmail(item.timeRequested)}</td>
+                          <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatTimeForEmail(item.returnTime)}</td>
+                      </tr>
+                  `).join('')}
+              </table>
+          </div>
+
+          <p style="font-size: 14px; color: #64748b; margin-top: 24px;">If you did not request this code, please ignore this email.</p>
+          <p style="font-size: 14px; color: #64748b; margin-top: 16px;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
         </div>
       `
     });
@@ -443,55 +522,39 @@ const sendOTPLockedEmail = async (email) => {
 
 const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
   try {
-    // Convert the base64 string back to a buffer
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      // Add additional configuration
-      pool: true, // Use pooled connections
-      maxConnections: 5,
-      maxMessages: 100,
-      socketTimeout: 30000, // 30 seconds
-      logger: true,
-      debug: process.env.NODE_ENV === 'development'
-    });
-
-
     const info = await transporter.sendMail({
       from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipientEmail,
       subject: 'Your Equipment Borrowing Request has been received by our system',
       html: `
-        <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 600px; margin: auto; background-color: #f9f9f9;">
-          <h1 style="color: #4CAF50; margin-bottom: 20px;">CEU Vault</h1>
-          <p style="font-size: 18px; color: #333; margin-bottom: 10px;">We have received your equipment borrowing request. Please await for a request approval from a TLTS Coordinator.</p>
-          <h2 style="color: #4CAF50; margin-bottom: 20px;">Equipment Borrowing Details</h2>
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <tr>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Category</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Quantity</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Date Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Time Requested</th>
-              <th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Return Time</th>
-            </tr>
-            ${formData.equipmentCategories.map(item => `
+        <div style="${EMAIL_STYLES.container}">
+          <h1 style="${EMAIL_STYLES.header}">CEU Vault</h1>
+          <p style="font-size: 18px; color: #475569; margin-bottom: 24px;">
+              We have received your equipment borrowing request. Please await for a request approval from a TLTS Coordinator.
+          </p>
+
+          <h2 style="${EMAIL_STYLES.header}">Equipment Borrowing Details</h2>
+          <table style="${EMAIL_STYLES.table}">
               <tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.category}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatDateForEmail(item.dateRequested)}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.timeRequested)}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${formatTimeForEmail(item.returnTime)}</td>
+                  <th style="${EMAIL_STYLES.tableHeader}">Category</th>
+                  <th style="${EMAIL_STYLES.tableHeader}">Quantity</th>
+                  <th style="${EMAIL_STYLES.tableHeader}">Date Requested</th>
+                  <th style="${EMAIL_STYLES.tableHeader}">Time Requested</th>
+                  <th style="${EMAIL_STYLES.tableHeader}">Return Time</th>
               </tr>
-            `).join('')}
+              ${formData.equipmentCategories.map((item, index, array) => `
+                  <tr style="${index % 2 === 1 ? EMAIL_STYLES.tableRowEven : ''}">
+                      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.category}</td>
+                      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.quantity}</td>
+                      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatDateForEmail(item.dateRequested)}</td>
+                      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatTimeForEmail(item.timeRequested)}</td>
+                      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${formatTimeForEmail(item.returnTime)}</td>
+                  </tr>
+              `).join('')}
           </table>
-          <p style="font-size: 16px; color: #555;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
+
+          <p style="font-size: 14px; color: #64748b; margin-top: 24px;">Thank you for using CEU Vault. If you have any questions, please contact us.</p>
         </div>
       `,
       attachments: [
@@ -502,12 +565,12 @@ const sendApprovalEmail = async (recipientEmail, formData, pdfBase64) => {
         }
       ]
     });
-
     console.log('Approval email sent: %s', info.messageId);
   } catch (error) {
     console.error('Error sending approval email:', error);
   }
 };
+
 const getCategoryIDByName = async (categoryName) => {
   const categoryQuery = 'SELECT category_id FROM equipment_categories WHERE category_name = $1';
   const { rows: categoryRows } = await db.query(categoryQuery, [categoryName]);

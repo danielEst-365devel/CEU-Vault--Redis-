@@ -47,47 +47,41 @@ const EMAIL_STYLES = {
         letter-spacing: -0.5px;
     `,
     table: `
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-bottom: 24px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.12);
-    background-color: #ffffff;
-    border: 1px solid #ccc;
-    `,
-    tableHeader: `
-    border: 1px solid #ccc;
-    border-bottom: 2px solid #2E7D32;
-    padding: 16px;
-    background-color: #f5f5f5;
-    font-weight: 600;
-    text-align: center;
-    color: #424242;
-    `,
-    tableCell: `
-        border: 1px solid #ccc;
-        padding: 16px;
-        background-color: #ffffff;
-        transition: background-color 0.2s;
-        line-height: 1.4;
-        color: #333333;
-        text-align: center;
-        &:hover {
-            background-color: #f8f8f8;
-            border-color: #bbb;
-        }
-    `,
-    table: `
         width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 24px;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 24px 0;
+        font-size: 14px;
+        background: #ffffff;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    `,
+    tableHeader: `
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        padding: 16px;
+        text-align: left;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid #e2e8f0;
+    `,
+    tableCell: `
+        padding: 16px;
+        color: #1e293b;
+        border-bottom: 1px solid #e2e8f0;
         background-color: #ffffff;
-        border: 1px solid #ccc;
+        transition: background-color 0.2s;
+    `,
+    tableCellLast: `
+        padding: 16px;
+        color: #1e293b;
+        background-color: #ffffff;
+    `,
+    tableRowEven: `
+        background-color: #f8fafc;
     `,
     infoBox: `
         margin-top: 24px;
@@ -131,7 +125,7 @@ const emailTemplates = {
     <h2 style="${EMAIL_STYLES.header}">Approved Requests</h2>
     <table style="${EMAIL_STYLES.table}">
       ${emailTemplates.tableHeader()}
-      ${items.map(item => emailTemplates.tableRow(item)).join('')}
+      ${items.map((item, index, array) => emailTemplates.tableRow(item, index, array)).join('')}
     </table>
   `,
 
@@ -140,7 +134,7 @@ const emailTemplates = {
     <h2 style="color: #f44336; margin-bottom: 20px;">Cancelled Requests</h2>
     <table style="${EMAIL_STYLES.table}">
       ${emailTemplates.tableHeader()}
-      ${items.map(item => emailTemplates.tableRow(item)).join('')}
+      ${items.map((item, index, array) => emailTemplates.tableRow(item, index, array)).join('')}
     </table>
   `,
 
@@ -156,13 +150,13 @@ const emailTemplates = {
   `,
 
     // Reusable table row
-    tableRow: (item) => `
-    <tr>
-      <td style="${EMAIL_STYLES.tableCell}">${item.category}</td>
-      <td style="${EMAIL_STYLES.tableCell}">${item.quantity}</td>
-      <td style="${EMAIL_STYLES.tableCell}">${item.dateRequested}</td>
-      <td style="${EMAIL_STYLES.tableCell}">${item.timeRequested}</td>
-      <td style="${EMAIL_STYLES.tableCell}">${item.returnTime}</td>
+    tableRow: (item, index, array) => `
+    <tr style="${index % 2 === 1 ? EMAIL_STYLES.tableRowEven : ''}">
+      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.category}</td>
+      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.quantity}</td>
+      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.dateRequested}</td>
+      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.timeRequested}</td>
+      <td style="${index === array.length - 1 ? EMAIL_STYLES.tableCellLast : EMAIL_STYLES.tableCell}">${item.returnTime}</td>
     </tr>
   `,
 
@@ -195,12 +189,12 @@ const emailTemplates = {
                 <th style="${EMAIL_STYLES.tableHeader}">Current Penalty</th>
             </tr>
             <tr>
-                <td style="${EMAIL_STYLES.tableCell}">${details.equipment}</td>
-                <td style="${EMAIL_STYLES.tableCell}">${details.quantity}</td>
-                <td style="${EMAIL_STYLES.tableCell}">${details.dueDate}</td>
-                <td style="${EMAIL_STYLES.tableCell}">${details.dueTime}</td>
-                <td style="${EMAIL_STYLES.tableCell}">${details.overdueDuration}</td>
-                <td style="${EMAIL_STYLES.tableCell}">₱${details.penalty}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">${details.equipment}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">${details.quantity}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">${details.dueDate}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">${details.dueTime}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">${details.overdueDuration}</td>
+                <td style="${EMAIL_STYLES.tableCellLast}">₱${details.penalty}</td>
             </tr>
         </table>
 
