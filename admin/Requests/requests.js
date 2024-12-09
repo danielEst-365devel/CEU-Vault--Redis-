@@ -59,6 +59,17 @@ document.head.insertAdjacentHTML('beforeend', `
             border-top: 2px solid #3498db;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-left: 8px;
+            position: relative;
+            top: -1px;
+        }
+        .action-cell {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
         }
     </style>
 `);
@@ -73,6 +84,7 @@ async function approveRequest(requestId) {
         row.classList.add('row-processing');
         const actionCell = row.querySelector('td:last-child');
         if (actionCell) {
+            actionCell.classList.add('action-cell');
             const spinner = document.createElement('span');
             spinner.className = 'loading-spinner';
             actionCell.appendChild(spinner);
