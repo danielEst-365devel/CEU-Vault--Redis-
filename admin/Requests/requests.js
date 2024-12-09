@@ -3,6 +3,19 @@
 // Add a loading state tracker
 let isProcessing = false;
 
+// Add this function at the top with other utility functions
+function showLoadingOverlay() {
+    Swal.fire({
+        title: 'Processing...',
+        html: 'Please wait while we process your request.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+}
+
 // New function to fetch inventory data
 async function getInventoryStatus(categoryId) {
     try {
@@ -19,81 +32,21 @@ async function getInventoryStatus(categoryId) {
     }
 }
 
-// Add these style definitions at the top with other constants
-const LOADING_STYLES = {
-    overlay: `
-        position: relative;
-        pointer-events: none;
-        opacity: 0.7;
-        transition: opacity 0.3s;
-    `,
-    spinner: `
-        display: inline-block;
-        width: 1rem;
-        height: 1rem;
-        margin-left: 0.5rem;
-        border: 2px solid #f3f3f3;
-        border-top: 2px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    `
-};
-
-// Add this CSS animation to your existing styles
-document.head.insertAdjacentHTML('beforeend', `
-    <style>
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .row-processing {
-            pointer-events: none;
-            opacity: 0.7;
-            background-color: #f8f9fa !important;
-        }
-        .loading-spinner {
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            vertical-align: middle;
-            margin-left: 8px;
-            position: relative;
-            top: -1px;
-        }
-        .action-cell {
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
-        }
-    </style>
-`);
-
 // Modified approveRequest function
 async function approveRequest(requestId) {
     if (isProcessing) return;
     
-    // Find and disable the row
-    const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
-    if (row) {
-        row.classList.add('row-processing');
-        const actionCell = row.querySelector('td:last-child');
-        if (actionCell) {
-            actionCell.classList.add('action-cell');
-            const spinner = document.createElement('span');
-            spinner.className = 'loading-spinner';
-            actionCell.appendChild(spinner);
-        }
-    }
-    
     isProcessing = true;
+    showLoadingOverlay();
 
     try {
+        // Disable the row
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+        if (row) {
+            row.style.pointerEvents = 'none';
+            row.style.opacity = '0.6';
+        }
+
         // First, get the request details to find the category ID
         const requestResponse = await fetch('/admin/get-all-requests');
         const requestData = await requestResponse.json();
@@ -224,13 +177,11 @@ async function approveRequest(requestId) {
         console.error('Error in approveRequest:', error);
     } finally {
         isProcessing = false;
-        // Re-enable the row and remove the spinner
+        // Re-enable the row
+        const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
         if (row) {
-            row.classList.remove('row-processing');
-            const spinner = row.querySelector('.loading-spinner');
-            if (spinner) {
-                spinner.remove();
-            }
+            row.style.pointerEvents = '';
+            row.style.opacity = '';
         }
     }
 }
