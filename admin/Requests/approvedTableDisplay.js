@@ -1,3 +1,25 @@
+// Consolidated formatting functions
+function formatDate(isoString) {
+  const options = { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
+  const date = new Date(isoString);
+  return date.toLocaleDateString(undefined, options);
+}
+
+function formatTime(timeString) {
+  const [hour, minute] = timeString.split(':');
+  const date = new Date();
+  date.setHours(parseInt(hour), parseInt(minute));
+  return date.toLocaleTimeString([], { 
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true 
+  });
+}
+
 const TIME_STATUS_STYLES = {
   OVERDUE: {
     backgroundColor: 'rgba(220, 53, 69, 0.15)',  // Increased from 0.1 to 0.15

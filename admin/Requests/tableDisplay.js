@@ -866,77 +866,263 @@ function exitSelectionMode() {
 
 }
 
-// Update processBatchRequests function
-async function processBatchRequests(action) {
-  if (selectedRequests.size === 0) return;
+// Updated checkBatchInventoryStatus function for more compact display
+async function checkBatchInventoryStatus(requestIds) {
+    try {
+        const [requestResponse, inventoryResponse] = await Promise.all([
+            fetch('/admin/get-all-requests'),
+            fetch('/admin/get-adminEquipment')
+        ]);
+        
+        const [requestData, inventoryData] = await Promise.all([
+            requestResponse.json(),
+            inventoryResponse.json()
+        ]);
 
-  // Show confirmation dialog
-  const result = await Swal.fire({
-    title: `${action === 'approved' ? 'Approve' : 'Cancel'} Selected Requests?`,
-    text: `You are about to ${action === 'approved' ? 'approve' : 'cancel'} ${selectedRequests.size} request(s).`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: action === 'approved' ? '#28a745' : '#dc3545',
-    cancelButtonColor: '#6c757d',
-    confirmButtonText: `Yes, ${action === 'approved' ? 'approve' : 'cancel'} them!`
-  });
+        if (!inventoryData.successful) {
+            throw new Error('Could not fetch inventory status');
+        }
 
-  if (!result.isConfirmed) return;
+        const selectedRequests = requestData.borrowingRequests.filter(req => 
+            requestIds.includes(req.request_id)
+        );
 
-  try {
-    // Show loading state
-    Swal.fire({
-      title: 'Processing...',
-      text: `${action === 'approved' ? 'Approving' : 'Cancelling'} ${selectedRequests.size} request(s)`,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
+        // Group requests by category
+        const categoryGroups = selectedRequests.reduce((acc, req) => {
+            const categoryId = req.equipment_category_id;
+            if (!acc[categoryId]) {
+                acc[categoryId] = {
+                    categoryName: req.category_name,
+                    totalRequested: 0,
+                    requests: []
+                };
+            }
+            acc[categoryId].totalRequested += req.quantity_requested;
+            acc[categoryId].requests.push(req);
+            return acc;
+        }, {});
 
-    const response = await fetch('/admin/update-batch-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        request_ids: Array.from(selectedRequests),
-        status: action
-      }),
-      credentials: 'include'
-    });
+        // Separate categories by availability
+        const availableCategories = [];
+        const insufficientCategories = [];
 
-    const data = await response.json();
+        for (const categoryId in categoryGroups) {
+            const inventoryStatus = inventoryData.equipmentCategories.find(
+                cat => cat.category_id === parseInt(categoryId)
+            );
 
-    // Check for successful response in data instead of response.ok
-    if (data.successful || data.message === 'Batch request status updated successfully') {
-      // Show success message
-      await Swal.fire({
-        icon: 'success',
-        title: 'Success!',
-        text: `Successfully ${action === 'approved' ? 'approved' : 'cancelled'} ${selectedRequests.size} request(s)`,
-        timer: 2000,
-        showConfirmButton: false
-      });
+            if (!inventoryStatus) continue;
 
-      exitSelectionMode();
-      await Promise.all([
-        fetchBorrowingRequestsData(),
-        fetchApprovedRequestsData()
-      ]);
-    } else {
-      throw new Error(data.message || 'Operation failed');
+            const remainingQuantity = inventoryStatus.quantity_available - categoryGroups[categoryId].totalRequested;
+            
+            const categoryInfo = {
+                name: categoryGroups[categoryId].categoryName,
+                available: inventoryStatus.quantity_available,
+                requested: categoryGroups[categoryId].totalRequested,
+                remaining: remainingQuantity
+            };
+
+            if (remainingQuantity >= 0) {
+                availableCategories.push(categoryInfo);
+            } else {
+                insufficientCategories.push(categoryInfo);
+            }
+        }
+
+        // Generate combined HTML
+        let inventoryStatusHtml = `
+            <div style="${INVENTORY_STYLES.container}">
+                <h2 style="${INVENTORY_STYLES.header}">Equipment Availability Check</h2>
+        `;
+
+        // Add available equipment group if any exist
+        if (availableCategories.length > 0) {
+            inventoryStatusHtml += `
+                <div style="${INVENTORY_STYLES.card}">
+                    <div style="${INVENTORY_STYLES.statusBadge('#2E7D32')}">
+                        <span style="${INVENTORY_STYLES.indicator('#2E7D32')}"></span>
+                        <span style="color: #2E7D32; font-weight: 600; font-size: 0.875rem">
+                            Available Equipment
+                        </span>
+                    </div>
+                    <div style="display: grid; gap: 0.75rem;">
+                        ${availableCategories.map(cat => `
+                            <div style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">
+                                <div style="${INVENTORY_STYLES.categoryName}">
+                                    ${cat.name}
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div>
+                                        <span style="${INVENTORY_STYLES.label}">Current Stock:</span>
+                                        <span style="${INVENTORY_STYLES.value}">${cat.available}</span>
+                                    </div>
+                                    <div>
+                                        <span style="${INVENTORY_STYLES.label}">Requested:</span>
+                                        <span style="${INVENTORY_STYLES.value}">${cat.requested}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add insufficient equipment group if any exist
+        if (insufficientCategories.length > 0) {
+            inventoryStatusHtml += `
+                <div style="${INVENTORY_STYLES.card}">
+                    <div style="${INVENTORY_STYLES.statusBadge('#DC2626')}">
+                        <span style="${INVENTORY_STYLES.indicator('#DC2626')}"></span>
+                        <span style="color: #DC2626; font-weight: 600; font-size: 0.875rem">
+                            Insufficient Stock
+                        </span>
+                    </div>
+                    <div style="display: grid; gap: 0.75rem;">
+                        ${insufficientCategories.map(cat => `
+                            <div style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0;">
+                                <div style="${INVENTORY_STYLES.categoryName}">
+                                    ${cat.name}
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div>
+                                        <span style="${INVENTORY_STYLES.label}">Current Stock:</span>
+                                        <span style="${INVENTORY_STYLES.value}">${cat.available}</span>
+                                    </div>
+                                    <div>
+                                        <span style="${INVENTORY_STYLES.label}">Requested:</span>
+                                        <span style="${INVENTORY_STYLES.value} color: #DC2626;">${cat.requested}</span>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 0.5rem;">
+                                    <span style="${INVENTORY_STYLES.label}">Shortage:</span>
+                                    <span style="${INVENTORY_STYLES.value} color: #DC2626;">${Math.abs(cat.remaining)}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        inventoryStatusHtml += '</div>';
+
+        return {
+            html: inventoryStatusHtml,
+            hasInsufficientStock: insufficientCategories.length > 0
+        };
+    } catch (error) {
+        console.error('Error checking batch inventory status:', error);
+        throw error;
     }
-  } catch (error) {
-    console.error('Error processing batch requests:', error);
-    await Swal.fire({
-      icon: 'error',
-      title: 'Error!',
-      text: error.message || 'Failed to process requests',
-    });
-  }
+}
+
+// Update processBatchRequests function to include inventory check
+async function processBatchRequests(action) {
+    if (selectedRequests.size === 0) return;
+
+    try {
+        if (action === 'approved') {
+            // Show loading while checking inventory
+            Swal.fire({
+                title: 'Checking Inventory...',
+                html: 'Please wait while we verify equipment availability.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Check inventory status
+            const { html: inventoryStatusHtml, hasInsufficientStock } = 
+                await checkBatchInventoryStatus(Array.from(selectedRequests));
+
+            // Show confirmation with inventory status
+            const result = await Swal.fire({
+                title: hasInsufficientStock ? 'Warning: Insufficient Stock' : 'Confirm Batch Approval',
+                html: `
+                    ${inventoryStatusHtml}
+                    <p style="${SWAL_CUSTOM_STYLES.message}">
+                        ${hasInsufficientStock 
+                            ? 'Some items have insufficient stock. Do you still want to proceed?' 
+                            : 'Do you want to approve these requests?'}
+                    </p>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Yes, approve',
+                cancelButtonText: 'No, cancel',
+                confirmButtonColor: hasInsufficientStock ? '#FFA500' : '#2E7D32',
+                cancelButtonColor: '#6B7280',
+                customClass: {
+                    popup: 'swal2-large'
+                }
+            });
+
+            if (!result.isConfirmed) return;
+        } else {
+            // For cancellation, show simple confirmation
+            const result = await Swal.fire({
+                title: 'Confirm Batch Cancellation',
+                text: `You are about to cancel ${selectedRequests.size} request(s).`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: `Yes, cancel them!`
+            });
+
+            if (!result.isConfirmed) return;
+        }
+
+        // Show processing state
+        Swal.fire({
+            title: 'Processing...',
+            text: `${action === 'approved' ? 'Approving' : 'Cancelling'} ${selectedRequests.size} request(s)`,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        const response = await fetch('/admin/update-batch-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                request_ids: Array.from(selectedRequests),
+                status: action
+            }),
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (data.successful || data.message === 'Batch request status updated successfully') {
+            await Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: `Successfully ${action === 'approved' ? 'approved' : 'cancelled'} ${selectedRequests.size} request(s)`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            exitSelectionMode();
+            await Promise.all([
+                fetchBorrowingRequestsData(),
+                fetchApprovedRequestsData()
+            ]);
+        } else {
+            throw new Error(data.message || 'Operation failed');
+        }
+    } catch (error) {
+        console.error('Error processing batch requests:', error);
+        await Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: error.message || 'Failed to process requests',
+        });
+    }
 }
 
 // Update toggleRequestSelection function
