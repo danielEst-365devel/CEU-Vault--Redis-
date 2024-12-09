@@ -410,9 +410,10 @@ const updateRequestStatus = async (req, res) => {
 
         await client.query('DELETE FROM requests WHERE request_id = $1', [request_id]);
 
+        // Get remaining requests for this batch
         const allRequestsQuery = 'SELECT status FROM requests WHERE batch_id = $1';
         const allRequestsResult = await client.query(allRequestsQuery, [batchId]);
-        const allRequests = allRequests.rows;
+        const allRequests = allRequestsResult.rows;
 
         const allApproved = allRequests.every(req => req.status === 'approved');
 
@@ -1409,7 +1410,7 @@ const login = async (req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: 'None',
-            maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000 // 7 days or 1 hour
+            maxAge: rememberMe ? 7 * 24 * 60 * 60 * 0 : 60 * 60 * 1000 // 7 days or 1 hour
         };
 
         // Set token in cookie with options

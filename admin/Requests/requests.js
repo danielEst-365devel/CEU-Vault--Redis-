@@ -3,66 +3,243 @@
 // Add a loading state tracker
 let isProcessing = false;
 
-function approveRequest(requestId) {
-    // Prevent multiple clicks while processing
+// New function to fetch inventory data
+async function getInventoryStatus(categoryId) {
+    try {
+        const response = await fetch('/admin/get-adminEquipment');
+        const data = await response.json();
+        
+        if (data.successful) {
+            return data.equipmentCategories.find(category => category.category_id === categoryId);
+        }
+        throw new Error('Failed to fetch inventory data');
+    } catch (error) {
+        console.error('Error fetching inventory:', error);
+        return null;
+    }
+}
+
+// Modified approveRequest function
+async function approveRequest(requestId) {
     if (isProcessing) return;
     
     isProcessing = true;
 
-    // Show loading state
-    Swal.fire({
-        title: 'Processing...',
-        html: 'Please wait while we approve the request.',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        didOpen: () => {
-            Swal.showLoading();
+    try {
+        // First, get the request details to find the category ID
+        const requestResponse = await fetch('/admin/get-all-requests');
+        const requestData = await requestResponse.json();
+        const request = requestData.borrowingRequests.find(req => req.request_id === requestId);
+
+        if (!request) {
+            throw new Error('Request not found');
         }
-    });
 
-    const requestBody = { request_id: requestId, status: 'approved' };
+        // Get inventory status for this category
+        const inventoryStatus = await getInventoryStatus(request.equipment_category_id);
 
-    fetch(`/admin/update-status`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        credentials: 'include'
-    })
-    .then(response => response.json())
-    .then(data => {
-        isProcessing = false;
-        if (data.message === 'Request status updated successfully') {
+        if (!inventoryStatus) {
+            throw new Error('Could not fetch inventory status');
+        }
+
+        // Calculate remaining quantity after approval
+
+        // Create inventory status HTML using email styles
+        const remainingQuantity = inventoryStatus.quantity_available - request.quantity_requested;
+        const availabilityStatus = remainingQuantity >= 0 ? 'Available' : 'Insufficient';
+        const statusColor = remainingQuantity >= 0 ? '#2E7D32' : '#DC2626';
+
+        // Update the inventory status HTML generation
+        const inventoryStatusHtml = `
+            <style>
+                @keyframes pulse {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 ${statusColor}40 }
+                    70% { transform: scale(1); box-shadow: 0 0 0 4px ${statusColor}00 }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 ${statusColor}00 }
+                }
+            </style>
+            <div style="${INVENTORY_STYLES.container}">
+                <h2 style="${INVENTORY_STYLES.header}">
+                    Equipment Availability
+                </h2>
+                
+                <div style="${INVENTORY_STYLES.card}">
+                    <div style="${INVENTORY_STYLES.categoryName}">
+                        ${inventoryStatus.category_name}
+                    </div>
+
+                    <div style="${INVENTORY_STYLES.statusBadge(statusColor)}">
+                        <span style="${INVENTORY_STYLES.indicator(statusColor)}"></span>
+                        <span style="color: ${statusColor}; font-weight: 600; font-size: 0.875rem">
+                            ${availabilityStatus}
+                        </span>
+                    </div>
+
+                    <div style="${INVENTORY_STYLES.details}">
+                        <span style="${INVENTORY_STYLES.label}">Current Stock</span>
+                        <span style="${INVENTORY_STYLES.value}">${inventoryStatus.quantity_available}</span>
+
+                        <span style="${INVENTORY_STYLES.label}">Requested</span>
+                        <span style="${INVENTORY_STYLES.value} ${
+                            request.quantity_requested > inventoryStatus.quantity_available 
+                            ? 'color: #DC2626;' 
+                            : ''
+                        }">
+                            ${request.quantity_requested}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Show confirmation with inventory status
+        const result = await Swal.fire({
+          
+            html: `
+                ${inventoryStatusHtml}
+                <p style="${SWAL_CUSTOM_STYLES.message}">Do you want to approve this request?</p>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Yes, approve',
+            cancelButtonText: 'No, cancel',
+            customClass: {
+                popup: 'swal2-large'
+            },
+            confirmButtonColor: '#2E7D32',
+            cancelButtonColor: '#6B7280'
+        });
+
+        if (result.isConfirmed) {
+            // Show loading state
             Swal.fire({
-                title: 'Success!',
-                text: `Request ${requestId} has been approved.`,
-                icon: 'success',
-                confirmButtonText: 'OK'
-            }).then(() => {
+                title: 'Processing...',
+                html: 'Please wait while we approve the request.',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Proceed with the approval
+            const response = await fetch(`/admin/update-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ request_id: requestId, status: 'approved' }),
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (data.message === 'Request status updated successfully') {
+                await Swal.fire({
+                    title: 'Success!',
+                    text: `Request ${requestId} has been approved.`,
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
                 fetchBorrowingRequestsData();
                 fetchApprovedRequestsData();
-            });
-        } else {
-            Swal.fire({
-                title: 'Error!',
-                text: `Failed to approve request: ${data.message}`,
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
+            } else {
+                throw new Error(data.message);
+            }
         }
-    })
-    .catch(error => {
-        isProcessing = false;
+    } catch (error) {
         Swal.fire({
             title: 'Error!',
-            text: 'An error occurred while approving the request.',
+            text: error.message || 'An error occurred while approving the request.',
             icon: 'error',
             confirmButtonText: 'OK'
         });
-        console.error(`Error approving request: ${error.message}`);
-    });
+        console.error('Error in approveRequest:', error);
+    } finally {
+        isProcessing = false;
+    }
 }
+
+
+// Add these style constants at the top of the file
+const INVENTORY_STYLES = {
+    container: `
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 1.25rem;
+        border-radius: 8px;
+        background: #ffffff;
+        max-width: 400px;
+        margin: auto;
+    `,
+    header: `
+        color: #2E7D32;
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        letter-spacing: -0.25px;
+    `,
+    card: `
+        background: #f8fafc;
+        padding: 1.25rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    `,
+    statusBadge: (color) => `
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: ${color}10;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        border: 1px solid ${color}30;
+    `,
+    indicator: (color) => `
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        background-color: ${color};
+        animation: pulse 2s infinite;
+    `,
+    details: `
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.75rem;
+        background: #ffffff;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    `,
+    label: `
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+    `,
+    value: `
+        color: #1e293b;
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: right;
+    `,
+    categoryName: `
+        color: #1e293b;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 1rem 0;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+    `
+};
+
+// Replace the existing SWAL_CUSTOM_STYLES with this simplified version
+const SWAL_CUSTOM_STYLES = {
+    message: `
+        color: #6B7280;
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+    `
+};
 
 function rejectRequest(requestId) {
     if (isProcessing) return;
