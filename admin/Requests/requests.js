@@ -19,9 +19,65 @@ async function getInventoryStatus(categoryId) {
     }
 }
 
+// Add these style definitions at the top with other constants
+const LOADING_STYLES = {
+    overlay: `
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+    `,
+    spinner: `
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        margin-left: 0.5rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    `
+};
+
+// Add this CSS animation to your existing styles
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .row-processing {
+            pointer-events: none;
+            opacity: 0.7;
+            background-color: #f8f9fa !important;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+    </style>
+`);
+
 // Modified approveRequest function
 async function approveRequest(requestId) {
     if (isProcessing) return;
+    
+    // Find and disable the row
+    const row = document.querySelector(`tr[data-request-id="${requestId}"]`);
+    if (row) {
+        row.classList.add('row-processing');
+        const actionCell = row.querySelector('td:last-child');
+        if (actionCell) {
+            const spinner = document.createElement('span');
+            spinner.className = 'loading-spinner';
+            actionCell.appendChild(spinner);
+        }
+    }
     
     isProcessing = true;
 
@@ -156,6 +212,14 @@ async function approveRequest(requestId) {
         console.error('Error in approveRequest:', error);
     } finally {
         isProcessing = false;
+        // Re-enable the row and remove the spinner
+        if (row) {
+            row.classList.remove('row-processing');
+            const spinner = row.querySelector('.loading-spinner');
+            if (spinner) {
+                spinner.remove();
+            }
+        }
     }
 }
 
