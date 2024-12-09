@@ -1,14 +1,14 @@
 const TIME_STATUS_STYLES = {
   OVERDUE: {
-    backgroundColor: 'rgba(220, 53, 69, 0.1)',  // Red
+    backgroundColor: 'rgba(220, 53, 69, 0.15)',  // Increased from 0.1 to 0.15
     cursor: 'pointer'
   },
   DUE_30: {
-    backgroundColor: 'rgba(255, 193, 7, 0.1)',  // Yellow
+    backgroundColor: 'rgba(255, 193, 7, 0.15)',  // Increased from 0.1 to 0.15
     cursor: 'pointer'
   },
   DUE_60: {
-    backgroundColor: 'rgba(23, 162, 184, 0.1)', // Light Blue
+    backgroundColor: 'rgba(23, 162, 184, 0.15)', // Increased from 0.1 to 0.15
     cursor: 'pointer'
   }
 };
@@ -28,6 +28,11 @@ function isOverdue(request) {
 }
 
 function getRowStyle(request) {
+  // Only apply styles for ongoing requests
+  if (request.status !== 'ongoing') {
+    return {};
+  }
+
   // Convert backend minutes into more usable format
   const returnDate = new Date(request.requested);
   const returnTime = request.return_time.split(':');
@@ -821,9 +826,9 @@ async function fetchApprovedRequestsData() {
       const rowStyle = getRowStyle(request);
       Object.assign(row.style, rowStyle);
       
-      // Add click handler for rows with time status, but exclude buttons
-      if (isOverdue(request) || 
-          (request.status === 'ongoing' && Object.keys(getRowStyle(request)).length > 0)) {
+      // Add click handler ONLY for ongoing requests with time status
+      if (request.status === 'ongoing' && 
+          (isOverdue(request) || Object.keys(getRowStyle(request)).length > 0)) {
         row.style.cursor = 'pointer';
         row.addEventListener('click', (event) => {
           // Check if the click was on a button
