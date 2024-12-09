@@ -610,6 +610,6 @@ module.exports = {
   getActiveRequests: adminActions.getActiveRequests,
   getStatusCounts: adminActions.getStatusCounts,
   updateRequestDetails: adminActions.updateRequestDetails,
-  updateBatchRequestStatus: adminActions.updateBatchRequestStatus
-
+  updateBatchRequestStatus: adminActions.updateBatchRequestStatus,
+  checkAndNotifyOverdueItems: adminActions.checkAndNotifyOverdueItems
 };

@@ -87,6 +87,7 @@ CREATE TABLE admin_log (
     time_returned TIME,
     received_by VARCHAR(255),
     remarks TEXT,
+    last_notification_sent TIMESTAMP,
     FOREIGN KEY (equipment_category_id) REFERENCES equipment_categories(category_id),
     FOREIGN KEY (batch_id) REFERENCES request_history(batch_id)
 );

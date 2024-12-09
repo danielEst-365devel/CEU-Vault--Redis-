@@ -1,43 +1,29 @@
-// const mysql = require('mysql2/promise');
-
-// const db = mysql.createPool({
-//     host: "localhost",
-//     user: "root",
-//     database: "tlts_system"
-// });
-
-// const connectDatabase = async () => {
-//     try {
-//         await db.getConnection();
-//         console.log("Database is connected successfully.");
-//     } catch (error) {
-//         console.log("Database connection has an error.", error);
-//     }
-// };
-
-// module.exports = {
-//     db,
-//     connectDatabase
-// };
-
-// For Vercel PostgreSQL
 require('dotenv').config();
 
 const { Pool } = require('pg');
 
-const db = new Pool({
+const pool = new Pool({
     user: process.env.POSTGRES_USER,
     host: process.env.POSTGRES_HOST,
     database: process.env.POSTGRES_DATABASE,
     password: process.env.POSTGRES_PASSWORD,
     ssl: {
         rejectUnauthorized: false
+    },
+    timezone: 'Asia/Manila',
+    sessionConfig: {
+        timezone: 'Asia/Manila'
     }
+});
+
+// Add timezone setting for each new client
+pool.on('connect', (client) => {
+    client.query('SET timezone = "Asia/Manila"');
 });
 
 const connectDatabase = async () => {
     try {
-        const client = await db.connect();
+        const client = await pool.connect();
         console.log("Database is connected successfully.");
         client.release();
     } catch (error) {
@@ -46,6 +32,6 @@ const connectDatabase = async () => {
 };
 
 module.exports = {
-    db,
+    db: pool,
     connectDatabase
 };

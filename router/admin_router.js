@@ -33,4 +33,5 @@ adminRouter.get('/get-active-requests', adminController.getActiveRequests);
 adminRouter.get('/get-status-counts', adminController.getStatusCounts); 
 adminRouter.post('/update-request-details', adminController.updateRequestDetails); 
 adminRouter.post('/update-batch-status', adminController.updateBatchRequestStatus); 
+adminRouter.post('/check-overdue', adminController.checkAndNotifyOverdueItems);
 module.exports = adminRouter;

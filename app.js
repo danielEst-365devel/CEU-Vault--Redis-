@@ -13,6 +13,7 @@ const path = require('path');
 const prodRouter = require('./router/public_router')
 const adminRouter = require('./router/admin_router')
 const { authenticateToken } = require('./controllers/admin_controller');
+const { checkAndNotifyOverdueItems } = require('./controllers/admin_actions');
 
 app.use(cookieParser()); //tokens
 
@@ -106,5 +107,8 @@ app.use((error, req, res, next) => {
         }
     })
 })
+
+// Schedule overdue checks every minute
+setInterval(checkAndNotifyOverdueItems, 5000); // 60000 ms = 1 minute
 
 module.exports = app

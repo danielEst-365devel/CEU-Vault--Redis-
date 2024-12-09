@@ -175,7 +175,51 @@ const emailTemplates = {
       <p style="font-size: 14px; color: #555; margin: 5px 0;">Purpose: ${details.purpose}</p>
       <p style="font-size: 14px; color: #555; margin: 5px 0;">Venue: ${details.venue}</p>
     </div>
-  `
+  `,
+    overdueNotification: (details) => `
+    <div style="${EMAIL_STYLES.container}">
+        <h1 style="${EMAIL_STYLES.header}">CEU Vault - Overdue Equipment Notice</h1>
+        
+        <div style="background-color: #ffebee; border-left: 4px solid #c62828; padding: 20px; margin: 20px 0; border-radius: 4px;">
+            <h2 style="color: #c62828; margin: 0 0 10px 0;">⚠️ OVERDUE NOTICE</h2>
+            <p style="margin: 0; color: #333;">Your borrowed equipment is now overdue.</p>
+        </div>
+
+        <table style="${EMAIL_STYLES.table}">
+            <tr>
+                <th style="${EMAIL_STYLES.tableHeader}">Equipment</th>
+                <th style="${EMAIL_STYLES.tableHeader}">Quantity</th>
+                <th style="${EMAIL_STYLES.tableHeader}">Due Date</th>
+                <th style="${EMAIL_STYLES.tableHeader}">Due Time</th>
+                <th style="${EMAIL_STYLES.tableHeader}">Overdue Duration</th>
+                <th style="${EMAIL_STYLES.tableHeader}">Current Penalty</th>
+            </tr>
+            <tr>
+                <td style="${EMAIL_STYLES.tableCell}">${details.equipment}</td>
+                <td style="${EMAIL_STYLES.tableCell}">${details.quantity}</td>
+                <td style="${EMAIL_STYLES.tableCell}">${details.dueDate}</td>
+                <td style="${EMAIL_STYLES.tableCell}">${details.dueTime}</td>
+                <td style="${EMAIL_STYLES.tableCell}">${details.overdueDuration}</td>
+                <td style="${EMAIL_STYLES.tableCell}">₱${details.penalty}</td>
+            </tr>
+        </table>
+
+        <div style="background-color: #fff3e0; padding: 20px; border-radius: 4px; margin: 20px 0;">
+            <p style="color: #e65100; font-weight: bold; margin: 0 0 10px 0;">⏰ Penalty System:</p>
+            <ul style="margin: 0; color: #333; padding-left: 20px;">
+                <li>Penalties are charged per completed hour of being overdue</li>
+                <li>Each hour incurs a ₱100 penalty</li>
+                <li>No penalty is charged for the first 59 minutes of being overdue</li>
+                <li>Example: 1 hour and 5 minutes overdue = ₱100 penalty</li>
+                <li>Example: 2 hours and 30 minutes overdue = ₱200 penalty</li>
+            </ul>
+        </div>
+
+        <p style="color: #333; margin-top: 20px;">
+            For immediate assistance, please contact the TLTS office.
+        </p>
+    </div>
+    `
 };
 
 // Helper function to format time to 'HH:MM:SS'
@@ -1069,8 +1113,8 @@ const getActiveRequests = async (req, res) => {
         const rows = requestsResult.rows.map(row => ({
             ...row,
             penalty_amount: parseInt(row.penalty_amount) || 0,
-            formatted_penalty: row.penalty_amount ? 
-                `₱${parseInt(row.penalty_amount).toLocaleString()}` : 
+            formatted_penalty: row.penalty_amount ?
+                `₱${parseInt(row.penalty_amount).toLocaleString()}` :
                 '₱0',
             time_status: getTimeStatus(row.overdue_minutes, row.minutes_until_overdue),
             formatted_duration: formatDuration(row.overdue_minutes, row.minutes_until_overdue)
@@ -1110,16 +1154,16 @@ const getTimeStatus = (overdueMinutes, minutesUntilOverdue) => {
 const formatDuration = (overdueMinutes, minutesUntilOverdue) => {
     const formatTime = (minutes) => {
         if (minutes === null) return '';
-        
+
         const days = Math.floor(minutes / (24 * 60));
         const hours = Math.floor((minutes % (24 * 60)) / 60);
         const mins = Math.floor(minutes % 60);
-        
+
         const parts = [];
         if (days > 0) parts.push(`${days}d`);
         if (hours > 0) parts.push(`${hours}h`);
         if (mins > 0) parts.push(`${mins}m`);
-        
+
         return parts.join(' ') || '0m';
     };
 
@@ -1729,6 +1773,112 @@ const updateRequestDetails = async (req, res) => {
     }
 };
 
+const checkAndNotifyOverdueItems = async () => {
+    const client = await db.connect();
+    try {
+        await client.query("SET timezone = 'Asia/Manila'");
+
+        const query = `
+            WITH OverdueCalculation AS (
+                SELECT 
+                    al.*,
+                    ec.category_name,
+                    CASE
+                        WHEN status = 'ongoing' AND (
+                            requested < CURRENT_DATE OR 
+                            (requested = CURRENT_DATE AND CURRENT_TIME > return_time::TIME)
+                        ) THEN
+                            FLOOR(  -- Only count completed hours
+                                EXTRACT(EPOCH FROM (
+                                    CURRENT_TIMESTAMP - 
+                                    (requested::DATE + return_time::TIME)
+                                )) / 3600
+                            ) * 100
+                        ELSE 0
+                    END as penalty_amount,
+                    EXTRACT(EPOCH FROM (
+                        CURRENT_TIMESTAMP - 
+                        (requested::DATE + return_time::TIME)
+                    )) / 60 as minutes_overdue
+                FROM admin_log al
+                JOIN equipment_categories ec ON al.equipment_category_id = ec.category_id
+                WHERE 
+                    al.status = 'ongoing'
+                    AND CURRENT_TIMESTAMP > (al.requested + al.return_time::TIME)
+                    AND (
+                        al.last_notification_sent IS NULL 
+                        OR 
+                        CURRENT_TIMESTAMP - al.last_notification_sent >= INTERVAL '1 hour'
+                    )
+            )
+            SELECT *
+            FROM OverdueCalculation
+            WHERE minutes_overdue > 0
+            ORDER BY minutes_overdue DESC
+        `;
+
+        const { rows: overdueItems } = await client.query(query);
+
+        for (const item of overdueItems) {
+            const minutesOverdue = Math.floor(item.minutes_overdue);
+            const hours = Math.floor(minutesOverdue / 60);
+            const minutes = minutesOverdue % 60;
+            const penalty = item.penalty_amount;
+
+            const dueDateTime = new Date(item.requested);
+            const [dueHours, dueMinutes] = item.return_time.split(':');
+            dueDateTime.setHours(parseInt(dueHours, 10), parseInt(dueMinutes, 10), 0);
+
+            const overdueDuration = hours > 0
+                ? `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`
+                : `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+
+            const emailDetails = {
+                equipment: item.category_name,
+                quantity: item.quantity_requested,
+                dueDate: dueDateTime.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }),
+                dueTime: dueDateTime.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                }),
+                overdueDuration: overdueDuration,
+                penalty: penalty
+            };
+
+            try {
+                await transporter.sendMail({
+                    from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_USER}>`,
+                    to: item.email,
+                    subject: '🚨 OVERDUE EQUIPMENT NOTICE - Action Required',
+                    html: emailTemplates.overdueNotification(emailDetails)
+                });
+
+                await client.query(
+                    'UPDATE admin_log SET last_notification_sent = CURRENT_TIMESTAMP WHERE log_id = $1',
+                    [item.log_id]
+                );
+
+                console.log(`Overdue notification sent to ${item.email} for ${item.category_name} (${overdueDuration} overdue)`);
+            } catch (emailError) {
+                console.error('Failed to send overdue notification:', emailError, {
+                    logId: item.log_id,
+                    email: item.email,
+                    overdueDuration: overdueDuration
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error checking overdue items:', error);
+    } finally {
+        client.release();
+    }
+};
 
 module.exports = {
     updateRequestStatus,
@@ -1749,5 +1899,6 @@ module.exports = {
     generateInventoryPDF,
     getStatusCounts,
     updateRequestDetails,
-    updateBatchRequestStatus
+    updateBatchRequestStatus,
+    checkAndNotifyOverdueItems
 };
