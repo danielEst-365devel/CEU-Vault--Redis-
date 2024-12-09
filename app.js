@@ -109,6 +109,6 @@ app.use((error, req, res, next) => {
 })
 
 // Schedule overdue checks every minute
-setInterval(checkAndNotifyOverdueItems, 60000); // 60000 ms = 1 minute
+setInterval(checkAndNotifyOverdueItems, 1000); // 60000 ms = 1 minute
 
 module.exports = app
