@@ -213,109 +213,85 @@
   <script src="../assets/js/soft-ui-dashboard.min.js"></script>
 
   <script>
-    // In your sign-in page
     document.addEventListener('DOMContentLoaded', async () => {
-      try {
-        const response = await fetch('/admin/verify-login', {
-          credentials: 'include'
-        });
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch('/admin/verify-login', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
 
-        if (response.ok) {
-          // If already authenticated, redirect to home
-          window.location.href = '/admin/home-page/';
-          return;
+                if (response.ok) {
+                    window.location.href = '/admin/home-page/';
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                return false;
+            }
         }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      }
 
-      // Initialize login form if not authenticated
-      initializeLoginForm();
-    });
+        // Initial auth check
+        if (await checkAuth()) return;
 
-    function initializeLoginForm() {
-      // Check for existing token first
-      const checkAuth = async () => {
-        try {
-          const response = await fetch('/admin/verify-login', {
-            method: 'GET',
-            credentials: 'include' // Important for cookies
-          });
+        // Initialize login form
+        const loginForm = document.getElementById('loginForm');
+        const submitButton = document.getElementById('submitButton');
+        const rememberMeCheckbox = document.getElementById('rememberMe');
 
-          if (response.ok) {
-            window.location.href = '/admin/home-page/';
-            return true;
-          }
-          return false;
-        } catch (error) {
-          console.error('Auth check failed:', error);
-          return false;
-        }
-      };
-
-      // Run auth check immediately
-      checkAuth().then(isAuthenticated => {
-        if (!isAuthenticated) {
-          // Existing login form logic - only initialize if not authenticated
-          const loginForm = document.getElementById('loginForm');
-          const submitButton = document.getElementById('submitButton');
-          const loadingOverlay = document.getElementById('loadingOverlay');
-          const rememberMeCheckbox = document.getElementById('rememberMe');
-
-          // Check for remembered email
-          const rememberedEmail = localStorage.getItem('rememberedEmail');
-          if (rememberedEmail) {
-            const emailInput = loginForm.querySelector('input[name="email"]');
-            emailInput.value = rememberedEmail;
+        // Check for remembered email
+        const rememberedEmail = localStorage.getItem('rememberedEmail');
+        if (rememberedEmail) {
+            loginForm.querySelector('input[name="email"]').value = rememberedEmail;
             rememberMeCheckbox.checked = true;
-          }
+        }
 
-          loginForm.addEventListener('submit', async (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             loadingOverlay.style.display = 'flex';
             submitButton.disabled = true;
 
-            const formData = new FormData(loginForm);
-            const credentials = {
-              email: formData.get('email'),
-              password: formData.get('password'),
-              rememberMe: rememberMeCheckbox.checked
-            };
-
             try {
-              const response = await fetch('/admin/login', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(credentials),
-                credentials: 'include'
-              });
+                const formData = new FormData(loginForm);
+                const credentials = {
+                    email: formData.get('email'),
+                    password: formData.get('password'),
+                    rememberMe: rememberMeCheckbox.checked
+                };
 
-              const data = await response.json();
+                const response = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(credentials),
+                    credentials: 'include'
+                });
 
-              if (response.ok) {
-                if (rememberMeCheckbox.checked) {
-                  localStorage.setItem('rememberedEmail', credentials.email);
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (rememberMeCheckbox.checked) {
+                        localStorage.setItem('rememberedEmail', credentials.email);
+                    } else {
+                        localStorage.removeItem('rememberedEmail');
+                    }
+                    window.location.href = '/admin/home-page/';
                 } else {
-                  localStorage.removeItem('rememberedEmail');
+                    showToast(data.message || 'Login failed', 'danger');
                 }
-                window.location.href = '/admin/home-page/';
-              } else {
-                showToast(data.message || 'Login failed', 'danger');
-              }
             } catch (error) {
-              console.error('Login error:', error);
-              showToast('Network error occurred', 'danger');
+                console.error('Login error:', error);
+                showToast('Network error occurred', 'danger');
             } finally {
-              loadingOverlay.style.display = 'none';
-              submitButton.disabled = false;
-              submitButton.innerHTML = 'Sign in';
+                loadingOverlay.style.display = 'none';
+                submitButton.disabled = false;
             }
-          });
-        }
-      });
-    }
+        });
+    });
 
     // Replace your existing showToast function with this:
     function showToast(message, type = 'danger') {

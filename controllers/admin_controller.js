@@ -588,6 +588,79 @@ const confirmAdmin = async (req, res) => {
   }
 };
 
+const login = async (req, res) => {
+  const { email, password, rememberMe } = req.body;
+
+  try {
+      const results = await db.query('SELECT * FROM admins WHERE email = $1', [email]);
+      const admin = results.rows[0];
+
+      if (!admin || !admin.password_hash) {
+          return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      const isMatch = await bcrypt.compare(password, admin.password_hash);
+      if (!isMatch) {
+          return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      const expiresIn = rememberMe ? '7d' : '1h';
+      const token = jwt.sign(
+          { id: admin.admin_id, email: admin.email },
+          JWT_SECRET,
+          { expiresIn }
+      );
+
+      // Convert expiration time to milliseconds
+      const maxAge = rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+
+      res.cookie('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: maxAge,
+          path: '/'
+      });
+
+      res.status(200).json({ 
+          message: 'Login successful',
+          user: {
+              id: admin.admin_id,
+              email: admin.email,
+              name: admin.name
+          }
+      });
+  } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const verifyLogin = async (req, res) => {
+  try {
+      const token = req.cookies.token;
+
+      if (!token) {
+          return res.status(401).json({ message: 'No token found' });
+      }
+
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const admin = await db.query('SELECT admin_id, email, name FROM admins WHERE admin_id = $1', [decoded.id]);
+
+      if (!admin.rows[0]) {
+          return res.status(401).json({ message: 'Invalid token' });
+      }
+
+      res.status(200).json({ 
+          authenticated: true,
+          user: admin.rows[0]
+      });
+  } catch (error) {
+      console.error('Token verification error:', error);
+      res.status(401).json({ message: 'Invalid token' });
+  }
+};
+
 module.exports = {
   createAdmin,
   approveAdmin,
@@ -601,7 +674,8 @@ module.exports = {
   authenticateToken: adminActions.authenticateToken,
   verifyToken: adminActions.verifyToken,
   getReceipts: adminActions.getReceipts,
-  login: adminActions.login,
+  login,
+  verifyLogin,
   updateEquipmentCategory: adminActions.updateEquipmentCategory,
   deleteEquipmentCategory: adminActions.deleteEquipmentCategory,
   addEquipmentCategory: adminActions.addEquipmentCategory,
